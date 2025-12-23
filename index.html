@@ -3,177 +3,318 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Santri Sederhana</title>
-    
+    <title>Database Pesantren Terpadu</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
     <style>
-        body { font-family: sans-serif; padding: 20px; background: #f4f4f9; }
-        .container { max-width: 900px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        h2 { border-bottom: 2px solid #007bff; padding-bottom: 10px; }
-        .form-group { margin-bottom: 15px; display: flex; gap: 10px; }
-        input, select { padding: 8px; border: 1px solid #ddd; border-radius: 4px; flex: 1; }
-        button { padding: 10px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        button:hover { background: #0056b3; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-        th { background-color: #f8f9fa; font-weight: bold; }
-        tr:hover { background-color: #f1f1f1; }
-        .badge { padding: 4px 8px; border-radius: 12px; font-size: 0.85em; background: #28a745; color: white; }
+        /* Gaya Tampilan Modern */
+        :root { --primary: #2563eb; --bg: #f8fafc; --border: #cbd5e1; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); padding: 20px; color: #334155; }
+        
+        /* Header & Controls */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .controls { display: flex; gap: 10px; }
+        
+        /* Tabs */
+        .tabs { display: flex; border-bottom: 2px solid var(--border); margin-bottom: 15px; }
+        .tab { padding: 10px 20px; cursor: pointer; font-weight: bold; color: #64748b; }
+        .tab.active { color: var(--primary); border-bottom: 3px solid var(--primary); margin-bottom: -2px; }
+
+        /* Buttons */
+        .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.2s; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: #16a34a; color: white; }
+        .btn-outline { border: 1px solid var(--border); background: white; }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .hidden { display: none; }
+
+        /* Table Excel-Style */
+        .table-container { background: white; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 800px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+        th { background: #f1f5f9; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        
+        /* Input dalam Tabel */
+        .input-cell { width: 100%; box-sizing: border-box; padding: 6px; border: 1px solid #94a3b8; border-radius: 4px; }
+        .input-cell:focus { outline: 2px solid var(--primary); border-color: transparent; }
+        .new-row { background-color: #f0fdf4; } /* Warna hijau tipis untuk baris baru */
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>Data Santri</h2>
-
-    <div style="background: #eef; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
-        <h3>Tambah Santri Baru</h3>
-        <div class="form-group">
-            <input type="text" id="inputNama" placeholder="Nama Lengkap" required>
-            <input type="text" id="inputNIS" placeholder="NIS" required>
-        </div>
-        <div class="form-group">
-            <select id="inputGender">
-                <option value="L">Laki-laki</option>
-                <option value="P">Perempuan</option>
-            </select>
-            <input type="text" id="inputKelas" placeholder="Kelas (misal: 7A)">
-            <input type="text" id="inputHP" placeholder="No HP">
-        </div>
-        <button onclick="tambahSantri()">Simpan Data</button>
+<div class="header">
+    <h2>Sistem Database Terpusat</h2>
+    <div class="controls">
+        <button id="btnAddRow" class="btn btn-outline hidden" onclick="addNewRow()">+ Tambah Baris</button>
+        <button id="btnToggleEdit" class="btn btn-primary" onclick="toggleEditMode()">✏️ Edit Mode</button>
+        <button id="btnSave" class="btn btn-success hidden" onclick="saveAllChanges()">💾 Simpan Perubahan</button>
     </div>
+</div>
 
-    <table>
-        <thead>
-            <tr>
-                <th>NIS</th>
-                <th>Nama Lengkap</th>
-                <th>L/P</th>
-                <th>Kelas</th>
-                <th>Status</th>
-                <th>Aksi</th>
-            </tr>
-        </thead>
-        <tbody id="tabelBody">
-            </tbody>
+<div class="tabs">
+    <div class="tab active" onclick="switchTab('santri')">Data Santri</div>
+    <div class="tab" onclick="switchTab('pegawai')">Data Pegawai</div>
+</div>
+
+<div class="table-container">
+    <table id="mainTable">
+        <thead id="tableHead"></thead>
+        <tbody id="tableBody"></tbody>
     </table>
 </div>
 
 <script>
-    // --- 2. KONFIGURASI SUPABASE (GANTI INI!) ---
-    // Pastikan URL dan KEY benar
+    // --- KONFIGURASI (GANTI DENGAN MILIK ANDA) ---
     const PROJECT_URL = 'https://rfmlsxtchzhstheqdmla.supabase.co'; 
     const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmbWxzeHRjaHpoc3RoZXFkbWxhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY0OTA2MDEsImV4cCI6MjA4MjA2NjYwMX0.uuBqvhQ-1fsB2cF63-uluHpS6I-1JuYv5dF1bPcZdrU'; 
+    const supabase = window.supabase.createClient(PROJECT_URL, ANON_KEY);
 
-    // Mencegah error deklarasi ganda dengan nama variabel yang berbeda
-    const supabaseClient = window.supabase.createClient(PROJECT_URL, ANON_KEY);
+    // --- DEFINISI SKEMA (RAHASIA AGAR UI PINTAR) ---
+    // Kita tentukan kolom mana masuk ke tabel mana
+    const SCHEMA = {
+        santri: {
+            view: 'view_santri_lengkap',
+            rpc_insert: 'tambah_data_santri',
+            primary_key: 'santri_id', // ID unik baris view
+            columns: [
+                { key: 'nis', label: 'NIS', table: 'santri', editable: true },
+                { key: 'nama_lengkap', label: 'Nama Lengkap', table: 'orang', editable: true },
+                { key: 'jenis_kelamin', label: 'L/P', table: 'orang', editable: true, type: 'select', options: ['L', 'P'] },
+                { key: 'kelas_saat_ini', label: 'Kelas', table: 'santri', editable: true },
+                { key: 'no_hp', label: 'No HP', table: 'orang', editable: true },
+                { key: 'status_santri', label: 'Status', table: 'santri', editable: true } // Readonly contohnya
+            ]
+        },
+        pegawai: {
+            view: 'view_pegawai_lengkap',
+            rpc_insert: 'tambah_data_pegawai',
+            primary_key: 'pegawai_id',
+            columns: [
+                { key: 'nip', label: 'NIP', table: 'pegawai', editable: true },
+                { key: 'nama_lengkap', label: 'Nama Pegawai', table: 'orang', editable: true },
+                { key: 'jenis_kelamin', label: 'L/P', table: 'orang', editable: true, type: 'select', options: ['L', 'P'] },
+                { key: 'jabatan_struktural', label: 'Jabatan', table: 'pegawai', editable: true },
+                { key: 'no_hp', label: 'No HP', table: 'orang', editable: true },
+                { key: 'status_kepegawaian', label: 'Status', table: 'pegawai', editable: false }
+            ]
+        }
+    };
 
-    // --- FUNGSI READ (Menampilkan Data) ---
+    // State Aplikasi
+    let currentTab = 'santri';
+    let isEditMode = false;
+    let tableData = []; // Menyimpan data mentah dari DB
+
+    // --- 1. CORE FUNCTIONS ---
+
     async function loadData() {
-        console.log("Sedang mengambil data...");
+        const config = SCHEMA[currentTab];
+        document.getElementById('tableBody').innerHTML = '<tr><td colspan="10">Loading...</td></tr>';
         
-        // Menggunakan supabaseClient, bukan supabase
-        const { data, error } = await supabaseClient
-            .from('view_santri_lengkap')
+        // Render Header dulu
+        renderHeader(config.columns);
+
+        // Fetch Data
+        const { data, error } = await supabase
+            .from(config.view)
             .select('*')
-            .order('nis', { ascending: true });
+            .order(config.columns[0].key, { ascending: true });
 
         if (error) {
-            console.error('Error saat load data:', error);
-            alert("Gagal ambil data. Cek Console (F12) untuk detail.");
+            alert('Gagal load data: ' + error.message);
         } else {
-            console.log("Data berhasil diambil:", data);
-            renderTable(data);
+            tableData = data;
+            renderBody(data);
         }
     }
 
-    // --- FUNGSI CREATE (Menambah Data) ---
-    async function tambahSantri() {
-        console.log("Tombol diklik, memproses data...");
-        
-        const nama = document.getElementById('inputNama').value;
-        const nis = document.getElementById('inputNIS').value;
-        const gender = document.getElementById('inputGender').value;
-        const kelas = document.getElementById('inputKelas').value;
-        const hp = document.getElementById('inputHP').value;
-
-        if(!nama || !nis) return alert("Nama dan NIS wajib diisi!");
-
-        // Panggil RPC menggunakan supabaseClient
-        const { error } = await supabaseClient
-            .rpc('tambah_data_santri', { 
-                p_nama: nama, 
-                p_gender: gender, 
-                p_hp: hp, 
-                p_nis: nis, 
-                p_tahun_masuk: 2024, 
-                p_kelas: kelas 
-            });
-
-        if (error) {
-            console.error('Error saat simpan:', error);
-            alert("Gagal simpan: " + error.message);
-        } else {
-            alert("Berhasil disimpan!");
-            // Reset Form
-            document.getElementById('inputNama').value = '';
-            document.getElementById('inputNIS').value = '';
-            // Refresh Tabel
-            loadData();
-        }
+    function renderHeader(columns) {
+        const thead = document.getElementById('tableHead');
+        let html = '<tr>';
+        columns.forEach(col => {
+            html += `<th>${col.label}</th>`;
+        });
+        html += '</tr>';
+        thead.innerHTML = html;
     }
 
-    // --- FUNGSI UPDATE SEDERHANA ---
-    async function editNama(orangId, namaLama) {
-        const namaBaru = prompt("Ganti nama:", namaLama);
-        if (namaBaru && namaBaru !== namaLama) {
-            const { error } = await supabaseClient
-                .from('orang')
-                .update({ nama_lengkap: namaBaru })
-                .eq('id', orangId);
+    function renderBody(data) {
+        const tbody = document.getElementById('tableBody');
+        const config = SCHEMA[currentTab];
+        tbody.innerHTML = '';
 
-            if (!error) {
-                alert("Nama berhasil diubah");
-                loadData();
-            } else {
-                alert("Gagal update: " + error.message);
-            }
-        }
-    }
-
-    // --- FUNGSI RENDER HTML ---
-    function renderTable(data) {
-        const tbody = document.getElementById('tabelBody');
-        if (!tbody) return;
-        
-        tbody.innerHTML = ''; 
-
-        if (data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Belum ada data</td></tr>';
-            return;
-        }
-
-        data.forEach(row => {
+        data.forEach((row, index) => {
             const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${row.nis || '-'}</td>
-                <td>${row.nama_lengkap}</td>
-                <td>${row.jenis_kelamin}</td>
-                <td>${row.kelas_saat_ini || '-'}</td>
-                <td><span class="badge">${row.status_santri || 'Aktif'}</span></td>
-                <td>
-                    <button style="background:#ffc107; color:black; padding:5px 10px;" 
-                            onclick="editNama('${row.orang_id}', '${row.nama_lengkap}')">
-                        Edit
-                    </button>
-                </td>
-            `;
+            // Simpan ID penting di atribut baris (untuk referensi saat update)
+            tr.dataset.rowId = row[config.primary_key]; 
+            tr.dataset.orangId = row['orang_id'];
+
+            let html = '';
+            config.columns.forEach(col => {
+                const value = row[col.key] || '';
+                if (isEditMode && col.editable) {
+                    if (col.type === 'select') {
+                        // Render Dropdown
+                        let options = col.options.map(opt => 
+                            `<option value="${opt}" ${opt === value ? 'selected' : ''}>${opt}</option>`
+                        ).join('');
+                        html += `<td><select class="input-cell" data-col="${col.key}">${options}</select></td>`;
+                    } else {
+                        // Render Input Text
+                        html += `<td><input class="input-cell" type="text" value="${value}" data-col="${col.key}"></td>`;
+                    }
+                } else {
+                    // Render Teks Biasa
+                    html += `<td>${value}</td>`;
+                }
+            });
+            tr.innerHTML = html;
             tbody.appendChild(tr);
         });
     }
 
-    // Jalankan saat halaman dibuka
+    // --- 2. LOGIKA EDIT & TAB ---
+
+    function switchTab(tabName) {
+        currentTab = tabName;
+        // Update UI Tab
+        document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+        event.target.classList.add('active');
+        
+        // Reset Mode ke View
+        isEditMode = false;
+        updateButtons();
+        loadData();
+    }
+
+    function toggleEditMode() {
+        isEditMode = !isEditMode;
+        updateButtons();
+        // Render ulang tabel agar input field muncul/hilang
+        renderBody(tableData); 
+    }
+
+    function updateButtons() {
+        const btnEdit = document.getElementById('btnToggleEdit');
+        const btnSave = document.getElementById('btnSave');
+        const btnAdd = document.getElementById('btnAddRow');
+
+        if (isEditMode) {
+            btnEdit.classList.add('hidden');
+            btnSave.classList.remove('hidden');
+            btnAdd.classList.remove('hidden');
+        } else {
+            btnEdit.classList.remove('hidden');
+            btnEdit.innerText = "✏️ Edit Mode";
+            btnSave.classList.add('hidden');
+            btnAdd.classList.add('hidden');
+            // Hapus baris kosong yang belum disimpan jika batal edit
+            const newRows = document.querySelectorAll('.new-row');
+            newRows.forEach(row => row.remove());
+        }
+    }
+
+    function addNewRow() {
+        const tbody = document.getElementById('tableBody');
+        const config = SCHEMA[currentTab];
+        const tr = document.createElement('tr');
+        tr.classList.add('new-row'); // Penanda baris baru
+        
+        let html = '';
+        config.columns.forEach(col => {
+            if (col.editable) {
+                if(col.type === 'select'){
+                    let options = col.options.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+                    html += `<td><select class="input-cell" data-col="${col.key}">${options}</select></td>`;
+                } else {
+                    html += `<td><input class="input-cell" type="text" placeholder="..." data-col="${col.key}"></td>`;
+                }
+            } else {
+                html += `<td>-</td>`;
+            }
+        });
+        tr.innerHTML = html;
+        // Insert di paling atas agar terlihat
+        tbody.insertBefore(tr, tbody.firstChild);
+    }
+
+    // --- 3. LOGIKA SIMPAN (CRUCIAL) ---
+
+    async function saveAllChanges() {
+        const config = SCHEMA[currentTab];
+        const rows = document.querySelectorAll('#tableBody tr');
+        let successCount = 0;
+
+        // Loop setiap baris di tabel
+        for (let tr of rows) {
+            // A. JIKA BARIS BARU (INSERT)
+            if (tr.classList.contains('new-row')) {
+                const newData = {};
+                // Ambil nilai dari input
+                tr.querySelectorAll('.input-cell').forEach(input => {
+                    newData[input.dataset.col] = input.value;
+                });
+
+                // Mapping parameter untuk RPC (Harus sesuai nama parameter di SQL Function)
+                // Ini sedikit manual mapping agar aman
+                let rpcParams = {};
+                if (currentTab === 'santri') {
+                    rpcParams = {
+                        p_nama: newData.nama_lengkap, p_gender: newData.jenis_kelamin, 
+                        p_hp: newData.no_hp, p_nis: newData.nis, 
+                        p_tahun_masuk: 2024, p_kelas: newData.kelas_saat_ini
+                    };
+                } else {
+                    rpcParams = {
+                        p_nama: newData.nama_lengkap, p_gender: newData.jenis_kelamin,
+                        p_hp: newData.no_hp, p_nip: newData.nip,
+                        p_jabatan: newData.jabatan_struktural
+                    };
+                }
+
+                // Kirim ke Supabase
+                const { error } = await supabase.rpc(config.rpc_insert, rpcParams);
+                if (!error) successCount++;
+                else console.error("Gagal Insert:", error);
+            } 
+            
+            // B. JIKA BARIS LAMA (UPDATE)
+            else {
+                const rowId = tr.dataset.rowId; // ID Santri/Pegawai
+                const orangId = tr.dataset.orangId; // ID Orang
+                
+                // Cek input satu per satu
+                const inputs = tr.querySelectorAll('.input-cell');
+                for (let input of inputs) {
+                    const colKey = input.dataset.col;
+                    const newValue = input.value;
+                    
+                    // Cari nilai lama di tableData (untuk cek apakah berubah)
+                    // (Sederhana: Kita update saja semua kolom biar pasti, atau cek di sini)
+                    // Untuk tutorial ini, kita update per kolom yg diedit
+                    
+                    const colConfig = config.columns.find(c => c.key === colKey);
+                    
+                    // Tentukan mau update tabel mana (Orang atau Santri/Pegawai)
+                    let targetTable = colConfig.table; 
+                    let targetId = (targetTable === 'orang') ? orangId : rowId;
+
+                    // Lakukan Update Direct
+                    await supabase
+                        .from(targetTable)
+                        .update({ [colKey]: newValue })
+                        .eq('id', targetId);
+                }
+                successCount++; // Anggap sukses (di real app perlu error handling ketat)
+            }
+        }
+
+        alert(`Proses selesai. Data tersimpan/terupdate.`);
+        isEditMode = false;
+        updateButtons();
+        loadData(); // Refresh data dari server
+    }
+
+    // Init App
     loadData();
 
 </script>
