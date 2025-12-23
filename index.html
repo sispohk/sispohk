@@ -4,27 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem Santri Sederhana</title>
+    
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
-        /* CSS SEDERHANA UNTUK TAMPILAN */
         body { font-family: sans-serif; padding: 20px; background: #f4f4f9; }
         .container { max-width: 900px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         h2 { border-bottom: 2px solid #007bff; padding-bottom: 10px; }
-        
-        /* Form Styling */
         .form-group { margin-bottom: 15px; display: flex; gap: 10px; }
         input, select { padding: 8px; border: 1px solid #ddd; border-radius: 4px; flex: 1; }
         button { padding: 10px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
         button:hover { background: #0056b3; }
-        
-        /* Table Styling */
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
         th { background-color: #f8f9fa; font-weight: bold; }
         tr:hover { background-color: #f1f1f1; }
-        
-        /* Status Badge */
         .badge { padding: 4px 8px; border-radius: 12px; font-size: 0.85em; background: #28a745; color: white; }
     </style>
 </head>
@@ -67,35 +61,37 @@
 </div>
 
 <script>
-    // --- KONFIGURASI SUPABASE ---
-    // Ganti dengan URL dan Key dari Dashboard Supabase Anda
-    const supabaseUrl = 'https://rfmlsxtchzhstheqdmla.supabase.co'
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmbWxzeHRjaHpoc3RoZXFkbWxhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY0OTA2MDEsImV4cCI6MjA4MjA2NjYwMX0.uuBqvhQ-1fsB2cF63-uluHpS6I-1JuYv5dF1bPcZdrU'
-    const supabase = showSupabaseClient(supabaseUrl, supabaseKey)
+    // --- 2. KONFIGURASI SUPABASE (GANTI INI!) ---
+    // Pastikan URL dan KEY benar
+    const PROJECT_URL = 'https://rfmlsxtchzhstheqdmla.supabase.co'; 
+    const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmbWxzeHRjaHpoc3RoZXFkbWxhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY0OTA2MDEsImV4cCI6MjA4MjA2NjYwMX0.uuBqvhQ-1fsB2cF63-uluHpS6I-1JuYv5dF1bPcZdrU'; 
 
-    // Helper untuk load library supabase
-    function showSupabaseClient(url, key) {
-        return window.supabase.createClient(url, key);
-    }
+    // Mencegah error deklarasi ganda dengan nama variabel yang berbeda
+    const supabaseClient = window.supabase.createClient(PROJECT_URL, ANON_KEY);
 
-    // --- 1. FUNGSI READ (Menampilkan Data) ---
+    // --- FUNGSI READ (Menampilkan Data) ---
     async function loadData() {
-        // Kita panggil VIEW, bukan tabel mentah
-        const { data, error } = await supabase
+        console.log("Sedang mengambil data...");
+        
+        // Menggunakan supabaseClient, bukan supabase
+        const { data, error } = await supabaseClient
             .from('view_santri_lengkap')
             .select('*')
             .order('nis', { ascending: true });
 
         if (error) {
-            console.error('Error:', error);
-            alert("Gagal ambil data");
+            console.error('Error saat load data:', error);
+            alert("Gagal ambil data. Cek Console (F12) untuk detail.");
         } else {
+            console.log("Data berhasil diambil:", data);
             renderTable(data);
         }
     }
 
-    // --- 2. FUNGSI CREATE (Menambah Data) ---
+    // --- FUNGSI CREATE (Menambah Data) ---
     async function tambahSantri() {
+        console.log("Tombol diklik, memproses data...");
+        
         const nama = document.getElementById('inputNama').value;
         const nis = document.getElementById('inputNIS').value;
         const gender = document.getElementById('inputGender').value;
@@ -104,48 +100,59 @@
 
         if(!nama || !nis) return alert("Nama dan NIS wajib diisi!");
 
-        // Panggil RPC (Function SQL) yang kita buat tadi
-        const { error } = await supabase
+        // Panggil RPC menggunakan supabaseClient
+        const { error } = await supabaseClient
             .rpc('tambah_data_santri', { 
                 p_nama: nama, 
                 p_gender: gender, 
                 p_hp: hp, 
                 p_nis: nis, 
-                p_tahun_masuk: 2024, // Default tahun ini
+                p_tahun_masuk: 2024, 
                 p_kelas: kelas 
             });
 
         if (error) {
-            console.error('Error:', error);
+            console.error('Error saat simpan:', error);
             alert("Gagal simpan: " + error.message);
         } else {
             alert("Berhasil disimpan!");
-            // Kosongkan form
+            // Reset Form
             document.getElementById('inputNama').value = '';
             document.getElementById('inputNIS').value = '';
-            // Refresh tabel
+            // Refresh Tabel
             loadData();
         }
     }
 
-    // --- 3. FUNGSI UPDATE (Contoh Edit Sederhana) ---
-    // Update nama santri berdasarkan ID orang
+    // --- FUNGSI UPDATE SEDERHANA ---
     async function editNama(orangId, namaLama) {
         const namaBaru = prompt("Ganti nama:", namaLama);
         if (namaBaru && namaBaru !== namaLama) {
-            const { error } = await supabase
+            const { error } = await supabaseClient
                 .from('orang')
                 .update({ nama_lengkap: namaBaru })
                 .eq('id', orangId);
 
-            if (!error) loadData();
+            if (!error) {
+                alert("Nama berhasil diubah");
+                loadData();
+            } else {
+                alert("Gagal update: " + error.message);
+            }
         }
     }
 
-    // Fungsi Render HTML
+    // --- FUNGSI RENDER HTML ---
     function renderTable(data) {
         const tbody = document.getElementById('tabelBody');
-        tbody.innerHTML = ''; // Reset isi tabel
+        if (!tbody) return;
+        
+        tbody.innerHTML = ''; 
+
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Belum ada data</td></tr>';
+            return;
+        }
 
         data.forEach(row => {
             const tr = document.createElement('tr');
@@ -154,7 +161,7 @@
                 <td>${row.nama_lengkap}</td>
                 <td>${row.jenis_kelamin}</td>
                 <td>${row.kelas_saat_ini || '-'}</td>
-                <td><span class="badge">${row.status_santri}</span></td>
+                <td><span class="badge">${row.status_santri || 'Aktif'}</span></td>
                 <td>
                     <button style="background:#ffc107; color:black; padding:5px 10px;" 
                             onclick="editNama('${row.orang_id}', '${row.nama_lengkap}')">
@@ -166,7 +173,7 @@
         });
     }
 
-    // Load data saat halaman pertama kali dibuka
+    // Jalankan saat halaman dibuka
     loadData();
 
 </script>
