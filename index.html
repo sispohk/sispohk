@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Santri Sederhana</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        /* CSS SEDERHANA UNTUK TAMPILAN */
+        body { font-family: sans-serif; padding: 20px; background: #f4f4f9; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        h2 { border-bottom: 2px solid #007bff; padding-bottom: 10px; }
+        
+        /* Form Styling */
+        .form-group { margin-bottom: 15px; display: flex; gap: 10px; }
+        input, select { padding: 8px; border: 1px solid #ddd; border-radius: 4px; flex: 1; }
+        button { padding: 10px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        
+        /* Table Styling */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #f8f9fa; font-weight: bold; }
+        tr:hover { background-color: #f1f1f1; }
+        
+        /* Status Badge */
+        .badge { padding: 4px 8px; border-radius: 12px; font-size: 0.85em; background: #28a745; color: white; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Data Santri</h2>
+
+    <div style="background: #eef; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+        <h3>Tambah Santri Baru</h3>
+        <div class="form-group">
+            <input type="text" id="inputNama" placeholder="Nama Lengkap" required>
+            <input type="text" id="inputNIS" placeholder="NIS" required>
+        </div>
+        <div class="form-group">
+            <select id="inputGender">
+                <option value="L">Laki-laki</option>
+                <option value="P">Perempuan</option>
+            </select>
+            <input type="text" id="inputKelas" placeholder="Kelas (misal: 7A)">
+            <input type="text" id="inputHP" placeholder="No HP">
+        </div>
+        <button onclick="tambahSantri()">Simpan Data</button>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>NIS</th>
+                <th>Nama Lengkap</th>
+                <th>L/P</th>
+                <th>Kelas</th>
+                <th>Status</th>
+                <th>Aksi</th>
+            </tr>
+        </thead>
+        <tbody id="tabelBody">
+            </tbody>
+    </table>
+</div>
+
+<script>
+    // --- KONFIGURASI SUPABASE ---
+    // Ganti dengan URL dan Key dari Dashboard Supabase Anda
+    const supabaseUrl = 'https://YOUR_PROJECT_ID.supabase.co'
+    const supabaseKey = 'YOUR_ANON_KEY'
+    const supabase = showSupabaseClient(supabaseUrl, supabaseKey)
+
+    // Helper untuk load library supabase
+    function showSupabaseClient(url, key) {
+        return window.supabase.createClient(url, key);
+    }
+
+    // --- 1. FUNGSI READ (Menampilkan Data) ---
+    async function loadData() {
+        // Kita panggil VIEW, bukan tabel mentah
+        const { data, error } = await supabase
+            .from('view_santri_lengkap')
+            .select('*')
+            .order('nis', { ascending: true });
+
+        if (error) {
+            console.error('Error:', error);
+            alert("Gagal ambil data");
+        } else {
+            renderTable(data);
+        }
+    }
+
+    // --- 2. FUNGSI CREATE (Menambah Data) ---
+    async function tambahSantri() {
+        const nama = document.getElementById('inputNama').value;
+        const nis = document.getElementById('inputNIS').value;
+        const gender = document.getElementById('inputGender').value;
+        const kelas = document.getElementById('inputKelas').value;
+        const hp = document.getElementById('inputHP').value;
+
+        if(!nama || !nis) return alert("Nama dan NIS wajib diisi!");
+
+        // Panggil RPC (Function SQL) yang kita buat tadi
+        const { error } = await supabase
+            .rpc('tambah_data_santri', { 
+                p_nama: nama, 
+                p_gender: gender, 
+                p_hp: hp, 
+                p_nis: nis, 
+                p_tahun_masuk: 2024, // Default tahun ini
+                p_kelas: kelas 
+            });
+
+        if (error) {
+            console.error('Error:', error);
+            alert("Gagal simpan: " + error.message);
+        } else {
+            alert("Berhasil disimpan!");
+            // Kosongkan form
+            document.getElementById('inputNama').value = '';
+            document.getElementById('inputNIS').value = '';
+            // Refresh tabel
+            loadData();
+        }
+    }
+
+    // --- 3. FUNGSI UPDATE (Contoh Edit Sederhana) ---
+    // Update nama santri berdasarkan ID orang
+    async function editNama(orangId, namaLama) {
+        const namaBaru = prompt("Ganti nama:", namaLama);
+        if (namaBaru && namaBaru !== namaLama) {
+            const { error } = await supabase
+                .from('orang')
+                .update({ nama_lengkap: namaBaru })
+                .eq('id', orangId);
+
+            if (!error) loadData();
+        }
+    }
+
+    // Fungsi Render HTML
+    function renderTable(data) {
+        const tbody = document.getElementById('tabelBody');
+        tbody.innerHTML = ''; // Reset isi tabel
+
+        data.forEach(row => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${row.nis || '-'}</td>
+                <td>${row.nama_lengkap}</td>
+                <td>${row.jenis_kelamin}</td>
+                <td>${row.kelas_saat_ini || '-'}</td>
+                <td><span class="badge">${row.status_santri}</span></td>
+                <td>
+                    <button style="background:#ffc107; color:black; padding:5px 10px;" 
+                            onclick="editNama('${row.orang_id}', '${row.nama_lengkap}')">
+                        Edit
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // Load data saat halaman pertama kali dibuka
+    loadData();
+
+</script>
+
+</body>
+</html>
