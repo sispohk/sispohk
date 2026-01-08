@@ -1,0 +1,228 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Input Nilai</title>
+</head>
+<body>
+  <header style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+    <div>
+      <h2 id="title">Input Nilai</h2>
+      <div id="subtitle"></div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <a href="/guru.html">← Dashboard</a>
+      <button id="logoutBtn">Logout</button>
+    </div>
+  </header>
+
+  <div style="margin:10px 0;display:flex;gap:8px;align-items:center;">
+    <button id="saveBtn">Simpan</button>
+    <button id="submitBtn">Submit</button>
+    <span id="statusBadge"></span>
+  </div>
+
+  <div id="wrap" style="overflow:auto;border:1px solid #eee;border-radius:10px;"></div>
+  <pre id="msg"></pre>
+
+  <script type="module">
+    import { supa } from "./db.js";
+    import { requireLogin, fetchRoles, logout } from "./app.js";
+
+    document.getElementById("logoutBtn").onclick = logout;
+    const msg = document.getElementById("msg");
+    const wrap = document.getElementById("wrap");
+    const statusBadge = document.getElementById("statusBadge");
+
+    const me = requireLogin();
+    const roles = await fetchRoles();
+    if (!roles.includes("guru") && !roles.includes("admin")) {
+      msg.textContent = "Akses ditolak: bukan guru/admin.";
+      throw new Error("Forbidden");
+    }
+
+    const q = new URLSearchParams(location.search);
+    const pengampu_id = q.get("pengampu_id");
+    if (!pengampu_id) { msg.textContent = "pengampu_id tidak ada."; throw new Error("Missing pengampu_id"); }
+
+    const sb = supa();
+
+    // 1) fetch pengampu detail
+    msg.textContent = "Loading pengampu...";
+    const { data: pengampu, error: e1 } = await sb
+      .from("pengampu")
+      .select(`
+        id, status, kelas_id, mapel_id, tahun_ajaran_id,
+        kelas:kelas_id ( nama_kelas ),
+        mapel:mapel_id ( kode, nama )
+      `)
+      .eq("id", pengampu_id)
+      .maybeSingle();
+
+    if (e1 || !pengampu) { msg.textContent = e1?.message || "Pengampu tidak ditemukan"; throw (e1||new Error("Not found")); }
+
+    document.getElementById("title").textContent = `Input Nilai — ${pengampu.kelas?.nama_kelas} — ${pengampu.mapel?.kode} ${pengampu.mapel?.nama}`;
+    statusBadge.textContent = `Status: ${pengampu.status}`;
+
+    // 2) fetch komponen
+    msg.textContent = "Loading komponen...";
+    const { data: komponen, error: e2 } = await sb
+      .from("komponen_nilai")
+      .select("id, nama_komponen, bobot, urutan")
+      .eq("tahun_ajaran_id", pengampu.tahun_ajaran_id)
+      .eq("mapel_id", pengampu.mapel_id)
+      .eq("is_active", true)
+      .order("urutan", { ascending: true });
+
+    if (e2) { msg.textContent = e2.message; throw e2; }
+
+    // 3) fetch siswa kelas
+    msg.textContent = "Loading siswa...";
+    const { data: ks, error: e3 } = await sb
+      .from("kelas_siswa")
+      .select("siswa:siswa_id ( id, nis, nama )")
+      .eq("kelas_id", pengampu.kelas_id);
+
+    if (e3) { msg.textContent = e3.message; throw e3; }
+    const siswaList = (ks || []).map(x => x.siswa).filter(Boolean).sort((a,b)=> (a.nis||"").localeCompare(b.nis||""));
+
+    // 4) fetch nilai existing
+    msg.textContent = "Loading nilai...";
+    const { data: nilaiRows, error: e4 } = await sb
+      .from("nilai_komponen")
+      .select("siswa_id, komponen_id, nilai")
+      .eq("pengampu_id", pengampu_id);
+
+    if (e4) { msg.textContent = e4.message; throw e4; }
+
+    const nilaiMap = new Map(); // key: siswa_id|komponen_id
+    for (const r of (nilaiRows||[])) nilaiMap.set(`${r.siswa_id}|${r.komponen_id}`, r.nilai);
+
+    // 5) fetch rekap untuk tampil nilai akhir
+    async function loadRekap() {
+      const { data, error } = await sb
+        .from("rekap_nilai")
+        .select("siswa_id, nilai_akhir, predikat")
+        .eq("pengampu_id", pengampu_id);
+      if (error) throw error;
+      const m = new Map();
+      for (const r of (data||[])) m.set(r.siswa_id, r);
+      return m;
+    }
+
+    let rekapMap = await loadRekap();
+
+    // render table
+    function render() {
+      if (!komponen?.length) {
+        wrap.innerHTML = `<div style="padding:12px;">Komponen nilai belum diset untuk mapel ini.</div>`;
+        return;
+      }
+      const thKomponen = komponen.map(k => `<th style="padding:8px;border-bottom:1px solid #eee;">${k.nama_komponen}<br><small>${k.bobot}%</small></th>`).join("");
+      const rows = siswaList.map(s => {
+        const rekap = rekapMap.get(s.id);
+        const tdInputs = komponen.map(k => {
+          const key = `${s.id}|${k.id}`;
+          const val = nilaiMap.has(key) ? nilaiMap.get(key) : "";
+          const disabled = (pengampu.status === "locked");
+          return `
+            <td style="padding:6px;border-bottom:1px solid #f3f3f3;">
+              <input data-siswa="${s.id}" data-komp="${k.id}" value="${val ?? ""}"
+                     type="number" min="0" max="100" step="0.01"
+                     style="width:90px;"
+                     ${disabled ? "disabled" : ""}/>
+            </td>`;
+        }).join("");
+
+        return `
+          <tr>
+            <td style="padding:8px;border-bottom:1px solid #f3f3f3;"><b>${s.nis}</b></td>
+            <td style="padding:8px;border-bottom:1px solid #f3f3f3;">${s.nama}</td>
+            ${tdInputs}
+            <td style="padding:8px;border-bottom:1px solid #f3f3f3;">${rekap?.nilai_akhir ?? ""}</td>
+            <td style="padding:8px;border-bottom:1px solid #f3f3f3;">${rekap?.predikat ?? ""}</td>
+          </tr>
+        `;
+      }).join("");
+
+      wrap.innerHTML = `
+        <table style="border-collapse:collapse;width:100%;min-width:900px;">
+          <thead>
+            <tr>
+              <th style="padding:8px;border-bottom:1px solid #eee;">NIS</th>
+              <th style="padding:8px;border-bottom:1px solid #eee;">Nama</th>
+              ${thKomponen}
+              <th style="padding:8px;border-bottom:1px solid #eee;">Akhir</th>
+              <th style="padding:8px;border-bottom:1px solid #eee;">Predikat</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+
+      // listener input
+      wrap.querySelectorAll("input[data-siswa]").forEach(inp => {
+        inp.addEventListener("change", () => {
+          const siswa_id = inp.dataset.siswa;
+          const komponen_id = inp.dataset.komp;
+          const v = inp.value === "" ? null : Number(inp.value);
+          nilaiMap.set(`${siswa_id}|${komponen_id}`, v);
+        });
+      });
+    }
+
+    render();
+    msg.textContent = "";
+
+    async function saveAll() {
+      if (pengampu.status === "locked") { alert("Sudah LOCK. Tidak bisa edit."); return; }
+
+      const payload = [];
+      for (const s of siswaList) {
+        for (const k of komponen) {
+          const key = `${s.id}|${k.id}`;
+          const nilai = nilaiMap.has(key) ? nilaiMap.get(key) : null;
+          payload.push({
+            pengampu_id,
+            siswa_id: s.id,
+            komponen_id: k.id,
+            nilai
+          });
+        }
+      }
+
+      msg.textContent = "Menyimpan...";
+      const { error } = await sb
+        .from("nilai_komponen")
+        .upsert(payload, { onConflict: "pengampu_id,siswa_id,komponen_id" });
+
+      if (error) { msg.textContent = error.message; throw error; }
+
+      // refresh rekap
+      rekapMap = await loadRekap();
+      render();
+      msg.textContent = "Tersimpan.";
+      setTimeout(()=> msg.textContent="", 800);
+    }
+
+    document.getElementById("saveBtn").onclick = saveAll;
+
+    document.getElementById("submitBtn").onclick = async () => {
+      if (pengampu.status === "locked") { alert("Sudah LOCK."); return; }
+      await saveAll();
+      msg.textContent = "Submit...";
+      const { error } = await sb
+        .from("pengampu")
+        .update({ status: "submitted", submitted_at: new Date().toISOString() })
+        .eq("id", pengampu_id);
+
+      if (error) { msg.textContent = error.message; throw error; }
+      pengampu.status = "submitted";
+      statusBadge.textContent = `Status: submitted`;
+      msg.textContent = "Submitted.";
+      setTimeout(()=> msg.textContent="", 800);
+    };
+  </script>
+</body>
+</html>

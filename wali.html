@@ -1,0 +1,123 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Legger Wali Kelas</title>
+</head>
+<body>
+  <header style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+    <h2>Legger Wali Kelas</h2>
+    <div style="display:flex;gap:8px;">
+      <a href="/guru.html">Dashboard Guru</a>
+      <button id="logoutBtn">Logout</button>
+    </div>
+  </header>
+
+  <div style="margin:10px 0;">
+    <label>Pilih Kelas: </label>
+    <select id="kelasSelect"></select>
+  </div>
+
+  <div id="wrap" style="overflow:auto;border:1px solid #eee;border-radius:10px;"></div>
+  <pre id="msg"></pre>
+
+  <script type="module">
+    import { supa } from "./db.js";
+    import { requireLogin, fetchRoles, logout } from "./app.js";
+
+    document.getElementById("logoutBtn").onclick = logout;
+    const msg = document.getElementById("msg");
+    const wrap = document.getElementById("wrap");
+    const kelasSelect = document.getElementById("kelasSelect");
+
+    const me = requireLogin();
+    const roles = await fetchRoles();
+    if (!roles.includes("wali_kelas") && !roles.includes("admin")) {
+      msg.textContent = "Akses ditolak: bukan wali/admin.";
+      throw new Error("Forbidden");
+    }
+
+    const sb = supa();
+
+    msg.textContent = "Loading kelas...";
+    const { data: kelasList, error: e1 } = await sb
+      .from("kelas")
+      .select("id, nama_kelas")
+      .eq("wali_user_id", me.id);
+
+    if (e1) { msg.textContent = e1.message; throw e1; }
+    if (!kelasList?.length) { msg.textContent = "Kamu belum diset sebagai wali kelas."; throw new Error("No class"); }
+
+    kelasSelect.innerHTML = kelasList.map(k => `<option value="${k.id}">${k.nama_kelas}</option>`).join("");
+
+    async function loadLegger(kelas_id) {
+      msg.textContent = "Loading legger...";
+      const { data, error } = await sb
+        .from("v_legger_kelas")
+        .select("siswa_id, nis, nama_siswa, mapel_id, kode_mapel, nama_mapel, status, nilai_akhir, predikat")
+        .eq("kelas_id", kelas_id)
+        .order("nis", { ascending: true });
+
+      if (error) { msg.textContent = error.message; throw error; }
+
+      // bentuk matriks
+      const mapelOrder = [];
+      const mapelSeen = new Set();
+      const siswaOrder = [];
+      const siswaSeen = new Set();
+
+      const cell = new Map(); // key: siswa_id|mapel_id -> value
+      const mapelStatus = new Map(); // mapel_id -> status (ambil yang paling "parah": draft > submitted > locked? untuk indikator)
+      const prio = { draft: 1, submitted: 2, locked: 3 };
+
+      for (const r of (data||[])) {
+        if (!mapelSeen.has(r.mapel_id)) { mapelSeen.add(r.mapel_id); mapelOrder.push({ id:r.mapel_id, kode:r.kode_mapel, nama:r.nama_mapel }); }
+        if (!siswaSeen.has(r.siswa_id)) { siswaSeen.add(r.siswa_id); siswaOrder.push({ id:r.siswa_id, nis:r.nis, nama:r.nama_siswa }); }
+        cell.set(`${r.siswa_id}|${r.mapel_id}`, r.nilai_akhir ?? "");
+        const cur = mapelStatus.get(r.mapel_id);
+        if (!cur || prio[r.status] < prio[cur]) mapelStatus.set(r.mapel_id, r.status);
+      }
+
+      const headMapel = mapelOrder.map(m => {
+        const st = mapelStatus.get(m.id) || "";
+        const badge = st === "submitted" ? "✅" : (st === "locked" ? "🔒" : "⏳");
+        return `<th style="padding:8px;border-bottom:1px solid #eee;white-space:nowrap;">
+          ${m.kode}<br><small>${badge} ${st}</small>
+        </th>`;
+      }).join("");
+
+      const rows = siswaOrder.map(s => {
+        const tds = mapelOrder.map(m => {
+          const v = cell.get(`${s.id}|${m.id}`) ?? "";
+          return `<td style="padding:8px;border-bottom:1px solid #f3f3f3;text-align:center;">${v}</td>`;
+        }).join("");
+        return `
+          <tr>
+            <td style="padding:8px;border-bottom:1px solid #f3f3f3;"><b>${s.nis}</b></td>
+            <td style="padding:8px;border-bottom:1px solid #f3f3f3;white-space:nowrap;">${s.nama}</td>
+            ${tds}
+          </tr>
+        `;
+      }).join("");
+
+      wrap.innerHTML = `
+        <table style="border-collapse:collapse;width:100%;min-width:900px;">
+          <thead>
+            <tr>
+              <th style="padding:8px;border-bottom:1px solid #eee;">NIS</th>
+              <th style="padding:8px;border-bottom:1px solid #eee;">Nama</th>
+              ${headMapel}
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+      msg.textContent = "";
+    }
+
+    kelasSelect.onchange = () => loadLegger(kelasSelect.value);
+    await loadLegger(kelasSelect.value);
+  </script>
+</body>
+</html>

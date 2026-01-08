@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body>
+  <h2>Login</h2>
+  <input id="email" placeholder="email">
+  <input id="pass" type="password" placeholder="password">
+  <button id="btn">Masuk</button>
+  <pre id="msg"></pre>
+
+  <script type="module">
+    const msg = document.getElementById('msg');
+    document.getElementById('btn').onclick = async () => {
+      msg.textContent = "Loading...";
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('pass').value;
+
+      const r = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      // aman: baca text dulu
+      const raw = await r.text();
+      let data = {};
+      try { data = raw ? JSON.parse(raw) : {}; } catch { data = { ok:false, error: raw || "Invalid response" }; }
+
+      if (!r.ok || data.ok === false) {
+        msg.textContent = data.error || data.message || `HTTP ${r.status}`;
+        return;
+      }
+
+      const data = await r.json();
+      if (!r.ok) { msg.textContent = data.error || "Login gagal"; return; }
+
+      localStorage.setItem("APP_TOKEN", data.token);
+      localStorage.setItem("APP_USER", JSON.stringify(data.user));
+      // cek role untuk routing
+      const { supa } = await import('./db.js');
+      const sb = supa();
+      const { data: rolesData, error } = await sb
+        .from('user_role')
+        .select('role')
+        .eq('user_id', data.user.id);
+
+      if (error) { msg.textContent = "Role error: " + error.message; return; }
+      const roles = (rolesData || []).map(x => x.role);
+
+      if (roles.includes('admin')) location.href = "/guru.html";      // sementara admin ke guru dashboard dulu
+      else if (roles.includes('wali_kelas')) location.href = "/wali.html";
+      else location.href = "/guru.html";
+    };
+  </script>
+</body>
+</html>

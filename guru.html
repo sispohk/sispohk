@@ -1,0 +1,69 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dashboard Guru</title>
+</head>
+<body>
+  <header style="display:flex;gap:12px;align-items:center;justify-content:space-between;">
+    <h2>Dashboard Guru</h2>
+    <div>
+      <a href="/wali.html">Legger Wali</a>
+      <button id="logoutBtn">Logout</button>
+    </div>
+  </header>
+
+  <div id="meInfo"></div>
+  <div id="list"></div>
+  <pre id="msg"></pre>
+
+  <script type="module">
+    import { supa } from "./db.js";
+    import { requireLogin, fetchRoles, logout } from "./app.js";
+
+    const msg = document.getElementById("msg");
+    const list = document.getElementById("list");
+    const meInfo = document.getElementById("meInfo");
+    document.getElementById("logoutBtn").onclick = logout;
+
+    const me = requireLogin();
+    meInfo.textContent = `Login: ${me.full_name} (${me.email})`;
+
+    const roles = await fetchRoles();
+    if (!roles.includes("guru") && !roles.includes("admin")) {
+      msg.textContent = "Akses ditolak: bukan guru/admin.";
+      throw new Error("Forbidden");
+    }
+
+    msg.textContent = "Loading pengampu...";
+    const sb = supa();
+
+    const { data, error } = await sb
+      .from("pengampu")
+      .select(`
+        id, status, tahun_ajaran_id,
+        kelas:kelas_id ( id, nama_kelas ),
+        mapel:mapel_id ( id, kode, nama )
+      `)
+      .order("created_at", { ascending: false });
+
+    if (error) { msg.textContent = error.message; throw error; }
+
+    msg.textContent = "";
+    if (!data?.length) {
+      list.innerHTML = "<p>Belum ada pengampu yang ditugaskan.</p>";
+    } else {
+      list.innerHTML = data.map(p => `
+        <div style="border:1px solid #ddd;padding:12px;border-radius:10px;margin:10px 0;">
+          <div><b>${p.kelas?.nama_kelas || "-"}</b> — ${p.mapel?.kode || ""} ${p.mapel?.nama || ""}</div>
+          <div>Status: <b>${p.status}</b></div>
+          <div style="margin-top:8px;">
+            <a href="/input_nilai.html?pengampu_id=${p.id}">Input Nilai</a>
+          </div>
+        </div>
+      `).join("");
+    }
+  </script>
+</body>
+</html>
