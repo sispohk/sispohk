@@ -34,128 +34,164 @@
             </div>
             <div id="menu-admin" class="hidden">
                 <p class="text-xs text-blue-200 uppercase font-semibold mb-2 mt-4">Administrator</p>
-                <button onclick="showSection('admin-guru')" class="w-full text-left p-2 hover:bg-blue-700 rounded">👨‍🏫 Data Guru</button>
-                <button onclick="showSection('admin-santri')" class="w-full text-left p-2 hover:bg-blue-700 rounded">🎓 Data Santri</button>
+                <button onclick="showSection('admin-guru')" class="w-full text-left p-2 hover:bg-blue-700 rounded">👥 Data Guru</button>
+                <button onclick="showSection('admin-santri')" class="w-full text-left p-2 hover:bg-blue-700 rounded">🧑‍🎓 Data Santri</button>
             </div>
         </nav>
+
         <div class="p-4 border-t border-blue-400">
             <div class="text-sm mb-2" id="user-info">...</div>
-            <button onclick="logout()" class="w-full bg-red-500 hover:bg-red-600 p-2 rounded text-sm">Logout</button>
+            <button onclick="logout()" class="w-full bg-red-500 hover:bg-red-600 rounded py-2 text-sm font-semibold">Logout</button>
         </div>
     </aside>
 
-    <main class="flex-1 overflow-y-auto bg-white p-8">
-        <div id="section-welcome">
-            <h1 class="text-3xl font-bold">Selamat Datang</h1>
-            <p class="text-gray-600">Pilih menu di sebelah kiri.</p>
+    <main class="flex-1 p-6 overflow-y-auto">
+        <div id="section-welcome" class="section">
+            <h1 class="text-2xl font-bold text-gray-800">Selamat datang 👋</h1>
+            <p class="text-gray-600 mt-2">Pilih menu di sebelah kiri untuk mulai.</p>
         </div>
 
+        <!-- ===== GURU: INPUT NILAI ===== -->
         <div id="section-input-nilai" class="hidden section">
-            <h2 class="text-2xl font-bold mb-6">Input Nilai</h2>
-            <div id="view-mapel-cards" class="grid grid-cols-3 gap-4"></div>
-            
-            <div id="view-kelas-list" class="hidden mt-4">
-                <button onclick="resetInputView()" class="text-blue-600 underline mb-4">&larr; Kembali</button>
-                <h3 class="text-xl font-bold mb-4">Pilih Kelas: <span id="sel-mapel"></span></h3>
-                <div id="kelas-buttons" class="flex gap-4"></div>
+            <h2 class="text-xl font-bold mb-4">Input Nilai</h2>
+
+            <div id="guru-step-kelas">
+                <p class="text-gray-600 mb-3">Pilih kelas:</p>
+                <div id="kelas-list" class="grid grid-cols-2 md:grid-cols-4 gap-2"></div>
             </div>
 
-            <div id="view-input-table" class="hidden mt-4">
-                <button onclick="backToKelas()" class="text-blue-600 underline mb-4">&larr; Pilih Kelas Lain</button>
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-xl font-bold">Kelas <span id="sel-kelas"></span></h3>
-                    <div class="space-x-2">
-                        <button onclick="downloadTemplate()" class="bg-gray-500 text-white px-3 py-1 rounded text-sm">Download Template Excel</button>
-                        <input type="file" id="file-upload" class="hidden" onchange="handleFileUpload(this)">
-                        <label for="file-upload" class="bg-blue-500 text-white px-3 py-1 rounded text-sm cursor-pointer">Upload Excel</label>
+            <div id="guru-step-mapel" class="hidden">
+                <div class="flex items-center justify-between mb-3">
+                    <button onclick="backToKelas()" class="text-blue-600">← Kembali</button>
+                    <div class="text-sm text-gray-600">Kelas: <span class="font-semibold" id="lbl-kelas"></span></div>
+                </div>
+                <p class="text-gray-600 mb-2">Pilih mapel:</p>
+                <div id="mapel-list" class="grid grid-cols-1 md:grid-cols-3 gap-2"></div>
+            </div>
+
+            <div id="guru-step-table" class="hidden">
+                <div class="flex items-center justify-between mb-3">
+                    <button onclick="resetInputView()" class="text-blue-600">← Kembali</button>
+                    <div class="text-sm text-gray-600">
+                        Kelas: <span class="font-semibold" id="lbl-kelas2"></span> | Mapel: <span class="font-semibold" id="lbl-mapel"></span>
                     </div>
                 </div>
-                <table class="min-w-full border">
-                    <thead class="bg-gray-100">
-                        <tr>
-                            <th class="p-2 text-left">Nama</th>
-                            <th class="p-2 w-20">Hadir</th>
-                            <th class="p-2 w-20">Tugas</th>
-                            <th class="p-2 w-20">UH</th>
-                            <th class="p-2 w-20">PAS</th>
-                        </tr>
-                    </thead>
-                    <tbody id="input-tbody"></tbody>
-                </table>
-                <button onclick="saveScores()" class="mt-4 bg-green-600 text-white px-6 py-2 rounded font-bold float-right">Simpan Nilai</button>
+
+                <div class="flex gap-2 mb-3">
+                    <button onclick="downloadTemplate()" class="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded text-sm">⬇️ Template Excel</button>
+                    <label class="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded text-sm cursor-pointer">
+                        ⬆️ Upload Excel
+                        <input type="file" accept=".xlsx,.xls" class="hidden" onchange="handleFileUpload(this)">
+                    </label>
+                    <button onclick="saveScores()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-semibold">💾 Simpan Nilai</button>
+                </div>
+
+                <div class="overflow-x-auto bg-white rounded shadow">
+                    <table class="w-full border text-sm">
+                        <thead class="bg-blue-600 text-white">
+                            <tr>
+                                <th class="p-2 text-left">Nama</th>
+                                <th class="p-2">Hadir</th>
+                                <th class="p-2">Tugas</th>
+                                <th class="p-2">UH</th>
+                                <th class="p-2">PAS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="input-tbody"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
+        <!-- ===== WALI KELAS ===== -->
         <div id="section-wali-dashboard" class="hidden section">
-            <h2 class="text-2xl font-bold mb-6">Dashboard Wali Kelas <span id="wali-kelas-lbl"></span></h2>
-            <div class="grid grid-cols-2 gap-6 mb-8">
-                <div onclick="showWaliSantriList()" class="bg-white p-6 rounded shadow border-l-4 border-blue-500 cursor-pointer">
-                    <h3 class="font-bold text-lg">📄 Rapor Santri</h3>
-                </div>
-                <div onclick="showInputCatatan()" class="bg-white p-6 rounded shadow border-l-4 border-yellow-500 cursor-pointer">
-                    <h3 class="font-bold text-lg">📝 Catatan & Prestasi</h3>
-                </div>
+            <h2 class="text-xl font-bold mb-2">Dashboard Wali Kelas</h2>
+            <p class="text-gray-600 mb-4">Kelas: <span class="font-semibold" id="wali-kelas-lbl"></span></p>
+
+            <div id="wali-menu">
+                <p class="text-gray-600 mb-2">Pilih siswa:</p>
+                <div id="wali-santri-list" class="grid grid-cols-1 md:grid-cols-3 gap-2"></div>
             </div>
 
-            <div id="wali-santri-list" class="hidden bg-white p-6 rounded shadow">
-                <h3 class="font-bold mb-4">Pilih Siswa untuk Cetak Rapor</h3>
-                <ul id="list-santri-rapor"></ul>
-            </div>
+            <div id="wali-detail" class="hidden">
+                <button onclick="backToWaliMenu()" class="text-blue-600 mb-3">← Kembali</button>
+                <h3 class="text-lg font-bold mb-2" id="wali-santri-name"></h3>
 
-            <div id="wali-catatan-input" class="hidden bg-white p-6 rounded shadow">
-                <button onclick="backToWaliMenu()" class="text-blue-600 underline mb-4">&larr; Kembali</button>
-                <div class="grid grid-cols-2 gap-6">
-                    <div>
-                        <h4 class="font-bold">Pilih Siswa:</h4>
-                        <ul id="list-siswa-catatan" class="h-64 overflow-y-auto border p-2"></ul>
-                    </div>
-                    <div id="form-catatan-wrapper" class="hidden">
-                        <h4 class="font-bold mb-2">Edit: <span id="target-siswa-nama"></span></h4>
-                        <input type="hidden" id="target-siswa-id">
-                        <textarea id="inp-catatan" class="w-full border p-2 rounded mb-2" rows="3" placeholder="Catatan..."></textarea>
-                        <textarea id="inp-prestasi" class="w-full border p-2 rounded mb-2" rows="2" placeholder="Prestasi..."></textarea>
-                        <button onclick="saveNotes()" class="w-full bg-green-600 text-white py-2 rounded">Simpan</button>
+                <div class="bg-white rounded shadow p-4">
+                    <p class="text-sm text-gray-600 mb-2">Catatan</p>
+                    <textarea id="inp-catatan" class="w-full border rounded p-2 mb-2" rows="3" placeholder="Catatan..."></textarea>
+
+                    <p class="text-sm text-gray-600 mb-2">Prestasi</p>
+                    <textarea id="inp-prestasi" class="w-full border rounded p-2 mb-2" rows="2" placeholder="Prestasi..."></textarea>
+
+                    <input type="hidden" id="target-siswa-id">
+                    <div class="flex gap-2 justify-end">
+                        <button onclick="saveNotes()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-semibold">💾 Simpan</button>
+                        <button onclick="generateRapor()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-semibold">🖨️ Cetak Rapor</button>
                     </div>
                 </div>
-            </div>
 
-            <div id="print-area" class="hidden bg-white p-10 border shadow-lg mt-4 relative">
-                <div class="text-center border-b-2 border-black pb-4 mb-6">
-                    <h1 class="text-2xl font-bold">LAPORAN HASIL BELAJAR</h1>
-                    <p>SMA Unggulan Coding Partner</p>
+                <div id="print-area" class="hidden mt-4 bg-white rounded shadow p-6">
+                    <div class="flex justify-between mb-6">
+                        <div>
+                            <h2 class="text-xl font-bold">Rapor Sementara</h2>
+                            <p class="text-sm text-gray-600">Nama: <span id="rapor-nama"></span></p>
+                            <p class="text-sm text-gray-600">Kelas: <span id="rapor-kelas"></span></p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-sm">Pesantren Husnul Khotimah</p>
+                        </div>
+                    </div>
+
+                    <table class="w-full border text-sm mb-6">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="p-2 text-left">Mapel</th>
+                                <th class="p-2">Hadir</th>
+                                <th class="p-2">Tugas</th>
+                                <th class="p-2">UH</th>
+                                <th class="p-2">PAS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rapor-tbody"></tbody>
+                    </table>
+
+                    <div class="mt-10 flex justify-between">
+                        <div><p>Wali Kelas</p><br><br><p>( ................ )</p></div>
+                        <div><p>Orang Tua</p><br><br><p>( ................. )</p></div>
+                        <div><p>Kepala Sekolah</p><br><br><p>( ................ )</p></div>
+                    </div>
                 </div>
-                <table class="w-full mb-4 text-sm">
-                    <tr><td class="font-bold w-32">Nama</td><td>: <span id="rp-nama"></span></td><td class="font-bold w-32">Kelas</td><td>: <span id="rp-kelas"></span></td></tr>
-                    <tr><td class="font-bold">NIS</td><td>: <span id="rp-nis"></span></td><td class="font-bold">Semester</td><td>: Ganjil</td></tr>
-                </table>
-                <table class="w-full border-collapse border border-black text-sm">
-                    <thead class="bg-gray-200">
-                        <tr><th class="border border-black p-2">No</th><th class="border border-black p-2">Mapel</th><th class="border border-black p-2">Nilai</th><th class="border border-black p-2">Predikat</th><th class="border border-black p-2">Deskripsi</th></tr>
-                    </thead>
-                    <tbody id="rp-tbody"></tbody>
-                </table>
-                <div class="mt-4 border border-black p-3 text-sm">
-                    <p><b>Catatan:</b> <span id="rp-catatan"></span></p>
-                    <p><b>Prestasi:</b> <span id="rp-prestasi"></span></p>
-                </div>
-                <div class="mt-10 flex justify-between text-center text-sm">
-                    <div><p>Orang Tua</p><br><br><p>( ................. )</p></div>
-                    <div><p>Wali Kelas</p><br><br><p class="font-bold underline" id="rp-sign"></p></div>
-                </div>
-                <div class="mt-8 text-center no-print">
-                    <button onclick="window.print()" class="bg-blue-600 text-white px-4 py-2 rounded">🖨️ Cetak</button>
-                    <button onclick="closeRapor()" class="bg-gray-500 text-white px-4 py-2 rounded ml-2">Tutup</button>
-                </div>
+
+                <button onclick="closeRapor()" class="mt-4 no-print text-gray-600 hover:text-gray-800">Tutup preview</button>
             </div>
         </div>
 
+        <!-- ===== ADMIN ===== -->
         <div id="section-admin-guru" class="hidden section">
-            <div class="flex justify-between mb-4"><h2 class="font-bold text-xl">Data Guru</h2><button onclick="openModal('guru')" class="bg-green-600 text-white px-3 py-1 rounded">+ Tambah</button></div>
-            <table class="w-full border"><thead class="bg-blue-600 text-white"><tr><th class="p-2">Nama</th><th class="p-2">Mapel</th><th class="p-2">Aksi</th></tr></thead><tbody id="admin-guru-tbody"></tbody></table>
+            <div class="flex justify-between mb-4">
+                <h2 class="text-xl font-bold">Data Guru</h2>
+                <button onclick="openModal('guru')" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded">+ Tambah</button>
+            </div>
+            <table class="w-full border bg-white rounded shadow text-sm">
+                <thead class="bg-blue-600 text-white">
+                    <tr><th class="p-2 text-left">Nama</th><th class="p-2 text-left">Mapel</th><th class="p-2">Aksi</th></tr>
+                </thead>
+                <tbody id="admin-guru-tbody"></tbody>
+            </table>
         </div>
+
         <div id="section-admin-santri" class="hidden section">
-            <div class="flex justify-between mb-4"><h2 class="font-bold text-xl">Data Santri</h2><button onclick="openModal('santri')" class="bg-green-600 text-white px-3 py-1 rounded">+ Tambah</button></div>
-            <table class="w-full border"><thead class="bg-blue-600 text-white"><tr><th class="p-2">NIS</th><th class="p-2">Nama</th><th class="p-2">Kelas</th><th class="p-2">Aksi</th></tr></thead><tbody id="admin-santri-tbody"></tbody></table>
+            <div class="flex justify-between mb-4">
+                <h2 class="text-xl font-bold">Data Santri</h2>
+                <button onclick="openModal('santri')" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded">+ Tambah</button>
+            </div>
+            <table class="w-full border bg-white rounded shadow text-sm">
+                <thead class="bg-blue-600 text-white">
+                    <tr><th class="p-2">NIS</th><th class="p-2 text-left">Nama</th><th class="p-2">Kelas</th><th class="p-2">Aksi</th></tr>
+                </thead>
+                <tbody id="admin-santri-tbody"></tbody>
+            </table>
         </div>
 
     </main>
@@ -165,7 +201,7 @@
             <h3 class="font-bold text-lg mb-4" id="modal-title">Form</h3>
             <input type="hidden" id="edit-id"><input type="hidden" id="data-type">
             <input id="inp-nama" class="w-full border p-2 mb-2 rounded" placeholder="Nama Lengkap">
-            
+
             <div id="fields-guru" class="hidden">
                 <input id="inp-username" class="w-full border p-2 mb-2 rounded" placeholder="Username">
                 <input id="inp-mapel" class="w-full border p-2 mb-2 rounded" placeholder="Mapel (koma)">
@@ -175,6 +211,7 @@
                 <input id="inp-nis" class="w-full border p-2 mb-2 rounded" placeholder="NIS">
                 <input id="inp-kelas-santri" class="w-full border p-2 mb-2 rounded" placeholder="Kelas (mis: 10-A)">
             </div>
+
             <div class="flex justify-end mt-4">
                 <button onclick="document.getElementById('admin-modal').classList.add('hidden')" class="mr-2 text-gray-500">Batal</button>
                 <button onclick="saveAdminData()" class="bg-blue-600 text-white px-4 py-2 rounded">Simpan</button>
@@ -182,24 +219,190 @@
         </div>
     </div>
 
+    <!-- UX: Toasts -->
+    <div id="toast-container" class="fixed top-4 right-4 z-[60] space-y-2 w-[min(92vw,360px)]" aria-live="polite" aria-relevant="additions"></div>
+
+    <!-- UX: Loading Overlay -->
+    <div id="loading-overlay" class="hidden fixed inset-0 bg-black/20 flex items-center justify-center z-[70]">
+        <div class="bg-white rounded-xl shadow-xl px-5 py-4 flex items-center gap-3">
+            <div class="h-5 w-5 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+            <div>
+                <div class="font-semibold text-gray-800 text-sm" id="loading-title">Memproses…</div>
+                <div class="text-xs text-gray-500" id="loading-subtitle">Mohon tunggu sebentar.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- UX: Confirm Modal -->
+    <div id="confirm-modal" class="hidden fixed inset-0 bg-black/50 flex justify-center items-center z-[65]">
+        <div class="bg-white p-6 rounded-xl w-[min(92vw,420px)] shadow-2xl">
+            <h3 class="font-bold text-lg mb-2" id="confirm-title">Konfirmasi</h3>
+            <p class="text-sm text-gray-600 mb-5" id="confirm-message">Apakah kamu yakin?</p>
+            <div class="flex justify-end gap-3">
+                <button id="confirm-cancel" class="px-4 py-2 rounded-lg border text-gray-700 hover:bg-gray-50">Batal</button>
+                <button id="confirm-ok" class="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700">Ya, lanjut</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const currentUser = getCurrentUser();
         if(!currentUser) window.location.href = 'login.html';
-        
+
         document.getElementById('user-info').innerText = `Halo, ${currentUser.name} (${currentUser.role})`;
 
-        // INIT LOAD
-        loadInitialData().then(() => {
-            if(currentUser.role === 'admin') { renderAdminGuruTable(); renderAdminSantriTable(); }
-            if(currentUser.role === 'guru') {
-                const list = document.getElementById('guru-mapel-list');
-                if(currentUser.mapel) currentUser.mapel.forEach(m => list.innerHTML += `<div>• ${m}</div>`);
+        // ===== UX UTILITIES (Paket 1) =====
+        const toastContainer = document.getElementById('toast-container');
+        const loadingOverlay = document.getElementById('loading-overlay');
+
+        function showToast(message, variant = 'info', timeoutMs = 3200) {
+            if (!toastContainer) return;
+
+            const variantStyles = {
+                success: { ring: 'ring-1 ring-green-200', bg: 'bg-green-50', text: 'text-green-900', dot: 'bg-green-600', label: 'Sukses' },
+                error:   { ring: 'ring-1 ring-red-200',   bg: 'bg-red-50',   text: 'text-red-900',   dot: 'bg-red-600',   label: 'Gagal'  },
+                warn:    { ring: 'ring-1 ring-amber-200', bg: 'bg-amber-50', text: 'text-amber-900', dot: 'bg-amber-600', label: 'Info'   },
+                info:    { ring: 'ring-1 ring-blue-200',  bg: 'bg-blue-50',  text: 'text-blue-900',  dot: 'bg-blue-600',  label: 'Info'   },
+            };
+            const s = variantStyles[variant] || variantStyles.info;
+
+            const el = document.createElement('div');
+            el.className = `rounded-xl shadow-lg ${s.bg} ${s.ring} px-4 py-3 flex gap-3 items-start`;
+            el.innerHTML = `
+                <div class="mt-1 h-2.5 w-2.5 rounded-full ${s.dot}"></div>
+                <div class="flex-1">
+                    <div class="text-xs font-semibold opacity-80">${s.label}</div>
+                    <div class="text-sm ${s.text} leading-snug">${escapeHtml(message)}</div>
+                </div>
+                <button class="text-gray-500 hover:text-gray-700" aria-label="Tutup">✕</button>
+            `;
+
+            const closeBtn = el.querySelector('button');
+            const remove = () => {
+                el.classList.add('opacity-0', 'translate-x-2');
+                setTimeout(() => el.remove(), 160);
+            };
+            closeBtn.addEventListener('click', remove);
+
+            el.style.transition = 'all 160ms ease';
+            toastContainer.appendChild(el);
+
+            setTimeout(remove, timeoutMs);
+        }
+
+        function setLoading(isLoading, title = 'Memproses…', subtitle = 'Mohon tunggu sebentar.') {
+            if (!loadingOverlay) return;
+            document.getElementById('loading-title').innerText = title;
+            document.getElementById('loading-subtitle').innerText = subtitle;
+
+            if (isLoading) {
+                loadingOverlay.classList.remove('hidden');
+                document.body.classList.add('cursor-wait');
+            } else {
+                loadingOverlay.classList.add('hidden');
+                document.body.classList.remove('cursor-wait');
             }
-            if(currentUser.role === 'wali_kelas') {
-                document.getElementById('menu-wali').classList.remove('hidden');
-                document.getElementById('wali-kelas-lbl').innerText = currentUser.kelas;
+        }
+
+        function openConfirm({ title = 'Konfirmasi', message = 'Apakah kamu yakin?', okText = 'Ya, lanjut', danger = true, onConfirm }) {
+            const modal = document.getElementById('confirm-modal');
+            const ttl = document.getElementById('confirm-title');
+            const msg = document.getElementById('confirm-message');
+            const btnCancel = document.getElementById('confirm-cancel');
+            const btnOk = document.getElementById('confirm-ok');
+            if (!modal || !btnCancel || !btnOk) return;
+
+            ttl.innerText = title;
+            msg.innerText = message;
+            btnOk.innerText = okText;
+            btnOk.className = danger
+                ? 'px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700'
+                : 'px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700';
+
+            const onBackdrop = (e) => {
+                if (e.target === modal) cleanup();
+            };
+
+            const cleanup = () => {
+                modal.classList.add('hidden');
+                modal.removeEventListener('click', onBackdrop);
+                btnCancel.removeEventListener('click', onCancel);
+                btnOk.removeEventListener('click', onOk);
+            };
+
+            const onCancel = () => cleanup();
+
+            const onOk = async () => {
+                try {
+                    await onConfirm?.();
+                } finally {
+                    cleanup();
+                }
+            };
+
+            modal.classList.remove('hidden');
+            modal.addEventListener('click', onBackdrop);
+            btnCancel.addEventListener('click', onCancel);
+            btnOk.addEventListener('click', onOk);
+        }
+
+        function clampScore(value) {
+            const n = parseInt(value, 10);
+            if (Number.isNaN(n)) return 0;
+            return Math.max(0, Math.min(100, n));
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
+
+        // Validasi langsung untuk semua input nilai (0–100, kosong => 0 saat blur)
+        document.addEventListener('input', (e) => {
+            const el = e.target;
+            if (el && el.classList && el.classList.contains('score-input')) {
+                if (el.value.length > 3) el.value = el.value.slice(0, 3);
             }
         });
+
+        document.addEventListener('blur', (e) => {
+            const el = e.target;
+            if (el && el.classList && el.classList.contains('score-input')) {
+                el.value = clampScore(el.value);
+            }
+        }, true);
+
+        // INIT LOAD
+        (async () => {
+            setLoading(true, 'Memuat data…', 'Mengambil data dari database.');
+            try {
+                await loadInitialData();
+
+                if(currentUser.role === 'admin') { renderAdminGuruTable(); renderAdminSantriTable(); }
+                if(currentUser.role === 'guru') {
+                    const list = document.getElementById('guru-mapel-list');
+                    list.innerHTML = '';
+                    if(currentUser.mapel && currentUser.mapel.length) {
+                        currentUser.mapel.forEach(m => list.innerHTML += `<div>• ${escapeHtml(m)}</div>`);
+                    } else {
+                        list.innerHTML = '<div class="text-blue-100 italic">Belum ada mapel</div>';
+                    }
+                }
+                if(currentUser.role === 'wali_kelas') {
+                    document.getElementById('menu-wali').classList.remove('hidden');
+                    document.getElementById('wali-kelas-lbl').innerText = currentUser.kelas;
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Gagal memuat data. Cek koneksi internet / konfigurasi Supabase.', 'error', 4500);
+            } finally {
+                setLoading(false);
+            }
+        })();
 
         // NAVIGASI
         function showSection(id) {
@@ -209,230 +412,444 @@
             if(target) target.classList.remove('hidden');
 
             if(id === 'input-nilai') initInputNilai();
-            if(id === 'admin-guru') renderAdminGuruTable();
-            if(id === 'admin-santri') renderAdminSantriTable();
+            if(id === 'wali-dashboard') showWaliSantriList();
         }
 
-        // --- FITUR GURU ---
-        let selMapel = '', selKelas = '';
+        // ===== GURU =====
+        let selKelas = '';
+        let selMapel = '';
+
         function initInputNilai() {
-            const c = document.getElementById('view-mapel-cards'); c.innerHTML = '';
-            document.getElementById('view-mapel-cards').classList.remove('hidden');
-            document.getElementById('view-kelas-list').classList.add('hidden');
-            document.getElementById('view-input-table').classList.add('hidden');
-            
-            currentUser.mapel.forEach(m => {
-                const div = document.createElement('div');
-                div.className = 'bg-white p-6 shadow rounded border-t-4 border-blue-500 cursor-pointer';
-                div.innerHTML = `<h3 class="text-center font-bold text-xl">${m}</h3>`;
-                div.onclick = () => { selMapel = m; showKelasList(); };
-                c.appendChild(div);
+            document.getElementById('guru-step-kelas').classList.remove('hidden');
+            document.getElementById('guru-step-mapel').classList.add('hidden');
+            document.getElementById('guru-step-table').classList.add('hidden');
+
+            const kelasList = document.getElementById('kelas-list');
+            kelasList.innerHTML = '';
+
+            const kelasAjar = currentUser.classes || [];
+            if(!kelasAjar.length) {
+                kelasList.innerHTML = `<div class="text-gray-500 italic">Kelas ajar belum diatur.</div>`;
+                return;
+            }
+
+            kelasAjar.forEach(k => {
+                kelasList.innerHTML += `<button onclick="showMapel('${k}')" class="bg-white shadow rounded p-3 hover:bg-gray-50 text-left">
+                    <div class="font-semibold">${k}</div>
+                </button>`;
             });
         }
-        function showKelasList() {
-            document.getElementById('view-mapel-cards').classList.add('hidden');
-            document.getElementById('view-kelas-list').classList.remove('hidden');
-            document.getElementById('sel-mapel').innerText = selMapel;
-            const c = document.getElementById('kelas-buttons'); c.innerHTML = '';
-            currentUser.classes.forEach(k => {
-                const btn = document.createElement('button');
-                btn.className = 'bg-blue-600 text-white px-6 py-2 rounded';
-                btn.innerText = k;
-                btn.onclick = () => { selKelas = k; showInputTable(); };
-                c.appendChild(btn);
+
+        function showMapel(kelas) {
+            selKelas = kelas;
+            document.getElementById('lbl-kelas').innerText = kelas;
+            document.getElementById('guru-step-kelas').classList.add('hidden');
+            document.getElementById('guru-step-mapel').classList.remove('hidden');
+
+            const mapelList = document.getElementById('mapel-list');
+            mapelList.innerHTML = '';
+
+            const mapelGuru = currentUser.mapel || [];
+            if(!mapelGuru.length) {
+                mapelList.innerHTML = `<div class="text-gray-500 italic">Mapel belum diatur.</div>`;
+                return;
+            }
+
+            mapelGuru.forEach(m => {
+                mapelList.innerHTML += `<button onclick="showInputTable('${m}')" class="bg-white shadow rounded p-3 hover:bg-gray-50 text-left">
+                    <div class="font-semibold">${m}</div>
+                </button>`;
             });
         }
-        function showInputTable() {
-            document.getElementById('view-kelas-list').classList.add('hidden');
-            document.getElementById('view-input-table').classList.remove('hidden');
-            document.getElementById('sel-kelas').innerText = selKelas;
+
+        function backToKelas() {
+            document.getElementById('guru-step-mapel').classList.add('hidden');
+            document.getElementById('guru-step-kelas').classList.remove('hidden');
+        }
+
+        function showInputTable(mapel) {
+            selMapel = mapel;
+            document.getElementById('lbl-kelas2').innerText = selKelas;
+            document.getElementById('lbl-mapel').innerText = selMapel;
+
+            document.getElementById('guru-step-mapel').classList.add('hidden');
+            document.getElementById('guru-step-table').classList.remove('hidden');
+
             renderTable();
         }
-        function resetInputView() { initInputNilai(); }
-        function backToKelas() { showKelasList(); }
+
+        function resetInputView() {
+            document.getElementById('guru-step-table').classList.add('hidden');
+            document.getElementById('guru-step-mapel').classList.remove('hidden');
+        }
 
         function renderTable() {
             const tbody = document.getElementById('input-tbody'); tbody.innerHTML = '';
             const listSiswa = students.filter(s => s.kelas === selKelas);
+            if (!listSiswa.length) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-gray-500 italic">Belum ada data siswa untuk kelas ini.</td></tr>`;
+                return;
+            }
             listSiswa.forEach(s => {
                 const existing = scores.find(sc => sc.student_name === s.name && sc.mapel === selMapel);
                 const h = existing ? existing.kehadiran : 0;
                 const t = existing ? existing.tugas : 0;
                 const u = existing ? existing.uh : 0;
                 const p = existing ? existing.pas : 0;
-                
+
                 tbody.innerHTML += `
                 <tr class="border-b student-row" data-name="${s.name}">
                     <td class="p-2">${s.name}</td>
-                    <td><input type="number" class="w-full border p-1 i-h" value="${h}"></td>
-                    <td><input type="number" class="w-full border p-1 i-t" value="${t}"></td>
-                    <td><input type="number" class="w-full border p-1 i-u" value="${u}"></td>
-                    <td><input type="number" class="w-full border p-1 i-p" value="${p}"></td>
+                    <td><input type="number" min="0" max="100" step="1" inputmode="numeric" class="w-full border p-1 rounded score-input i-h" value="${h}"></td>
+                    <td><input type="number" min="0" max="100" step="1" inputmode="numeric" class="w-full border p-1 rounded score-input i-t" value="${t}"></td>
+                    <td><input type="number" min="0" max="100" step="1" inputmode="numeric" class="w-full border p-1 rounded score-input i-u" value="${u}"></td>
+                    <td><input type="number" min="0" max="100" step="1" inputmode="numeric" class="w-full border p-1 rounded score-input i-p" value="${p}"></td>
                 </tr>`;
             });
         }
 
         async function saveScores() {
             const rows = document.querySelectorAll('.student-row');
-            const promises = [];
-            rows.forEach(r => {
-                const data = {
-                    student_name: r.getAttribute('data-name'),
-                    kelas: selKelas, mapel: selMapel,
-                    kehadiran: r.querySelector('.i-h').value,
-                    tugas: r.querySelector('.i-t').value,
-                    uh: r.querySelector('.i-u').value,
-                    pas: r.querySelector('.i-p').value
-                };
-                promises.push(saveScoreToDB(data));
-            });
-            await Promise.all(promises);
-            alert("Nilai tersimpan!");
+            if (!rows.length) {
+                showToast('Tidak ada baris nilai untuk disimpan.', 'warn');
+                return;
+            }
+
+            setLoading(true, 'Menyimpan nilai…', 'Sedang mengirim data ke database.');
+            try {
+                const promises = [];
+                rows.forEach(r => {
+                    const data = {
+                        student_name: r.getAttribute('data-name'),
+                        kelas: selKelas,
+                        mapel: selMapel,
+                        kehadiran: clampScore(r.querySelector('.i-h').value),
+                        tugas: clampScore(r.querySelector('.i-t').value),
+                        uh: clampScore(r.querySelector('.i-u').value),
+                        pas: clampScore(r.querySelector('.i-p').value)
+                    };
+                    r.querySelector('.i-h').value = data.kehadiran;
+                    r.querySelector('.i-t').value = data.tugas;
+                    r.querySelector('.i-u').value = data.uh;
+                    r.querySelector('.i-p').value = data.pas;
+
+                    promises.push(saveScoreToDB(data));
+                });
+
+                await Promise.all(promises);
+                showToast('Nilai berhasil disimpan.', 'success');
+            } catch (err) {
+                console.error(err);
+                showToast('Gagal menyimpan nilai. Cek koneksi / hak akses / data bentrok.', 'error', 4500);
+            } finally {
+                setLoading(false);
+            }
         }
 
         function downloadTemplate() {
-            const data = students.filter(s => s.kelas === selKelas).map(s => ({ "Nama": s.name, "Hadir":0, "Tugas":0, "UH":0, "PAS":0 }));
+            const data = students.filter(s => s.kelas === selKelas)
+                .map(s => ({ "Nama": s.name, "Hadir":0, "Tugas":0, "UH":0, "PAS":0 }));
             const ws = XLSX.utils.json_to_sheet(data);
-            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Nilai");
-            XLSX.writeFile(wb, `Nilai_${selMapel}_${selKelas}.xlsx`);
+            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Template");
+            XLSX.writeFile(wb, `template_${selKelas}_${selMapel}.xlsx`);
         }
+
         function handleFileUpload(inp) {
             const f = inp.files[0];
-            const r = new FileReader();
-            r.onload = e => {
-                const wb = XLSX.read(e.target.result, {type:'array'});
-                const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-                json.forEach(row => {
-                    const tr = document.querySelector(`.student-row[data-name="${row['Nama']}"]`);
-                    if(tr) {
-                        if(row['Hadir']!==undefined) tr.querySelector('.i-h').value = row['Hadir'];
-                        if(row['Tugas']!==undefined) tr.querySelector('.i-t').value = row['Tugas'];
-                        if(row['UH']!==undefined) tr.querySelector('.i-u').value = row['UH'];
-                        if(row['PAS']!==undefined) tr.querySelector('.i-p').value = row['PAS'];
+            if(!f) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = new Uint8Array(e.target.result);
+                const wb = XLSX.read(data, {type:'array'});
+                const ws = wb.Sheets[wb.SheetNames[0]];
+                const json = XLSX.utils.sheet_to_json(ws);
+
+                const rows = document.querySelectorAll('.student-row');
+                rows.forEach(r => {
+                    const nama = r.getAttribute('data-name');
+                    const found = json.find(x => x["Nama"] === nama);
+                    if(found) {
+                        r.querySelector('.i-h').value = clampScore(found["Hadir"] ?? 0);
+                        r.querySelector('.i-t').value = clampScore(found["Tugas"] ?? 0);
+                        r.querySelector('.i-u').value = clampScore(found["UH"] ?? 0);
+                        r.querySelector('.i-p').value = clampScore(found["PAS"] ?? 0);
                     }
                 });
+
+                showToast('Upload excel berhasil dibaca.', 'success');
             };
-            r.readAsArrayBuffer(f);
+            reader.readAsArrayBuffer(f);
         }
 
-        // --- FITUR WALI KELAS ---
-        function backToWaliMenu() {
-            document.getElementById('wali-santri-list').classList.add('hidden');
-            document.getElementById('wali-catatan-input').classList.add('hidden');
-            document.getElementById('print-area').classList.add('hidden');
-        }
-
+        // ===== WALI KELAS =====
         function showWaliSantriList() {
-            backToWaliMenu();
-            document.getElementById('wali-santri-list').classList.remove('hidden');
-            const ul = document.getElementById('list-santri-rapor'); ul.innerHTML = '';
-            students.filter(s => s.kelas === currentUser.kelas).forEach(s => {
-                ul.innerHTML += `<li class="p-2 border-b flex justify-between">${s.name} <button onclick="generateRapor('${s.name}')" class="text-blue-600 font-bold">Lihat Rapor</button></li>`;
+            document.getElementById('wali-menu').classList.remove('hidden');
+            document.getElementById('wali-detail').classList.add('hidden');
+
+            const list = document.getElementById('wali-santri-list');
+            list.innerHTML = '';
+
+            const kelas = currentUser.kelas_wali;
+            const siswaKelas = students.filter(s => s.kelas === kelas);
+
+            if(!siswaKelas.length) {
+                list.innerHTML = `<div class="text-gray-500 italic">Belum ada data siswa di kelas ini.</div>`;
+                return;
+            }
+
+            siswaKelas.forEach(s => {
+                list.innerHTML += `<button onclick="showInputCatatan('${s.id}')" class="bg-white shadow rounded p-3 hover:bg-gray-50 text-left">
+                    <div class="font-semibold">${s.name}</div>
+                </button>`;
             });
         }
-        
-        function generateRapor(name) {
-            const s = students.find(x => x.name === name);
-            if(!s) return;
-            document.getElementById('wali-santri-list').classList.add('hidden');
-            document.getElementById('print-area').classList.remove('hidden');
 
-            document.getElementById('rp-nama').innerText = s.name;
-            document.getElementById('rp-kelas').innerText = s.kelas;
-            document.getElementById('rp-nis').innerText = s.nis || '-';
-            document.getElementById('rp-catatan').innerText = s.catatan || '-';
-            document.getElementById('rp-prestasi').innerText = s.prestasi || '-';
-            document.getElementById('rp-sign').innerText = currentUser.name;
-
-            const tbody = document.getElementById('rp-tbody'); tbody.innerHTML = '';
-            const myScores = scores.filter(x => x.student_name === name);
-            let no = 1;
-            myScores.forEach(sc => {
-                const final = Math.round((parseInt(sc.tugas)+parseInt(sc.uh)+parseInt(sc.pas))/3);
-                let pred = final>=90?'A':final>=80?'B':final>=70?'C':'D';
-                let desc = pred==='A'?'Sangat Baik':pred==='B'?'Baik':pred==='C'?'Cukup':'Kurang';
-                tbody.innerHTML += `<tr><td class="border border-black p-2">${no++}</td><td class="border border-black p-2">${sc.mapel}</td><td class="border border-black p-2 font-bold">${final}</td><td class="border border-black p-2">${pred}</td><td class="border border-black p-2 italic">${desc}</td></tr>`;
-            });
+        function backToWaliMenu() {
+            document.getElementById('wali-detail').classList.add('hidden');
+            document.getElementById('wali-menu').classList.remove('hidden');
         }
-        function closeRapor() { backToWaliMenu(); }
 
-        function showInputCatatan() {
-            backToWaliMenu();
-            document.getElementById('wali-catatan-input').classList.remove('hidden');
-            const ul = document.getElementById('list-siswa-catatan'); ul.innerHTML = '';
-            students.filter(s => s.kelas === currentUser.kelas).forEach(s => {
-                const li = document.createElement('li');
-                li.className = "p-2 hover:bg-gray-100 cursor-pointer border-b";
-                li.innerText = s.name;
-                li.onclick = () => {
-                    document.getElementById('form-catatan-wrapper').classList.remove('hidden');
-                    document.getElementById('target-siswa-nama').innerText = s.name;
-                    document.getElementById('target-siswa-id').value = s.id;
-                    document.getElementById('inp-catatan').value = s.catatan || '';
-                    document.getElementById('inp-prestasi').value = s.prestasi || '';
-                }
-                ul.appendChild(li);
-            });
+        function showInputCatatan(id) {
+            document.getElementById('wali-menu').classList.add('hidden');
+            document.getElementById('wali-detail').classList.remove('hidden');
+
+            const s = students.find(x => x.id == id);
+            document.getElementById('wali-santri-name').innerText = s.name;
+            document.getElementById('target-siswa-id').value = s.id;
+
+            document.getElementById('inp-catatan').value = s.catatan || '-';
+            document.getElementById('inp-prestasi').value = s.prestasi || '-';
         }
+
         async function saveNotes() {
             const id = document.getElementById('target-siswa-id').value;
-            await updateStudentNotes(id, document.getElementById('inp-catatan').value, document.getElementById('inp-prestasi').value);
-            alert("Catatan Disimpan!");
+            if (!id) {
+                showToast('Siswa belum dipilih.', 'warn');
+                return;
+            }
+            const catatan = document.getElementById('inp-catatan').value?.trim() || '-';
+            const prestasi = document.getElementById('inp-prestasi').value?.trim() || '-';
+
+            setLoading(true, 'Menyimpan catatan…', 'Memperbarui catatan & prestasi siswa.');
+            try {
+                await updateStudentNotes(id, catatan, prestasi);
+                showToast('Catatan & prestasi berhasil disimpan.', 'success');
+            } catch (err) {
+                console.error(err);
+                showToast('Gagal menyimpan catatan. Cek koneksi / hak akses.', 'error', 4500);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        function generateRapor() {
+            const id = document.getElementById('target-siswa-id').value;
+            const s = students.find(x => x.id == id);
+            const kelas = s.kelas;
+
+            document.getElementById('rapor-nama').innerText = s.name;
+            document.getElementById('rapor-kelas').innerText = kelas;
+
+            const tbody = document.getElementById('rapor-tbody');
+            tbody.innerHTML = '';
+
+            const nilaiSiswa = scores.filter(sc => sc.student_name === s.name);
+            if(!nilaiSiswa.length) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-3 text-center text-gray-500 italic">Belum ada nilai.</td></tr>`;
+            } else {
+                nilaiSiswa.forEach(n => {
+                    tbody.innerHTML += `<tr class="border-b">
+                        <td class="p-2 text-left">${n.mapel}</td>
+                        <td class="p-2 text-center">${n.kehadiran}</td>
+                        <td class="p-2 text-center">${n.tugas}</td>
+                        <td class="p-2 text-center">${n.uh}</td>
+                        <td class="p-2 text-center">${n.pas}</td>
+                    </tr>`;
+                });
+            }
+
+            document.getElementById('print-area').classList.remove('hidden');
+            window.print();
+        }
+
+        function closeRapor() {
+            document.getElementById('print-area').classList.add('hidden');
         }
 
         // --- FITUR ADMIN ---
         function renderAdminGuruTable() {
             const t = document.getElementById('admin-guru-tbody'); t.innerHTML = '';
-            users.filter(u => u.role === 'guru').forEach(g => {
-                t.innerHTML += `<tr class="border-b"><td class="p-2">${g.name}</td><td class="p-2">${g.mapel}</td><td class="p-2"><button onclick="editGuru('${g.id}')" class="text-blue-600">Edit</button> <button onclick="deleteUserFromDB('${g.id}')" class="text-red-600">Hapus</button></td></tr>`;
+            const guruList = users.filter(u => u.role === 'guru');
+            if (!guruList.length) {
+                t.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-gray-500 italic">Belum ada data guru.</td></tr>`;
+                return;
+            }
+            guruList.forEach(g => {
+                t.innerHTML += `<tr class="border-b">
+                    <td class="p-2">${g.name}</td>
+                    <td class="p-2">${(g.mapel||[]).join(', ')}</td>
+                    <td class="p-2 text-center">
+                        <button onclick="editGuru('${g.id}')" class="text-blue-600">Edit</button>
+                        <button onclick="requestDeleteUser('${g.id}')" class="text-red-600 ml-2">Hapus</button>
+                    </td>
+                </tr>`;
             });
         }
+
         function renderAdminSantriTable() {
             const t = document.getElementById('admin-santri-tbody'); t.innerHTML = '';
+            if (!students.length) {
+                t.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-500 italic">Belum ada data siswa.</td></tr>`;
+                return;
+            }
             students.forEach(s => {
-                t.innerHTML += `<tr class="border-b"><td class="p-2">${s.nis}</td><td class="p-2">${s.name}</td><td class="p-2">${s.kelas}</td><td class="p-2"><button onclick="editSantri('${s.id}')" class="text-blue-600">Edit</button> <button onclick="deleteSantriFromDB('${s.id}')" class="text-red-600">Hapus</button></td></tr>`;
+                t.innerHTML += `<tr class="border-b">
+                    <td class="p-2 text-center">${s.nis || '-'}</td>
+                    <td class="p-2">${s.name}</td>
+                    <td class="p-2 text-center">${s.kelas}</td>
+                    <td class="p-2 text-center">
+                        <button onclick="editSantri('${s.id}')" class="text-blue-600">Edit</button>
+                        <button onclick="requestDeleteSantri('${s.id}')" class="text-red-600 ml-2">Hapus</button>
+                    </td>
+                </tr>`;
             });
         }
-        
+
+        // Konfirmasi hapus (destruktif)
+        function requestDeleteUser(id) {
+            const g = users.find(x => String(x.id) === String(id));
+            openConfirm({
+                title: 'Hapus Guru',
+                message: `Yakin mau menghapus akun guru${g?.name ? ' “' + g.name + '”' : ''}? Tindakan ini tidak bisa dibatalkan.`,
+                okText: 'Hapus',
+                danger: true,
+                onConfirm: async () => {
+                    setLoading(true, 'Menghapus…', 'Sedang menghapus data guru.');
+                    try {
+                        await deleteUserFromDB(id);
+                        renderAdminGuruTable();
+                        showToast('Guru berhasil dihapus.', 'success');
+                    } catch (err) {
+                        console.error(err);
+                        showToast('Gagal menghapus guru.', 'error', 4500);
+                    } finally {
+                        setLoading(false);
+                    }
+                }
+            });
+        }
+
+        function requestDeleteSantri(id) {
+            const s = students.find(x => String(x.id) === String(id));
+            openConfirm({
+                title: 'Hapus Siswa',
+                message: `Yakin mau menghapus data siswa${s?.name ? ' “' + s.name + '”' : ''}? Tindakan ini tidak bisa dibatalkan.`,
+                okText: 'Hapus',
+                danger: true,
+                onConfirm: async () => {
+                    setLoading(true, 'Menghapus…', 'Sedang menghapus data siswa.');
+                    try {
+                        await deleteSantriFromDB(id);
+                        renderAdminSantriTable();
+                        showToast('Siswa berhasil dihapus.', 'success');
+                    } catch (err) {
+                        console.error(err);
+                        showToast('Gagal menghapus siswa.', 'error', 4500);
+                    } finally {
+                        setLoading(false);
+                    }
+                }
+            });
+        }
+
         function openModal(type) {
             document.getElementById('admin-modal').classList.remove('hidden');
             document.getElementById('data-type').value = type;
             document.getElementById('edit-id').value = '';
             document.getElementById('modal-title').innerText = type==='guru'?'Tambah Guru':'Tambah Santri';
             document.getElementById('inp-nama').value = '';
+
             if(type==='guru') {
                 document.getElementById('fields-guru').classList.remove('hidden');
                 document.getElementById('fields-santri').classList.add('hidden');
+                document.getElementById('inp-username').value = '';
+                document.getElementById('inp-mapel').value = '';
+                document.getElementById('inp-kelas-ajar').value = '';
             } else {
                 document.getElementById('fields-guru').classList.add('hidden');
                 document.getElementById('fields-santri').classList.remove('hidden');
+                document.getElementById('inp-nis').value = '';
+                document.getElementById('inp-kelas-santri').value = '';
             }
         }
-        
+
         async function saveAdminData() {
             const type = document.getElementById('data-type').value;
             const id = document.getElementById('edit-id').value;
-            const nama = document.getElementById('inp-nama').value;
-            
-            if(type === 'guru') {
-                const data = {
-                    name: nama, role: 'guru',
-                    username: document.getElementById('inp-username').value,
-                    password: document.getElementById('inp-username').value + '123',
-                    mapel: document.getElementById('inp-mapel').value.split(',').map(s=>s.trim()),
-                    classes: document.getElementById('inp-kelas-ajar').value.split(',').map(s=>s.trim())
-                };
-                if(id) await updateGuruInDB(id, data); else await addGuruToDB(data);
-            } else {
-                const data = {
-                    name: nama,
-                    nis: document.getElementById('inp-nis').value,
-                    kelas: document.getElementById('inp-kelas-santri').value
-                };
-                if(id) await updateSantriInDB(id, data); else await addSantriToDB(data);
+            const nama = (document.getElementById('inp-nama').value || '').trim();
+
+            if (!nama) {
+                showToast('Nama wajib diisi.', 'warn');
+                return;
             }
-            document.getElementById('admin-modal').classList.add('hidden');
-            alert("Berhasil!");
+
+            setLoading(true, 'Menyimpan…', 'Sedang menyimpan perubahan data.');
+            try {
+                if(type === 'guru') {
+                    const username = (document.getElementById('inp-username').value || '').trim();
+                    if (!username) {
+                        showToast('Username wajib diisi untuk guru.', 'warn');
+                        return;
+                    }
+
+                    const mapel = (document.getElementById('inp-mapel').value || '')
+                        .split(',')
+                        .map(s => s.trim())
+                        .filter(Boolean);
+
+                    const classes = (document.getElementById('inp-kelas-ajar').value || '')
+                        .split(',')
+                        .map(s => s.trim())
+                        .filter(Boolean);
+
+                    const data = {
+                        name: nama,
+                        role: 'guru',
+                        username,
+                        password: username + '123',
+                        mapel,
+                        classes
+                    };
+
+                    if(id) await updateGuruInDB(id, data);
+                    else await addGuruToDB(data);
+
+                    renderAdminGuruTable();
+                } else {
+                    const nis = (document.getElementById('inp-nis').value || '').trim() || null;
+                    const kelas = (document.getElementById('inp-kelas-santri').value || '').trim();
+
+                    if (!kelas) {
+                        showToast('Kelas wajib diisi untuk siswa.', 'warn');
+                        return;
+                    }
+
+                    const data = { nis, name: nama, kelas };
+
+                    if(id) await updateSantriInDB(id, data);
+                    else await addSantriToDB(data);
+
+                    renderAdminSantriTable();
+                }
+
+                document.getElementById('admin-modal').classList.add('hidden');
+                showToast('Berhasil disimpan.', 'success');
+            } catch (err) {
+                console.error(err);
+                showToast('Gagal menyimpan data. Pastikan tidak ada duplikasi username/NIS.', 'error', 4500);
+            } finally {
+                setLoading(false);
+            }
         }
 
         function editGuru(id) {
@@ -441,9 +858,10 @@
             document.getElementById('edit-id').value = u.id;
             document.getElementById('inp-nama').value = u.name;
             document.getElementById('inp-username').value = u.username;
-            document.getElementById('inp-mapel').value = u.mapel.join(',');
-            document.getElementById('inp-kelas-ajar').value = u.classes.join(',');
+            document.getElementById('inp-mapel').value = (u.mapel||[]).join(',');
+            document.getElementById('inp-kelas-ajar').value = (u.classes||[]).join(',');
         }
+
         function editSantri(id) {
             const s = students.find(x => x.id == id);
             openModal('santri');
