@@ -15,32 +15,42 @@ let users = [];
 let students = [];
 let scores = [];
 
-// --- 3. AUTH SEDERHANA (localStorage) ---
-function setCurrentUser(user) {
-    localStorage.setItem('currentUser', JSON.stringify(user));
+// --- 3. AUTH (LOGIN) ---
+async function login(username, password) {
+    try {
+        const { data, error } = await db
+            .from('users')
+            .select('*')
+            .eq('username', username)
+            .eq('password', password)
+            .single();
+
+        if (error || !data) return false;
+
+        // Mapping khusus Wali Kelas: pindahkan kelas_wali ke properti kelas
+        if (data.role === 'wali_kelas' && data.kelas_wali) {
+            data.kelas = data.kelas_wali;
+        }
+
+        localStorage.setItem('currentUser', JSON.stringify(data));
+        return true;
+    } catch (err) {
+        console.error(err);
+        return false;
+    }
 }
+
 function getCurrentUser() {
-    const u = localStorage.getItem('currentUser');
-    return u ? JSON.parse(u) : null;
+    const userStr = localStorage.getItem('currentUser');
+    return userStr ? JSON.parse(userStr) : null;
 }
+
 function logout() {
     localStorage.removeItem('currentUser');
     window.location.href = 'login.html';
 }
 
-// Login
-async function login(username, password) {
-    // Pastikan data ter-load dulu
-    if (!users.length) await loadInitialData();
-
-    const found = users.find(u => u.username === username && u.password === password);
-    if (!found) return false;
-
-    setCurrentUser(found);
-    return true;
-}
-
-// Load semua data awal
+// --- 4. LOAD DATA (INIT) ---
 async function loadInitialData() {
     console.log("Loading data Supabase...");
     try {
@@ -55,18 +65,15 @@ async function loadInitialData() {
         
         console.log("Data loaded.", {users, students, scores});
     } catch (err) {
-        if (typeof showToast === "function") {
-            showToast("Gagal memuat data. Cek koneksi internet / konfigurasi Supabase.", "error", 4500);
-        } else {
-            alert("Gagal memuat data. Cek koneksi internet.");
-        }
-        throw err;
+        alert("Gagal memuat data. Cek koneksi internet.");
     }
 }
 
-// Guru: Upsert nilai
+// --- 5. CRUD FUNCTIONS ---
+
+// Guru: Simpan Nilai
 async function saveScoreToDB(scoreData) {
-    // scoreData: { student_name, kelas, mapel, kehadiran, tugas, uh, pas }
+    // scoreData: { student_name, kelas, mapel, kehadiran, tugas, uh1, uh2, uh3, uh4, uh5, pas }
     const { error } = await db
         .from('scores')
         .upsert(scoreData, { onConflict: 'student_name, mapel' });
@@ -75,6 +82,22 @@ async function saveScoreToDB(scoreData) {
 }
 
 // Wali Kelas: Simpan Catatan & Prestasi
+
+async function updateStudentFields(id, fields) {
+  try {
+    const { error } = await supabaseClient
+      .from('students')
+      .update(fields)
+      .eq('id', id);
+    if (error) throw error;
+    await loadInitialData(); // refresh local
+    return true;
+  } catch (err) {
+    console.error('updateStudentFields error:', err);
+    throw err;
+  }
+}
+
 async function updateStudentNotes(id, catatan, prestasi) {
     const { error } = await db
         .from('students')
