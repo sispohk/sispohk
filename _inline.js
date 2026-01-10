@@ -1,881 +1,4 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard E-Rapor</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    .sidebar-bg { background-color: #2563eb; }
-    
-    /* Tabel: align center untuk semua kolom, kecuali kolom nama lengkap */
-    table th, table td { text-align: center !important; vertical-align: middle; }
-    .col-name { text-align: left !important; }
 
-    /* Samakan font submenu di semua mode */
-    .submenu-item, .submenu-link, .menu-subitem {
-      font-size: 0.875rem; /* 14px */
-      font-weight: 600;
-      line-height: 1.2;
-    }
-
-@media print {
-      body * { visibility: hidden; }
-      #print-area, #print-area * { visibility: visible; }
-      #print-area { position: absolute; left: 0; top: 0; width: 100%; }
-      .no-print { display: none !important; }
-    }
-  </style>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
-  <script src="data.js"></script>
-</head>
-
-<body class="bg-gray-50 flex h-screen overflow-hidden">
-  <!-- Sidebar -->
-  <aside class="w-64 sidebar-bg text-white flex flex-col shadow-xl">
-    <div class="p-6 text-center font-bold text-2xl border-b border-blue-400">E-Rapor</div>
-
-    <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
-      <div id="menu-guru" class="hidden">
-        <button onclick="openGuruDashboard()" class="w-full text-left text-xs text-blue-200 uppercase font-semibold mb-2 hover:text-white/90">Guru Mapel</button>
-        <div class="mt-1 text-sm text-blue-100" id="guru-mapel-list"></div>
-      </div>
-
-
-      <div id="menu-musyrif" class="hidden">
-        <button onclick="openMusyrifDashboard()" class="w-full text-left text-xs text-blue-200 uppercase font-semibold mb-2 hover:text-white/90">Musyrif</button>
-        <div class="mt-1 text-sm text-blue-100" id="musyrif-kelas-list"></div>
-      </div>
-
-      <div id="menu-wali" class="hidden">
-        <button onclick="openWaliDashboard()" class="w-full text-left text-xs text-blue-200 uppercase tracking-wide mb-2 hover:text-white/90">Wali Kelas</button>
-        <button onclick="showWaliTab('data-siswa')" class="w-full text-left p-2 hover:bg-blue-700 rounded wali-nav" data-wali-tab="data-siswa">👥 Data Santri</button>
-        <button onclick="showWaliTab('absen')" class="w-full text-left p-2 hover:bg-blue-700 rounded wali-nav" data-wali-tab="absen">🗓️ Absen Santri</button>
-        <button onclick="showWaliTab('prestasi')" class="w-full text-left p-2 hover:bg-blue-700 rounded wali-nav" data-wali-tab="prestasi">🏅 Prestasi Santri</button>
-        <button onclick="showWaliTab('catatan')" class="w-full text-left p-2 hover:bg-blue-700 rounded wali-nav" data-wali-tab="catatan">📝 Catatan Wali Kelas</button>
-        <button onclick="showWaliTab('sikap')" class="w-full text-left p-2 hover:bg-blue-700 rounded wali-nav" data-wali-tab="sikap">🙂 Sikap Santri</button>
-        <button onclick="showWaliTab('status-nilai')" class="w-full text-left p-2 hover:bg-blue-700 rounded wali-nav" data-wali-tab="status-nilai">✅ Statur Nilai</button>
-        <button onclick="showWaliTab('rapor')" class="w-full text-left p-2 hover:bg-blue-700 rounded wali-nav" data-wali-tab="rapor">🗂️ Rapor & Legger</button>
-      </div>
-<div id="menu-admin" class="hidden">
-        <p class="text-xs text-blue-200 uppercase font-semibold mb-2 mt-4">Administrator</p>
-        <button onclick="showSection('admin-guru')" class="w-full text-left p-2 hover:bg-blue-700 rounded">👥 Data Guru</button>
-        <button onclick="showSection('admin-santri')" class="w-full text-left p-2 hover:bg-blue-700 rounded">🧑‍🎓 Data Santri</button>
-        <button onclick="showSection('admin-bobot')" class="w-full text-left p-2 hover:bg-blue-700 rounded">⚖️ Bobot Nilai</button>
-      </div>
-    </nav>
-
-    <div class="p-4 border-t border-blue-400">
-      <div class="text-sm mb-2" id="user-info">...</div>
-      <button onclick="logout()" class="w-full bg-red-500 hover:bg-red-600 rounded py-2 text-sm font-semibold">Logout</button>
-    </div>
-  </aside>
-
-  <!-- Main -->
-  <main class="flex-1 p-6 overflow-y-auto">
-    <div id="section-welcome" class="section">
-      <h1 class="text-2xl font-bold text-gray-800">Selamat datang 👋</h1>
-      <p class="text-gray-600 mt-2">Pilih menu di sebelah kiri untuk mulai.</p>
-    </div>
-    <!-- ===== REVIEW MODE: GURU MAPEL ===== -->
-    <div id="section-guru-dashboard" class="hidden section">
-      <div class="flex flex-wrap items-end justify-between gap-3 mb-3">
-        <div>
-          <h2 class="text-xl font-bold mb-1">Guru Mapel</h2>
-          <p class="text-gray-600">Review ringkas mapel yang diampu + kelas yang belum ada entri.</p>
-        </div>
-        <div class="flex flex-wrap gap-2">
-          <button onclick="openLastGuruMapel()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm font-semibold">▶️ Buka mapel terakhir</button>
-          <button onclick="refreshGuruDashboard()" class="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded text-sm">↻ Refresh</button>
-        </div>
-      </div>
-
-      <div class="bg-white rounded shadow p-4 mb-4">
-        <div class="font-semibold mb-2">Daftar Mapel</div>
-        <div class="text-xs text-gray-500 mb-3">Klik chip untuk membuka input nilai mapel tersebut.</div>
-        <div class="flex flex-wrap gap-2" id="guru-review-chips"></div>
-      </div>
-
-      <div class="bg-white rounded shadow p-4">
-        <div class="font-semibold mb-2">Status per Mapel</div>
-        <div class="text-xs text-gray-500 mb-3">✅ = sudah ada entri nilai pada kelas itu. ⚠️ = belum ada entri sama sekali.</div>
-        <div class="space-y-3" id="guru-review-status"></div>
-      </div>
-    </div>
-
-    <!-- ===== REVIEW MODE: MUSYRIF ===== -->
-    <div id="section-musyrif-dashboard" class="hidden section">
-      <div class="flex flex-wrap items-end justify-between gap-3 mb-3">
-        <div>
-          <h2 class="text-xl font-bold mb-1">Musyrif</h2>
-          <p class="text-gray-600">Review ringkas kelas musyrif + kolom hafalan yang belum terisi.</p>
-        </div>
-        <div class="flex flex-wrap gap-2">
-          <button onclick="openLastMusyrifInput()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm font-semibold">▶️ Lanjutkan input terakhir</button>
-          <button onclick="refreshMusyrifDashboard()" class="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded text-sm">↻ Refresh</button>
-        </div>
-      </div>
-
-      <div class="bg-white rounded shadow p-4 mb-4">
-        <div class="grid md:grid-cols-3 gap-3">
-          <div>
-            <div class="text-xs text-gray-500">Kelas musyrif</div>
-            <div class="text-lg font-bold" id="musyrif-review-kelas">-</div>
-          </div>
-          <div>
-            <div class="text-xs text-gray-500">Total santri</div>
-            <div class="text-lg font-bold" id="musyrif-review-total">0</div>
-          </div>
-          <div>
-            <div class="text-xs text-gray-500">Baris hafalan terisi</div>
-            <div class="text-lg font-bold"><span id="musyrif-review-entri">0</span> <span class="text-sm text-gray-500">(<span id="musyrif-review-cover">0%</span>)</span></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="bg-white rounded shadow p-4">
-        <div class="font-semibold mb-2">Checklist Kelengkapan</div>
-        <div class="text-xs text-gray-500 mb-3">✅ = lengkap. ⚠️ = masih ada santri yang belum terisi pada kolom tersebut.</div>
-        <div class="space-y-2" id="musyrif-review-checklist"></div>
-      </div>
-    </div>
-
-
-    <!-- ===== GURU: INPUT NILAI ===== -->
-    <div id="section-input-nilai" class="hidden section">
-      <h2 class="text-xl font-bold mb-4">Input Nilai</h2>
-
-      <div id="guru-step-kelas">
-
-        <div id="mapel-banner" class="hidden mb-3 bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center ">
-          <div class="text-sm text-blue-900">
-            Mapel dipilih: <span class="font-semibold" id="banner-mapel"></span>
-          </div>
-          </div>
-        <p class="text-gray-600 mb-3">Pilih kelas:</p>
-        <div id="kelas-list" class="grid grid-cols-2 md:grid-cols-4 gap-2"></div>
-      </div>
-
-      <div id="guru-step-mapel" class="hidden">
-        <div class="flex items-center justify-between mb-3">
-          <button onclick="backToKelas()" class="text-blue-600">← Kembali</button>
-          <div class="text-sm text-gray-600">Kelas: <span class="font-semibold" id="lbl-kelas"></span></div>
-        </div>
-        <p class="text-gray-600 mb-2">Pilih mapel:</p>
-        <div id="mapel-list" class="grid grid-cols-1 md:grid-cols-3 gap-2"></div>
-      </div>
-
-      <div id="guru-step-table" class="hidden">
-        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-          <button id="btn-back-table" onclick="resetInputView()" class="text-blue-600">← Kembali</button>
-          <div id="normal-kelas-mapel-info" class="text-sm text-gray-600">
-            Kelas: <span class="font-semibold" id="lbl-kelas2"></span> | Mapel: <span class="font-semibold" id="lbl-mapel"></span>
-          </div>
-
-          <div id="sidebar-kelas-mapel-info" class="hidden text-sm text-gray-600 flex items-center gap-2">
-            <span>Mapel: <span class="font-semibold" id="lbl-mapel-sidebar"></span></span>
-            <span class="opacity-60">|</span>
-            <label id="sidebar-kelas-select-wrap" class="flex items-center gap-2">
-              <span>Kelas:</span>
-              <select id="sidebar-kelas-dropdown" class="border rounded-lg px-3 py-2 bg-white text-sm"></select>
-            </label>
-            <span id="sidebar-kelas-fixed" class="hidden">Kelas: <span class="font-semibold" id="lbl-kelas-sidebar-fixed"></span></span>
-          </div>
-        </div>
-
-        <!-- Toolbar (Paket 2) -->
-        <div class="flex flex-wrap items-center gap-2 mb-2">
-          <button onclick="downloadTemplate()" class="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded text-sm">⬇️ Template Excel</button>
-
-          <label class="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded text-sm cursor-pointer">
-            ⬆️ Upload Excel
-            <input id="file-upload-excel" type="file" accept=".xlsx,.xls" class="hidden" onchange="handleFileUpload(this)">
-          </label>
-<button onclick="saveScores()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-semibold">
-            💾 Simpan Nilai
-          </button>
-
-          </div>
-
-        <div class="text-xs text-gray-500 mb-3">
-          Tips: <b>↑ ↓ ← →</b> navigasi cepat.
-        </div>
-
-        <div class="overflow-x-auto bg-white rounded shadow">
-          <table class="w-full border text-sm">
-            <thead class="bg-blue-600 text-white" id="input-thead">
-              <tr>
-                <th class="p-2">No</th>
-                <th class="p-2">NIS</th>
-                <th class="p-2 col-name">Nama Lengkap</th>
-                <th class="p-2 text-center">L/P</th>
-                <th class="p-2">Hadir</th>
-                <th class="p-2">Tugas</th>
-                <th class="p-2">UH1</th>
-                <th class="p-2">UH2</th>
-                <th class="p-2">UH3</th>
-                <th class="p-2">UH4</th>
-                <th class="p-2">UH5</th>
-                <th class="p-2">PAS</th>
-                <th class="p-2">Status</th>
-              </tr>
-            </thead>
-            <tbody id="input-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== WALI KELAS ===== -->
-    <div id="section-wali-dashboard" class="hidden section">
-      <div class="flex flex-wrap items-end justify-between gap-3 mb-3">
-        <div>
-          <h2 class="text-xl font-bold mb-1" id="wali-page-title">Wali Kelas</h2>
-          <p class="text-gray-600">Kelas: <span class="font-semibold" id="wali-kelas-lbl"></span></p>
-        </div>
-        <div class="text-sm text-gray-600">
-          Menu: <span class="font-semibold" id="wali-tab-label">Kehadiran</span>
-        </div>
-      </div>
-<!-- OVERVIEW -->
-      <div id="wali-panel-overview" class="hidden">
-        <div class="bg-white rounded shadow p-4 mb-4">
-          <div class="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <div class="text-lg font-semibold">Review Mode Wali Kelas</div>
-              <div class="text-sm text-gray-500">Kelas <span class="font-semibold" id="wali-review-kelas">-</span> • <span class="font-semibold" id="wali-review-total">0</span> santri</div>
-            </div>
-            <div class="flex flex-wrap gap-2">
-              <button onclick="showWaliTab('absen')" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm font-semibold">Masuk Absen</button>
-              <button onclick="showWaliTab('sikap')" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm font-semibold">Masuk Sikap</button>
-              <button onclick="showWaliTab('prestasi')" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm font-semibold">Masuk Prestasi</button>
-              <button onclick="showWaliTab('catatan')" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm font-semibold">Masuk Catatan</button>
-            </div>
-          </div>
-
-          <div class="mt-4">
-            <div class="font-semibold mb-2">Checklist Kelengkapan</div>
-            <div class="text-xs text-gray-500 mb-3">✅ = sudah ada entri untuk semua santri. ⚠️ = masih ada yang belum ada entri.</div>
-            <div class="grid md:grid-cols-2 gap-2" id="wali-review-checklist">
-              <div class="flex items-center justify-between bg-gray-50 rounded px-3 py-2">
-                <div class="text-sm font-medium">Absen Santri</div>
-                <div class="text-sm" id="wali-check-absen">-</div>
-              </div>
-              <div class="flex items-center justify-between bg-gray-50 rounded px-3 py-2">
-                <div class="text-sm font-medium">Sikap Santri</div>
-                <div class="text-sm" id="wali-check-sikap">-</div>
-              </div>
-              <div class="flex items-center justify-between bg-gray-50 rounded px-3 py-2">
-                <div class="text-sm font-medium">Prestasi Santri</div>
-                <div class="text-sm" id="wali-check-prestasi">-</div>
-              </div>
-              <div class="flex items-center justify-between bg-gray-50 rounded px-3 py-2">
-                <div class="text-sm font-medium">Catatan Wali Kelas</div>
-                <div class="text-sm" id="wali-check-catatan">-</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="mt-4 flex flex-wrap gap-2">
-            <button onclick="showWaliTab('data-siswa')" class="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded text-sm">Data Santri</button>
-            <button onclick="showWaliTab('status-nilai')" class="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded text-sm">Status Nilai</button>
-            <button onclick="showWaliTab('rapor')" class="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded text-sm">Rapor & Legger</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- STATUS NILAI MAPEL -->
-      <div id="wali-panel-status-nilai" class="hidden">
-        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-          <div class="text-sm text-gray-600">Ringkasan status pengumpulan nilai per mapel + nama guru.</div>
-          <button onclick="refreshWaliStatusNilai()" class="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded text-sm">↻ Refresh</button>
-        </div>
-        <div class="overflow-x-auto bg-white rounded shadow">
-          <table class="w-full border text-sm">
-            <thead class="bg-blue-600 text-white">
-              <tr>
-                <th class="p-2 text-left">Mapel</th>
-                <th class="p-2 text-left">Guru</th>
-                <th class="p-2 text-center">Progress</th>
-                <th class="p-2 text-center">Status</th>
-              </tr>
-            </thead>
-            <tbody id="wali-status-nilai-tbody"></tbody>
-          </table>
-        </div>
-        <div class="text-xs text-gray-500 mt-2" id="wali-mapel-hint"></div>
-      </div>
-
-      <!-- INPUT (KEHADIRAN / PRESTASI / CATATAN) -->
-
-<!-- PANEL WALI (TABEL) -->
-      <div id="wali-panel-data-siswa" class="hidden">
-        <div class="bg-white rounded shadow">
-          <div class="flex items-start justify-between gap-3 p-4 border-b">
-            <div>
-              <div class="text-xl font-bold">Data Siswa</div>
-              <div class="text-sm text-gray-500" id="wali-subtitle-data">-</div>
-            </div>
-          </div>
-
-          <div class="p-4 flex flex-wrap items-center gap-2 border-b">
-            <label class="text-sm text-gray-600 flex items-center gap-2">Search:
-              <input id="wali-search-data" class="border rounded px-3 py-2 text-sm w-[min(92vw,220px)]" placeholder="Cari...">
-            </label>
-            <button onclick="downloadWaliTemplate('data-siswa')" class="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded text-sm">⬇️ Template Excel</button>
-            <label class="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded text-sm cursor-pointer">
-              ⬆️ Upload Excel
-              <input id="file-upload-wali-data" type="file" accept=".xlsx,.xls" class="hidden" onchange="handleWaliFileUpload(this,'data-siswa')">
-            </label>
-            <button id="btn-wali-save-data" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-semibold">💾 Simpan</button>
-          </div>
-<div class="overflow-x-auto">
-            <table class="w-full border text-sm">
-              <thead class="bg-gray-100">
-                <tr>
-                  <th class="p-2">No</th>
-                  <th class="p-2">NIS</th>
-                  <th class="p-2 col-name">Nama</th>
-                  <th class="p-2 text-center">L/P</th>
-                  <th class="p-2 text-left">TTL</th>
-                </tr>
-              </thead>
-              <tbody id="wali-data-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <div id="wali-panel-absen" class="hidden">
-        <div class="bg-white rounded shadow">
-  <div class="flex items-start justify-between gap-3 p-4 border-b">
-            <div>
-              <div class="text-xl font-bold">Data Absen Siswa</div>
-              <div class="text-sm text-gray-500" id="wali-subtitle-absen">-</div>
-            </div>
-            
-          </div>
-
-          <div class="p-4 flex flex-wrap items-center gap-2 border-b">
-            <label class="text-sm text-gray-600 flex items-center gap-2">Search:
-              <input id="wali-search-absen" class="border rounded px-3 py-2 text-sm w-[min(92vw,220px)]" placeholder="Cari...">
-            </label>
-            <button onclick="downloadWaliTemplate('absen')" class="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded text-sm">⬇️ Template Excel</button>
-            <label class="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded text-sm cursor-pointer">
-              ⬆️ Upload Excel
-              <input id="file-upload-wali-absen" type="file" accept=".xlsx,.xls" class="hidden" onchange="handleWaliFileUpload(this,'absen')">
-            </label>
-            <button id="btn-wali-save-absen" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-semibold">💾 Simpan</button>
-          </div>
-<div class="overflow-x-auto">
-            <table class="w-full border text-sm">
-              <thead class="bg-gray-100">
-                <tr>
-                  <th class="p-2">No</th>
-                  <th class="p-2">NIS</th>
-                  <th class="p-2 col-name">Nama</th>
-                  <th class="p-2 text-center">L/P</th>
-                  <th class="p-2 text-center">Sakit</th>
-                  <th class="p-2 text-center">Ijin</th>
-                  <th class="p-2 text-center">Alpa</th>
-                </tr>
-              </thead>
-              <tbody id="wali-absen-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <div id="wali-panel-catatan" class="hidden">
-        <div class="bg-white rounded shadow">
-  <div class="flex items-start justify-between gap-3 p-4 border-b">
-            <div>
-              <div class="text-xl font-bold">Catatan Wali Kelas</div>
-              <div class="text-sm text-gray-500" id="wali-subtitle-catatan">-</div>
-            </div>
-            
-          </div>
-
-          <div class="p-4 flex flex-wrap items-center gap-2 border-b">
-            <label class="text-sm text-gray-600 flex items-center gap-2">Search:
-              <input id="wali-search-catatan" class="border rounded px-3 py-2 text-sm w-[min(92vw,220px)]" placeholder="Cari...">
-            </label>
-            <button onclick="downloadWaliTemplate('catatan')" class="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded text-sm">⬇️ Template Excel</button>
-            <label class="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded text-sm cursor-pointer">
-              ⬆️ Upload Excel
-              <input id="file-upload-wali-catatan" type="file" accept=".xlsx,.xls" class="hidden" onchange="handleWaliFileUpload(this,'catatan')">
-            </label>
-            <button id="btn-wali-save-catatan" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-semibold">💾 Simpan</button>
-          </div>
-<div class="overflow-x-auto">
-            <table class="w-full border text-sm">
-              <thead class="bg-gray-100">
-                <tr>
-                  <th class="p-2">No</th>
-                  <th class="p-2">NIS</th>
-                  <th class="p-2 col-name">Nama</th>
-                  <th class="p-2 text-center">L/P</th>
-                  <th class="p-2 text-center">Catatan</th>
-                </tr>
-              </thead>
-              <tbody id="wali-catatan-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <div id="wali-panel-prestasi" class="hidden">
-        <div class="bg-white rounded shadow">
-  <div class="flex items-start justify-between gap-3 p-4 border-b">
-            <div>
-              <div class="text-xl font-bold">Data Prestasi</div>
-              <div class="text-sm text-gray-500" id="wali-subtitle-prestasi">-</div>
-            </div>
-            
-          </div>
-
-          <div class="p-4 flex flex-wrap items-center gap-2 border-b">
-            <label class="text-sm text-gray-600 flex items-center gap-2">Search:
-              <input id="wali-search-prestasi" class="border rounded px-3 py-2 text-sm w-[min(92vw,220px)]" placeholder="Cari...">
-            </label>
-            <button onclick="downloadWaliTemplate('prestasi')" class="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded text-sm">⬇️ Template Excel</button>
-            <label class="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded text-sm cursor-pointer">
-              ⬆️ Upload Excel
-              <input id="file-upload-wali-prestasi" type="file" accept=".xlsx,.xls" class="hidden" onchange="handleWaliFileUpload(this,'prestasi')">
-            </label>
-            <button id="btn-wali-save-prestasi" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-semibold">💾 Simpan</button>
-          </div>
-<div class="overflow-x-auto">
-            <table class="w-full border text-sm">
-              <thead class="bg-gray-100">
-                <tr>
-                  <th class="p-2">No</th>
-                  <th class="p-2">NIS</th>
-                  <th class="p-2 col-name">Nama</th>
-                  <th class="p-2 text-center">L/P</th>
-                  <th class="p-2 text-center">Prestasi 1</th>
-                  <th class="p-2 text-center">Prestasi 2</th>
-                  <th class="p-2 text-center">Prestasi 3</th>
-                </tr>
-              </thead>
-              <tbody id="wali-prestasi-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-
-<!-- RAPOR & LEGGER -->
-      
-      <div id="wali-panel-sikap" class="hidden">
-        <div class="bg-white rounded shadow p-4">
-          <div class="flex flex-wrap items-start justify-between gap-2 mb-3">
-            <div>
-              <h3 class="font-semibold text-lg">Sikap Santri</h3>
-              <div class="text-sm text-gray-500" id="wali-subtitle-sikap">-</div>
-            </div>
-          </div>
-
-          <div class="p-4 flex flex-wrap items-center gap-2 border-b">
-            <label class="text-sm text-gray-600 flex items-center gap-2">Search:
-              <input id="wali-search-sikap" class="border rounded px-3 py-2 text-sm w-[min(92vw,220px)]" placeholder="Cari...">
-            </label>
-            <button onclick="downloadWaliTemplate('sikap')" class="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded text-sm">⬇️ Template Excel</button>
-            <label class="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded text-sm cursor-pointer">
-              ⬆️ Upload Excel
-              <input id="file-upload-wali-sikap" type="file" accept=".xlsx,.xls" class="hidden" onchange="handleWaliFileUpload(this,'sikap')">
-            </label>
-            <button id="btn-wali-save-sikap" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-semibold">💾 Simpan</button>
-          </div>
-<div class="overflow-x-auto">
-            <table class="w-full border text-sm">
-              <thead class="bg-gray-100">
-                <tr>
-                  <th class="p-2">No</th>
-                  <th class="p-2">NIS</th>
-                  <th class="p-2 col-name">Nama</th>
-                  <th class="p-2">L/P</th>
-                  <th class="p-2">Akhlak</th>
-                  <th class="p-2">Kerajinan</th>
-                  <th class="p-2">Kebersihan</th>
-                  <th class="p-2">Kedisiplinan</th>
-                </tr>
-              </thead>
-              <tbody id="wali-sikap-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-<div id="wali-panel-rapor" class="hidden">
-        <div class="bg-white rounded shadow">
-          <div class="flex items-start justify-between gap-3 p-4 border-b">
-            <div>
-              <div class="text-xl font-bold">Data Rapor &amp; Legger</div>
-              <div class="text-sm text-gray-500" id="wali-subtitle-rapor">-</div>
-              <div class="text-xs text-gray-500 mt-1" id="wali-rapor-bobot-note"></div>
-            </div>
-            <div class="flex gap-2">
-              <button onclick="printLegger()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-semibold">🖨️ Cetak Legger</button>
-              <button onclick="refreshWaliRapor()" class="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded text-sm">↻ Refresh</button>
-            </div>
-          </div>
-
-          <div class="p-4 flex items-center justify-end">
-            <label class="text-sm text-gray-600 flex items-center gap-2">Search:
-              <input id="wali-search-rapor" class="border rounded px-3 py-2 text-sm w-[min(92vw,220px)]" placeholder="Cari...">
-            </label>
-          </div>
-
-          <div class="overflow-x-auto">
-            <table class="w-full border text-sm" id="wali-rapor-table">
-              <thead class="bg-gray-100" id="wali-rapor-thead"></thead>
-              <tbody id="wali-rapor-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-
-<!-- PRINT AREA: RAPOR -->
-        <div id="print-area" class="hidden mt-4 bg-white rounded shadow p-6">
-          <div class="flex justify-between mb-6">
-            <div>
-              <h2 class="text-xl font-bold">Rapor Sementara</h2>
-              <p class="text-sm text-gray-600">Nama: <span id="rapor-nama"></span></p>
-              <p class="text-sm text-gray-600">Kelas: <span id="rapor-kelas"></span></p>
-            </div>
-            <div class="text-right">
-              <p class="text-sm">Pesantren Husnul Khotimah</p>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-3 gap-3 mb-4">
-            <div class="border rounded p-3">
-              <div class="text-xs text-gray-500">S (Sakit)</div>
-              <div class="text-lg font-bold" id="rapor-sakit">0</div>
-            </div>
-            <div class="border rounded p-3">
-              <div class="text-xs text-gray-500">I (Izin)</div>
-              <div class="text-lg font-bold" id="rapor-izin">0</div>
-            </div>
-            <div class="border rounded p-3">
-              <div class="text-xs text-gray-500">A (Alpa)</div>
-              <div class="text-lg font-bold" id="rapor-alpa">0</div>
-            </div>
-          </div>
-
-          <table class="w-full border text-sm mb-6">
-            <thead class="bg-gray-100">
-              <tr>
-                <th class="p-2 text-left">Mapel</th>
-                <th class="p-2">Hadir</th>
-                <th class="p-2">Tugas</th>
-                <th class="p-2">UH</th>
-                <th class="p-2">PAS</th>
-              </tr>
-            </thead>
-            <tbody id="rapor-tbody"></tbody>
-          </table>
-
-          <div class="grid md:grid-cols-2 gap-4 mb-6">
-            <div class="border rounded p-4">
-              <div class="text-sm font-semibold mb-2">Catatan Wali</div>
-              <div class="text-sm text-gray-700 whitespace-pre-wrap" id="rapor-catatan">-</div>
-            </div>
-            <div class="border rounded p-4">
-              <div class="text-sm font-semibold mb-2">Prestasi</div>
-              <div class="text-sm text-gray-700 whitespace-pre-wrap" id="rapor-prestasi">-</div>
-            </div>
-          </div>
-
-          <div class="mt-10 flex justify-between">
-            <div><p>Wali Kelas</p><br><br><p>( ................ )</p></div>
-            <div><p>Orang Tua</p><br><br><p>( ................. )</p></div>
-            <div><p>Kepala Sekolah</p><br><br><p>( ................ )</p></div>
-          </div>
-        </div>
-
-        <!-- PRINT AREA: LEGGER -->
-        <div id="print-legger" class="hidden mt-4 bg-white rounded shadow p-6">
-          <div class="flex justify-between mb-6">
-            <div>
-              <h2 class="text-xl font-bold">Legger Nilai Kelas</h2>
-              <p class="text-sm text-gray-600">Kelas: <span id="legger-kelas"></span></p>
-            </div>
-            <div class="text-right">
-              <p class="text-sm">Pesantren Husnul Khotimah</p>
-            </div>
-          </div>
-
-          <div class="overflow-x-auto">
-            <table class="w-full border text-xs" id="legger-table"></table>
-          </div>
-
-          <div class="mt-8 flex justify-between">
-            <div><p>Wali Kelas</p><br><br><p>( ................ )</p></div>
-            <div><p>Kepala Sekolah</p><br><br><p>( ................ )</p></div>
-          </div>
-        </div>
-
-        <button onclick="closePrintAreas()" class="mt-4 no-print text-gray-600 hover:text-gray-800">Tutup</button>
-      </div>
-    </div>
-
-    <!-- ===== ADMIN ===== -->
-    <div id="section-admin-guru" class="hidden section">
-  <div class="flex flex-col gap-3 mb-4">
-    <div class="flex items-center justify-between gap-3">
-      <h2 class="text-xl font-bold">Data Guru</h2>
-      <div class="flex items-center gap-2">
-        <button onclick="downloadGuruTemplateAdmin()" class="bg-gray-200 hover:bg-gray-300 px-3 py-1.5 rounded text-sm">⬇️ Template Excel</button>
-        <label class="bg-gray-200 hover:bg-gray-300 px-3 py-1.5 rounded text-sm cursor-pointer">
-          ⬆️ Import Excel
-          <input id="admin-guru-import" type="file" accept=".xlsx,.xls" class="hidden" onchange="handleGuruImport(this)">
-        </label>
-        <button onclick="openModal('guru')" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded">+ Tambah</button>
-      </div>
-    </div>
-
-    <div class="flex flex-wrap items-center gap-2">
-      <input id="admin-guru-search" class="w-full md:w-72 border rounded px-3 py-2 text-sm" placeholder="Cari nama / username / mapel / kelas...">
-      <select id="admin-guru-sort" class="border rounded px-3 py-2 text-sm bg-white">
-        <option value="name_asc">Sort: Nama A→Z</option>
-        <option value="name_desc">Sort: Nama Z→A</option>
-        <option value="username_asc">Sort: Username A→Z</option>
-        <option value="mapel_asc">Sort: Mapel A→Z</option>
-      </select>
-      <span class="text-xs text-gray-500 md:ml-auto" id="admin-guru-count"></span>
-    </div>
-  </div>
-
-  <div class="overflow-x-auto bg-white rounded shadow">
-    <table class="w-full border text-sm">
-      <thead class="bg-blue-600 text-white">
-        <tr>
-          <th class="p-2 col-name">Nama</th>
-          <th class="p-2 text-left">Username</th>
-          <th class="p-2 text-left">Mapel</th>
-          <th class="p-2 text-left">Kelas Ajar</th>
-          <th class="p-2 text-left">Wali Kelas</th>
-          <th class="p-2 text-left">Musyrif</th>
-          <th class="p-2">Aksi</th>
-        </tr>
-      </thead>
-      <tbody id="admin-guru-tbody"></tbody>
-    </table>
-  </div>
-
-  <div class="mt-2 text-xs text-gray-500">
-    Catatan: password default guru = <b>username + 123</b> (jika kolom Password kosong saat import / tambah).
-    <br>Import Excel: kolom minimal <b>Username</b>, <b>Nama</b>. Kolom opsional: <b>Password</b>, <b>Role</b>, <b>Mapel</b>, <b>Kelas Ajar</b>, <b>Kelas Wali</b>.
-  </div>
-</div>
-
-<div id="section-admin-santri" class="hidden section">
-  <div class="flex flex-col gap-3 mb-4">
-    <div class="flex items-center justify-between gap-3">
-      <h2 class="text-xl font-bold">Data Santri</h2>
-      <div class="flex items-center gap-2">
-        <button onclick="downloadSantriTemplateAdmin()" class="bg-gray-200 hover:bg-gray-300 px-3 py-1.5 rounded text-sm">⬇️ Template Excel</button>
-        <label class="bg-gray-200 hover:bg-gray-300 px-3 py-1.5 rounded text-sm cursor-pointer">
-          ⬆️ Import Excel
-          <input id="admin-santri-import" type="file" accept=".xlsx,.xls" class="hidden" onchange="handleSantriImport(this)">
-        </label>
-        <button onclick="openModal('santri')" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded">+ Tambah</button>
-      </div>
-    </div>
-
-    <div class="flex flex-wrap items-center gap-2">
-      <input id="admin-santri-search" class="w-full md:w-72 border rounded px-3 py-2 text-sm" placeholder="Cari NIS / nama / kelas...">
-      <select id="admin-santri-kelas-filter" class="border rounded px-3 py-2 text-sm bg-white">
-        <option value="">Filter: Semua kelas</option>
-      </select>
-      <select id="admin-santri-sort" class="border rounded px-3 py-2 text-sm bg-white">
-        <option value="kelas_asc">Sort: Kelas A→Z</option>
-        <option value="name_asc">Sort: Nama A→Z</option>
-        <option value="name_desc">Sort: Nama Z→A</option>
-        <option value="nis_asc">Sort: NIS A→Z</option>
-      </select>
-      <span class="text-xs text-gray-500 md:ml-auto" id="admin-santri-count"></span>
-    </div>
-  </div>
-
-  <div class="overflow-x-auto bg-white rounded shadow">
-    <table class="w-full border text-sm">
-      <thead class="bg-blue-600 text-white">
-        <tr>
-          <th class="p-2">NIS</th>
-          <th class="p-2 col-name">Nama</th>
-          <th class="p-2">Kelas</th>
-          <th class="p-2">Aksi</th>
-        </tr>
-      </thead>
-      <tbody id="admin-santri-tbody"></tbody>
-    </table>
-  </div>
-
-  <div class="mt-2 text-xs text-gray-500">
-    Import Excel: kolom minimal <b>NIS</b>, <b>Nama</b>, <b>Kelas</b>. NIS boleh kosong (akan dianggap siswa baru).
-  </div>
-</div>
-
-<div id="section-admin-bobot" class="hidden section">
-  <h2 class="text-xl font-bold mb-3">Pembobotan Nilai</h2>
-  <div class="bg-white rounded shadow p-4">
-    <div class="text-sm text-gray-600 mb-3">Bobot berlaku <b>global</b> untuk semua mapel. Disimpan di perangkat ini (localStorage).</div>
-
-    <div id="bobot-panel" class="flex flex-wrap items-center gap-2 bg-gray-50 border rounded-lg px-3 py-3">
-      <span class="text-xs font-semibold text-gray-700">Bobot (%)</span>
-      <label class="text-xs text-gray-600 flex items-center gap-1">Hadir
-        <input id="bobot-hadir" type="number" min="0" max="100" class="w-16 border rounded px-2 py-1 text-xs" value="10">
-      </label>
-      <label class="text-xs text-gray-600 flex items-center gap-1">Tugas
-        <input id="bobot-tugas" type="number" min="0" max="100" class="w-16 border rounded px-2 py-1 text-xs" value="20">
-      </label>
-      <label class="text-xs text-gray-600 flex items-center gap-1">UH
-        <input id="bobot-uh" type="number" min="0" max="100" class="w-16 border rounded px-2 py-1 text-xs" value="40">
-      </label>
-      <label class="text-xs text-gray-600 flex items-center gap-1">PAS/PAT
-        <input id="bobot-pas" type="number" min="0" max="100" class="w-20 border rounded px-2 py-1 text-xs" value="30">
-      </label>
-      <span id="bobot-total" class="text-xs font-semibold text-gray-600">Total: 100%</span>
-    </div>
-
-
-    <div class="mt-2 text-xs text-gray-500">
-      Default: <b>10 : 20 : 40 : 30</b> (Hadir : Tugas : UH : PAS/PAT). Total harus <b>100%</b>.
-    </div>
-  </div>
-</div>
-
-  </main>
-
-  <!-- Modal Admin -->
-  <div id="admin-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-    <div class="bg-white p-6 rounded w-96">
-      <h3 class="font-bold text-lg mb-4" id="modal-title">Form</h3>
-      <input type="hidden" id="edit-id"><input type="hidden" id="data-type">
-      <input id="inp-nama" class="w-full border p-2 mb-2 rounded" placeholder="Nama Lengkap">
-
-      
-<div id="fields-guru" class="hidden">
-  <div class="flex gap-2 mb-2">
-    <input id="inp-username" class="flex-1 border p-2 rounded" placeholder="Username">
-    <button type="button" onclick="autoFillGuruUsername()" class="border rounded px-3 text-sm hover:bg-gray-50">Buat</button>
-  </div>
-  <div class="text-xs text-gray-500 mb-2">Password default: <b>username123</b></div>
-  <input id="inp-mapel" class="w-full border p-2 mb-2 rounded" placeholder="Mapel (koma)">
-  <input id="inp-kelas-ajar" class="w-full border p-2 mb-2 rounded" placeholder="Kelas Ajar (koma)">
-  <input id="inp-kelas-wali" class="w-full border p-2 mb-2 rounded" placeholder="Wali Kelas (opsional, mis: 10-A)">
-  <div class="text-xs text-gray-500 -mt-1 mb-2">Isi jika guru ini juga wali kelas.</div>
-  <input id="inp-musyrif" class="w-full border p-2 mb-2 rounded" placeholder="Musyrif (opsional, mis: X-A)">
-  <div class="text-xs text-gray-500 -mt-1 mb-2">Isi jika guru ini juga musyrif.</div>
-</div>
-
-<div id="fields-santri" class="hidden">
-        <input id="inp-nis" class="w-full border p-2 mb-2 rounded" placeholder="NIS">
-        <input id="inp-kelas-santri" class="w-full border p-2 mb-2 rounded" placeholder="Kelas (mis: 10-A)">
-      </div>
-
-      <div class="flex justify-end mt-4">
-        <button onclick="document.getElementById('admin-modal').classList.add('hidden')" class="mr-2 text-gray-500">Batal</button>
-        <button onclick="saveAdminData()" class="bg-blue-600 text-white px-4 py-2 rounded">Simpan</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- UX: Toasts -->
-  <div id="toast-container" class="fixed top-4 right-4 z-[60] space-y-2 w-[min(92vw,360px)]" aria-live="polite" aria-relevant="additions"></div>
-
-  <!-- UX: Loading Overlay -->
-  <div id="loading-overlay" class="hidden fixed inset-0 bg-black/20 flex items-center justify-center z-[70]">
-    <div class="bg-white rounded-xl shadow-xl px-5 py-4 flex items-center gap-3">
-      <div class="h-5 w-5 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
-      <div>
-        <div class="font-semibold text-gray-800 text-sm" id="loading-title">Memproses…</div>
-        <div class="text-xs text-gray-500" id="loading-subtitle">Mohon tunggu sebentar.</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- UX: Confirm Modal -->
-  <div id="confirm-modal" class="hidden fixed inset-0 bg-black/50 flex justify-center items-center z-[65]">
-    <div class="bg-white p-6 rounded-xl w-[min(92vw,420px)] shadow-2xl">
-      <h3 class="font-bold text-lg mb-2" id="confirm-title">Konfirmasi</h3>
-      <p class="text-sm text-gray-600 mb-5" id="confirm-message">Apakah kamu yakin?</p>
-      <div class="flex justify-end gap-3">
-        <button id="confirm-cancel" class="px-4 py-2 rounded-lg border text-gray-700 hover:bg-gray-50">Batal</button>
-        <button id="confirm-ok" class="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700">Ya, lanjut</button>
-      </div>
-    </div>
-  </div>
-
-
-
-<div id="guru-import-modal" class="hidden fixed inset-0 bg-black/50 flex justify-center items-center z-[67]">
-  <div class="bg-white p-6 rounded-xl w-[min(92vw,860px)] shadow-2xl">
-    <div class="flex items-start justify-between gap-4">
-      <div>
-        <h3 class="font-bold text-lg">Preview Import Guru</h3>
-        <p class="text-sm text-gray-600 mt-1">Cek rencana aksi (insert/update/skip) sebelum eksekusi.</p>
-      </div>
-      <button id="guru-import-close" class="text-gray-500 hover:text-gray-800" aria-label="Tutup">✕</button>
-    </div>
-
-    <div class="grid md:grid-cols-4 gap-3 mt-4">
-      <div class="bg-gray-50 rounded-lg p-3">
-        <div class="text-xs text-gray-500">Total baris Excel</div>
-        <div class="text-2xl font-bold" id="guru-import-total">0</div>
-      </div>
-      <div class="bg-gray-50 rounded-lg p-3">
-        <div class="text-xs text-gray-500">Insert baru</div>
-        <div class="text-2xl font-bold text-green-700" id="guru-import-insert">0</div>
-      </div>
-      <div class="bg-gray-50 rounded-lg p-3">
-        <div class="text-xs text-gray-500">Update (berdasar Username)</div>
-        <div class="text-2xl font-bold text-blue-700" id="guru-import-update">0</div>
-      </div>
-      <div class="bg-gray-50 rounded-lg p-3">
-        <div class="text-xs text-gray-500">Skip / error</div>
-        <div class="text-2xl font-bold text-red-700" id="guru-import-skip">0</div>
-      </div>
-    </div>
-
-    <div class="grid md:grid-cols-2 gap-4 mt-4">
-      <div class="border rounded-lg overflow-hidden">
-        <div class="bg-gray-50 px-3 py-2 text-sm font-semibold">Contoh baris (maks 12)</div>
-        <div class="max-h-64 overflow-auto">
-          <table class="w-full text-sm">
-            <thead class="sticky top-0 bg-white border-b">
-              <tr>
-                <th class="p-2 text-left">Username</th>
-                <th class="p-2 col-name">Nama</th>
-                <th class="p-2 text-left">Role</th>
-                <th class="p-2 text-left">Aksi</th>
-              </tr>
-            </thead>
-            <tbody id="guru-import-sample"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="border rounded-lg p-3">
-        <div class="text-sm font-semibold mb-2">Catatan / Error (maks 12)</div>
-        <ul id="guru-import-errors" class="text-sm text-gray-700 list-disc pl-5 max-h-64 overflow-auto"></ul>
-      </div>
-    </div>
-
-    <div class="mt-5 flex justify-end gap-3">
-      <button id="guru-import-cancel" class="px-4 py-2 rounded-lg border text-gray-700 hover:bg-gray-50">Batal</button>
-      <button id="guru-import-apply" class="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">Eksekusi Import</button>
-    </div>
-  </div>
-</div>
-
-
-  <script>
     const currentUser = getCurrentUser();
     if (!currentUser) window.location.href = 'login.html';
 
@@ -1455,8 +578,7 @@ function isAttendanceSupported() {
       if (el && el.classList && el.classList.contains('score-input')) {
         if (el.value.length > 3) el.value = el.value.slice(0, 3);
         const rowEl = getRowElFromInput(el);
-        markRowDirty(rowEl, true);
-      }
+        markRowDirty(rowEl, true);}
     });
 
     document.addEventListener('blur', (e) => {
@@ -1535,89 +657,54 @@ function isAttendanceSupported() {
       try { setLoading(false); } catch(e) {}
     }
 
-    function safeJsonObject(x) {
-      if (!x) return null;
-      if (typeof x === 'object' && !Array.isArray(x)) return x;
-      if (typeof x !== 'string') return null;
-      try {
-        const v = JSON.parse(x);
-        if (v && typeof v === 'object' && !Array.isArray(v)) return v;
-      } catch (e) {}
-      return null;
-    }
-
-    function getGuruClassesForMapel(mapel) {
-      // support: classes = ['10-A','10-B'] OR classes = {"Matematika": ['10-A']}
-      const obj = safeJsonObject(currentUser?.classes);
-      if (obj && obj[mapel] && Array.isArray(obj[mapel])) return obj[mapel].map(x => String(x).trim()).filter(Boolean);
-      const arr = safeArray(currentUser?.classes);
-      if (arr && arr.length) return arr.map(x => String(x).trim()).filter(Boolean);
-
-      // fallback: infer from scores
-      const inferred = (Array.isArray(scores) ? scores : [])
-        .filter(r => String(r.mapel) === String(mapel))
-        .map(r => String(r.kelas || '').trim())
-        .filter(Boolean);
-      return [...new Set(inferred)];
-    }
-
-    function openLastGuruMapel() {
-      const mp = safeArray(currentUser?.mapel);
-      if (!mp.length) return;
-      let last = '';
-      try { last = localStorage.getItem('lastGuruMapel') || ''; } catch(e) {}
-      if (!last || !mp.includes(last)) last = mp[0];
-      openInputNilaiFromSidebar(String(last));
-    }
-
     function renderGuruDashboard() {
       const mp = safeArray(currentUser?.mapel);
-      const chipWrap = document.getElementById('guru-review-chips');
-      const statusWrap = document.getElementById('guru-review-status');
-      if (chipWrap) chipWrap.innerHTML = '';
-      if (statusWrap) statusWrap.innerHTML = '';
+      const kelasAjar = safeArray(currentUser?.classes);
 
-      if (!mp.length) {
-        if (chipWrap) chipWrap.innerHTML = '<div class="text-gray-500 italic">Mapel belum diatur.</div>';
-        if (statusWrap) statusWrap.innerHTML = '<div class="text-gray-500 italic">Mapel belum diatur.</div>';
+      const mpCount = mp.length;
+      const kCount = kelasAjar.length;
+
+      const filtered = (Array.isArray(scores) ? scores : []).filter(sc => {
+        const okMapel = mp.includes(sc.mapel);
+        const okKelas = !kCount || kelasAjar.includes(sc.kelas);
+        return okMapel && okKelas;
+      });
+
+      const pasVals = filtered.map(r => Number(r.pas)).filter(v => Number.isFinite(v));
+      const avgPas = pasVals.length ? Math.round(pasVals.reduce((a,b)=>a+b,0) / pasVals.length) : null;
+
+      const elMapel = document.getElementById('guru-stat-mapel');
+      const elKelas = document.getElementById('guru-stat-kelas');
+      const elEntri = document.getElementById('guru-stat-entri');
+      const elAvg   = document.getElementById('guru-stat-avgpas');
+
+      if (elMapel) elMapel.textContent = String(mpCount);
+      if (elKelas) elKelas.textContent = String(kCount);
+      if (elEntri) elEntri.textContent = String(filtered.length);
+      if (elAvg) elAvg.textContent = avgPas === null ? '-' : String(avgPas);
+
+      const tb = document.getElementById('guru-dashboard-tbody');
+      if (!tb) return;
+
+      if (!mpCount) {
+        tb.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-500 italic">Mapel belum diatur.</td></tr>`;
         return;
       }
 
-      if (chipWrap) {
-        chipWrap.innerHTML = mp.map(m => {
-          const label = escapeHtml(m);
-          const key = String(m);
-          const safe = key.replaceAll("'", "\\'");
-          return `<button class="px-3 py-2 rounded-full bg-gray-200 hover:bg-gray-300 text-sm" onclick="openInputNilaiFromSidebar('${safe}')">📘 ${label}</button>`;
-        }).join('');
-      }
+      tb.innerHTML = mp.map(m => {
+        const rows = filtered.filter(r => String(r.mapel) === String(m));
+        const kelasSet = new Set(rows.map(r => String(r.kelas || '').trim()).filter(Boolean));
+        const pVals = rows.map(r => Number(r.pas)).filter(v => Number.isFinite(v));
+        const aPas = pVals.length ? Math.round(pVals.reduce((a,b)=>a+b,0) / pVals.length) : null;
 
-      if (!statusWrap) return;
-
-      const rowsAll = (Array.isArray(scores) ? scores : []);
-      statusWrap.innerHTML = mp.map(m => {
-        const kelasList = getGuruClassesForMapel(m);
-        if (!kelasList.length) {
-          return `<div class="border rounded-lg p-3">
-            <div class="font-semibold mb-2">${escapeHtml(m)}</div>
-            <div class="text-sm text-gray-500 italic">Belum ada kelas terdaftar untuk mapel ini.</div>
-          </div>`;
-        }
-
-        const badges = kelasList.map(k => {
-          const hasEntry = rowsAll.some(r => String(r.mapel) === String(m) && String(r.kelas) === String(k));
-          const cls = hasEntry ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-800';
-          const ico = hasEntry ? '✅' : '⚠️';
-          return `<span class="px-2 py-1 rounded text-xs ${cls}">${ico} ${escapeHtml(k)}</span>`;
-        }).join(' ');
-
-        return `<div class="border rounded-lg p-3">
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <div class="font-semibold">${escapeHtml(m)}</div>
-            <div class="flex flex-wrap gap-1">${badges}</div>
-          </div>
-        </div>`;
+        return `<tr class="border-b">
+          <td class="p-2">${escapeHtml(m)}</td>
+          <td class="p-2">${kelasSet.size}</td>
+          <td class="p-2">${rows.length}</td>
+          <td class="p-2">${aPas === null ? '-' : aPas}</td>
+        </tr>`;
       }).join('');
+      bindTbodyArrowNav('wali-absen-tbody');
     }
 
     function getSingleMusyrifKelas() {
@@ -1626,71 +713,47 @@ function isAttendanceSupported() {
       return arr && arr.length ? String(arr[0]) : '';
     }
 
-    function openLastMusyrifInput() {
-      const fallback = getSingleMusyrifKelas();
-      let last = '';
-      try { last = localStorage.getItem('lastMusyrifKelas') || ''; } catch(e) {}
-      const kelas = last || fallback;
-      if (!kelas) return;
-      openMusyrifKelasFromSidebar(encodeURIComponent(kelas));
-    }
-
     function renderMusyrifDashboard() {
       const kelas = getSingleMusyrifKelas();
       const siswa = (Array.isArray(students) ? students : []).filter(s => String(s.kelas) === String(kelas));
       const ms = (Array.isArray(musyrifScores) ? musyrifScores : []).filter(r => String(r.kelas) === String(kelas));
 
-      const total = siswa.length;
+      const totalSiswa = siswa.length;
       const entri = ms.length;
-      const cover = total ? Math.round((entri / total) * 100) : 0;
+      const cover = totalSiswa ? Math.round((entri / totalSiswa) * 100) : 0;
 
-      const elK = document.getElementById('musyrif-review-kelas');
-      const elT = document.getElementById('musyrif-review-total');
-      const elE = document.getElementById('musyrif-review-entri');
-      const elC = document.getElementById('musyrif-review-cover');
+      const avg = (key) => {
+        const vals = ms.map(r => Number(r[key])).filter(v => Number.isFinite(v));
+        return vals.length ? Math.round(vals.reduce((a,b)=>a+b,0) / vals.length) : null;
+      };
+
+      const elK = document.getElementById('musyrif-stat-kelas');
+      const elS = document.getElementById('musyrif-stat-siswa');
+      const elE = document.getElementById('musyrif-stat-entri');
+      const elC = document.getElementById('musyrif-stat-cover');
+      const elFs = document.getElementById('musyrif-stat-avgfs');
+
       if (elK) elK.textContent = kelas || '-';
-      if (elT) elT.textContent = String(total);
+      if (elS) elS.textContent = String(totalSiswa);
       if (elE) elE.textContent = String(entri);
       if (elC) elC.textContent = `${cover}%`;
 
-      const checklist = document.getElementById('musyrif-review-checklist');
-      if (!checklist) return;
+      const avgFs = avg('fashohah');
+      if (elFs) elFs.textContent = avgFs === null ? '-' : String(avgFs);
 
-      if (!kelas) {
-        checklist.innerHTML = '<div class="text-gray-500 italic">Kelas musyrif belum diatur.</div>';
-        return;
-      }
+      const elHW = document.getElementById('musyrif-avg-hw');
+      const elHM = document.getElementById('musyrif-avg-hm');
+      const elZY = document.getElementById('musyrif-avg-zy');
+      const elAF = document.getElementById('musyrif-avg-fs');
 
-      // index by student_id
-      const idx = new Map(ms.map(r => [Number(r.student_id), r]));
+      const aHW = avg('hafalan_wajib');
+      const aHM = avg('hafalan_murojaah');
+      const aZY = avg('ziyadah');
 
-      const countMissing = (key) => {
-        let miss = 0;
-        for (const st of siswa) {
-          const row = idx.get(Number(st.id));
-          if (!row || row[key] === null || row[key] === undefined) miss++;
-        }
-        return miss;
-      };
-
-      const items = [
-        { key: 'hafalan_wajib', label: 'Hafalan Wajib' },
-        { key: 'hafalan_murojaah', label: 'Hafalan Murojaah' },
-        { key: 'ziyadah', label: 'Ziyadah' },
-        { key: 'fashohah', label: 'Fashohah' },
-      ];
-
-      checklist.innerHTML = items.map(it => {
-        const miss = countMissing(it.key);
-        const ok = (total > 0 && miss === 0);
-        const status = total === 0
-          ? '-'
-          : (ok ? '✅ Lengkap' : `⚠️ ${miss}/${total} belum`);
-        return `<div class="flex items-center justify-between bg-gray-50 rounded px-3 py-2">
-          <div class="text-sm font-medium">${it.label}</div>
-          <div class="text-sm">${status}</div>
-        </div>`;
-      }).join('');
+      if (elHW) elHW.textContent = aHW === null ? '-' : String(aHW);
+      if (elHM) elHM.textContent = aHM === null ? '-' : String(aHM);
+      if (elZY) elZY.textContent = aZY === null ? '-' : String(aZY);
+      if (elAF) elAF.textContent = avgFs === null ? '-' : String(avgFs);
     }
 
     // ===== Role menu =====
@@ -1734,8 +797,8 @@ function isAttendanceSupported() {
         const key = String(m);
         const isActive = sidebarSelectedMapel === key;
         const cls = isActive
-          ? 'menu-subitem w-full text-left px-2 py-1 rounded bg-blue-700 text-white shadow-sm'
-          : 'menu-subitem w-full text-left px-2 py-1 rounded hover:bg-blue-700/60 text-blue-50';
+          ? 'w-full text-left px-2 py-1 rounded bg-blue-700 text-white shadow-sm'
+          : 'w-full text-left px-2 py-1 rounded hover:bg-blue-700/60 text-blue-50';
 
         const safe = key.replaceAll("'", "\\'");
         return `<button class="${cls}" onclick="openInputNilaiFromSidebar('${safe}')">📘 ${label}</button>`;
@@ -1747,9 +810,6 @@ function isAttendanceSupported() {
       sidebarSelectedMapel = String(mapel || '');
       selMapel = sidebarSelectedMapel;
       selKelas = '';
-
-      // simpan mapel terakhir (untuk Review Mode)
-      try { localStorage.setItem('lastGuruMapel', selMapel); } catch(e) {}
 
       // highlight aktif
       renderGuruMapelSidebar();
@@ -1788,7 +848,7 @@ function isAttendanceSupported() {
 
       list.innerHTML = kelasList.map(k => {
         const label = escapeHtml(k);
-        return `<button class="menu-subitem w-full text-left px-2 py-1 rounded hover:bg-blue-700/60 text-blue-50" onclick="openMusyrifKelasFromSidebar('${encodeURIComponent(k)}')">📗 ${label}</button>`;
+        return `<button class="w-full text-left px-2 py-1 rounded hover:bg-blue-700/60 text-blue-50" onclick="openMusyrifKelasFromSidebar('${encodeURIComponent(k)}')">📗 ${label}</button>`;
       }).join('');
     }
 
@@ -1798,9 +858,6 @@ function isAttendanceSupported() {
       selMapel = sidebarSelectedMapel;
       selKelas = kelas;
       sidebarLastKelasByMapel[sidebarSelectedMapel] = kelas;
-
-      // simpan kelas terakhir (untuk Review Mode)
-      try { localStorage.setItem('lastMusyrifKelas', kelas); } catch(e) {}
       renderGuruMapelSidebar();
       renderMusyrifSidebar();
       showSection('input-nilai');
@@ -3030,7 +2087,6 @@ function isAttendanceSupported() {
 
       if (currentWaliTab === 'overview') {
         pOverview && pOverview.classList.remove('hidden');
-        try { renderWaliReviewMode(); } catch(e) { console.warn(e); }
         return;
       }
 
@@ -3379,50 +2435,14 @@ function isAttendanceSupported() {
       const pasVals = kelasScores.map(x => Number(x.pas ?? 0)).filter(n => !Number.isNaN(n));
       const avgPas = pasVals.length ? Math.round(pasVals.reduce((a,b)=>a+b,0) / pasVals.length) : null;
 
-      const __el_wali_stat_siswa = document.getElementById('wali-stat-siswa'); if(__el_wali_stat_siswa) __el_wali_stat_siswa.textContent = String(siswa.length);
-      const __el_wali_stat_mapel = document.getElementById('wali-stat-mapel'); if(__el_wali_stat_mapel) __el_wali_stat_mapel.textContent = String(new Set(mapelList).size);
-      const __el_wali_stat_complete_count = document.getElementById('wali-stat-complete-count'); if(__el_wali_stat_complete_count) __el_wali_stat_complete_count.textContent = String(completeCount);
-      const __el_wali_stat_complete = document.getElementById('wali-stat-complete'); if(__el_wali_stat_complete) __el_wali_stat_complete.textContent = `${percent}%`;
-      const __el_wali_avg_pas = document.getElementById('wali-avg-pas'); if(__el_wali_avg_pas) __el_wali_avg_pas.textContent = avgPas === null ? '-' : String(avgPas);
+      document.getElementById('wali-stat-siswa').textContent = String(siswa.length);
+      document.getElementById('wali-stat-mapel').textContent = String(new Set(mapelList).size);
+      document.getElementById('wali-stat-complete-count').textContent = String(completeCount);
+      document.getElementById('wali-stat-complete').textContent = `${percent}%`;
+      document.getElementById('wali-avg-pas').textContent = avgPas === null ? '-' : String(avgPas);
 
       // cache completeness in window for filtering
       window.__waliCompleteCache = perStudentComplete;
-    }
-
-    function renderWaliReviewMode() {
-      const kelas = getWaliKelasCurrent();
-      const siswa = (Array.isArray(students) ? students : []).filter(s => String(s.kelas) === String(kelas));
-      const total = siswa.length;
-
-      const elK = document.getElementById('wali-review-kelas');
-      const elT = document.getElementById('wali-review-total');
-      if (elK) elK.textContent = kelas || '-';
-      if (elT) elT.textContent = String(total);
-
-      const setCheck = (id, missing) => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        if (!total) { el.textContent = '-'; return; }
-        el.textContent = (missing === 0)
-          ? '✅ Lengkap'
-          : `⚠️ ${missing}/${total} belum`;
-      };
-
-      let missAbsen = 0, missSikap = 0, missPrestasi = 0, missCatatan = 0;
-      for (const st of siswa) {
-        const row = getWaliRow(Number(st.id), kelas);
-        if (!row) { missAbsen++; missSikap++; missPrestasi++; missCatatan++; continue; }
-
-        if (row.hadir_s === null || row.hadir_i === null || row.hadir_a === null) missAbsen++;
-        if (row.akhlak === null || row.kerajinan === null || row.kebersihan === null || row.kedisiplinan === null) missSikap++;
-        if (row.prestasi === null || row.prestasi2 === null || row.prestasi3 === null) missPrestasi++;
-        if (row.catatan === null || row.catatan === undefined) missCatatan++;
-      }
-
-      setCheck('wali-check-absen', missAbsen);
-      setCheck('wali-check-sikap', missSikap);
-      setCheck('wali-check-prestasi', missPrestasi);
-      setCheck('wali-check-catatan', missCatatan);
     }
 
     function getMapelAssignmentsForKelas(kelas) {
@@ -4151,14 +3171,7 @@ function renderAdminGuruTable() {
           }
         });
 
-        pendingSantriImportPlan = plan;
-// Preview dihapus: langsung eksekusi import
-applySantriImport().catch(err => {
-  console.error(err);
-  if (typeof showToast === 'function') showToast('Import santri gagal. Lihat console.', 'error');
-});
-const fEl = document.getElementById('admin-santri-import');
-if (fEl) fEl.value = '';
+        openSantriImportModal(plan);
       };
 
       reader.readAsArrayBuffer(f);
@@ -4354,14 +3367,7 @@ if (fEl) fEl.value = '';
           }
         });
 
-        pendingGuruImportPlan = plan;
-// Preview dihapus: langsung eksekusi import
-applyGuruImport().catch(err => {
-  console.error(err);
-  if (typeof showToast === 'function') showToast('Import guru gagal. Lihat console.', 'error');
-});
-const fEl = document.getElementById('admin-guru-import');
-if (fEl) fEl.value = '';
+        openGuruImportModal(plan);
       };
 
       reader.readAsArrayBuffer(f);
@@ -4581,6 +3587,4 @@ function requestDeleteUser(id) {
       document.getElementById('inp-nis').value = s.nis || '';
       document.getElementById('inp-kelas-santri').value = s.kelas;
     }
-  </script>
-</body>
-</html>
+  
