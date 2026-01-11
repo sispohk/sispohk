@@ -213,7 +213,7 @@ function getCurrentUser() {
 }
 function logout() {
   localStorage.removeItem('erapor_user');
-  window.location.href = 'login.html';
+  window.location.href = 'index.html';
 }
 
 // --- 5) NORMALIZER ---
