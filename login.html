@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login E-Rapor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="data.js"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center h-screen">
+    <div class="bg-white p-8 rounded-lg shadow-lg w-96 border-t-4 border-blue-600">
+        <h2 class="text-2xl font-bold text-center text-blue-600 mb-6">Login E-Rapor</h2>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-gray-700 font-bold mb-1">Username</label>
+                <input type="text" id="username" class="w-full p-2 border border-gray-300 rounded" placeholder="admin">
+            </div>
+            <div>
+                <label class="block text-gray-700 font-bold mb-1">Password</label>
+                <input type="password" id="password" class="w-full p-2 border border-gray-300 rounded" placeholder="******">
+            </div>
+            <button onclick="handleLogin()" id="btn-login" class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 font-bold mt-4">Masuk</button>
+            <p id="error-msg" class="text-red-500 text-sm text-center hidden mt-2"></p>
+        </div>
+    </div>
+
+    <script>
+        async function handleLogin() {
+            const u = document.getElementById('username').value;
+            const p = document.getElementById('password').value;
+            const btn = document.getElementById('btn-login');
+            const err = document.getElementById('error-msg');
+
+            btn.innerText = "Loading..."; btn.disabled = true; err.classList.add('hidden');
+
+            const success = await login(u, p);
+            if(success) {
+                window.location.href = 'dashboard.html';
+            } else {
+                err.innerText = "Username/Password Salah!";
+                err.classList.remove('hidden');
+                btn.innerText = "Masuk"; btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

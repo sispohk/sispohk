@@ -213,7 +213,7 @@ function getCurrentUser() {
 }
 function logout() {
   localStorage.removeItem('erapor_user');
-  window.location.href = 'index.html';
+  window.location.href = 'login.html';
 }
 
 // --- 5) NORMALIZER ---
@@ -340,6 +340,11 @@ function normalizeGuruPayload(raw, { isInsert = false } = {}) {
 
   // password default saat insert kalau kosong
   if (isInsert && !cleaned.password) cleaned.password = '123456';
+
+  // Saat update: jangan kirim password null (akan melanggar NOT NULL dan/atau mengosongkan password)
+  if (!isInsert && (cleaned.password === null || cleaned.password === undefined)) {
+    delete cleaned.password;
+  }
 
   // hapus key null yang tidak wajib? tetap kirim null boleh, tapi lebih bersih:
   Object.keys(cleaned).forEach(k => {
@@ -708,7 +713,7 @@ async function upsertScore(student_name, kelas, mapel, field, value) {
 }
 
 async function upsertWaliScore(student_id, nis, name, kelas, field, value) {
-  const numeric = new Set(['hadir_s','hadir_i','hadir_a','akhlak','kerajinan','kebersihan','kedisiplinan']);
+  const numeric = new Set(['hadir_s','hadir_i','hadir_a']);
   const { tahun_ajar, semester } = getActivePeriode();
 
   const payload = {

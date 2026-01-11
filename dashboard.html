@@ -230,7 +230,7 @@
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
         const u = getCurrentUser();
-        if(!u) { window.location.href = 'index.html'; return; }
+        if(!u) { window.location.href = 'login.html'; return; }
         document.getElementById('user-info-name').innerText = u.name;
         document.getElementById('user-info-role').innerText = u.role;
         setLoading(true, "Memuat Data...");
@@ -253,6 +253,7 @@
             <li class="px-3 mt-6 mb-2 text-xs text-blue-300 uppercase font-bold tracking-wider">Administrator</li>
             <li><a href="#" onclick="renderAdminGuru()" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">👥 Data Guru</a></li>
             <li><a href="#" onclick="renderAdminSantri()" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">🎓 Data Santri</a></li>
+            <li><a href="#" onclick="renderAdminLegger()" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">📊 Legger Santri</a></li>
             <li><a href="#" onclick="renderBobotNilai()" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">⚖️ Bobot Nilai</a></li>
             <li><a href="#" onclick="renderKonversiNilai()" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">🔄 Konversi Nilai</a></li>`;
         }
@@ -373,16 +374,82 @@
         }
 
         // Guru dashboard (default)
+        const { tahun_ajar, semester } = getActivePeriode();
+        const mapelList = parseMapelData(u.mapel);
+        const combos = [];
+        mapelList.forEach(m => (m.kelas||[]).forEach(k => combos.push({ mapel: m.nama, kelas: k })));
+
+        const kelasSet = new Set(combos.map(c => String(c.kelas)));
+        const santriSet = new Set();
+
+        let expected = 0;
+        let filled = 0;
+
+        combos.forEach(c => {
+            const santriKelas = students.filter(s => String(s.kelas||'') === String(c.kelas));
+            expected += santriKelas.length;
+            santriKelas.forEach(s => santriSet.add(String(s.nis)));
+            filled += scores.filter(sc =>
+                String(sc.kelas||'') === String(c.kelas) &&
+                String(sc.mapel||'').toUpperCase() === String(c.mapel||'').toUpperCase()
+            ).length;
+        });
+
+        const pct = expected ? Math.min(100, Math.round((filled/expected)*100)) : 0;
+        const isWaliRole = isWali(u);
+        const isMusyrifRole = !!(u.musyrif && String(u.musyrif).trim());
+
         document.getElementById('main-content').innerHTML = `
-        <div class="max-w-4xl mx-auto space-y-6">
+        <div class="max-w-6xl mx-auto space-y-6">
             <div class="bg-white p-8 rounded-xl shadow border-l-8 border-blue-600">
                 <h2 class="text-3xl font-extrabold text-gray-800 mb-2">Selamat Datang, ${u.name}</h2>
-                <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold uppercase">${u.role}</span>
+                <div class="flex flex-wrap gap-2 items-center">
+                    <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold uppercase">${u.role}</span>
+                    <span class="text-xs text-gray-500">Periode aktif: <b>${tahun_ajar}</b> / Semester <b>${semester}</b></span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div class="bg-white p-5 rounded-xl shadow border">
+                    <div class="text-sm text-gray-500 font-bold mb-1">Mapel Diampu</div>
+                    <div class="text-3xl font-extrabold text-gray-800">${mapelList.length}</div>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow border">
+                    <div class="text-sm text-gray-500 font-bold mb-1">Kelas Diampu</div>
+                    <div class="text-3xl font-extrabold text-gray-800">${kelasSet.size}</div>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow border">
+                    <div class="text-sm text-gray-500 font-bold mb-1">Santri Terjangkau</div>
+                    <div class="text-3xl font-extrabold text-gray-800">${santriSet.size}</div>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow border">
+                    <div class="text-sm text-gray-500 font-bold mb-1">Peran Tambahan</div>
+                    <div class="text-base font-extrabold text-gray-800">
+                        ${isWaliRole ? '✅ Wali Kelas' : '—'}<br>
+                        ${isMusyrifRole ? '✅ Musyrif' : '—'}
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow border">
+                    <div class="text-sm text-gray-500 font-bold mb-1">Input Nilai (Tersimpan)</div>
+                    <div class="text-3xl font-extrabold text-gray-800">${pct}%</div>
+                    <div class="mt-2 h-2 bg-gray-200 rounded">
+                        <div class="h-2 bg-blue-600 rounded" style="width:${pct}%"></div>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1">${filled} / ${expected} baris</div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow border">
+                <h3 class="text-lg font-bold text-gray-800 mb-2">Catatan</h3>
+                <ul class="list-disc pl-6 text-sm text-gray-700 space-y-1">
+                    <li>Input nilai disimpan <b>batch</b> agar tidak terpotong saat data banyak.</li>
+                    <li>Absensi (S/I/A) berbentuk angka; Sikap berbentuk <b>A/B/C/D</b>.</li>
+                </ul>
             </div>
         </div>`;
     }
 
-    // --- ADMIN: GURU (FIX: 1 Baris Nama, JK) ---
+    // --- ADMIN: GURU (FIX: 1 Baris Nama, JK) --- (FIX: 1 Baris Nama, JK) ---
         function renderAdminGuru() {
         const main = document.getElementById('main-content');
         const sourceData = window.tempImportDataGuru || users;
@@ -685,7 +752,7 @@
 
     // --- GURU MAPEL (NILAI) (FIX: Width Nama) ---
     function renderNilaiPage(mapel, kelas) {
-        const siswa = students.filter(s => s.kelas === kelas);
+        const siswa = students.filter(s => _normKelas(s.kelas) === _normKelas(kelas));
         const main = document.getElementById('main-content');
         if(siswa.length === 0) { main.innerHTML = `<div class="p-6 bg-white shadow rounded">Data santri kosong untuk kelas ${kelas}</div>`; return; }
 
@@ -972,6 +1039,20 @@ enableArrowNavigation('table-nilai');
         }
     }
 
+
+    function _sikapSelectHTML(id, nis, field, value) {
+        const vRaw = (value === undefined || value === null) ? '' : String(value);
+        const v = vRaw.trim().toUpperCase();
+        const sel = (x) => (v === x ? 'selected' : '');
+        return `<select data-id="${id}" data-nis="${nis||''}" data-field="${field}" class="bg-blue-50 border rounded px-2 py-1 w-20">
+            <option value=""></option>
+            <option value="A" ${sel('A')}>A</option>
+            <option value="B" ${sel('B')}>B</option>
+            <option value="C" ${sel('C')}>C</option>
+            <option value="D" ${sel('D')}>D</option>
+        </select>`;
+    }
+
     // --- WALI KELAS (FIX: Width Nama) ---
     function renderWaliPage(mode) {
         const u = getCurrentUser();
@@ -980,40 +1061,70 @@ enableArrowNavigation('table-nilai');
         const siswa = students.filter(s => s.kelas === kelas);
         const main = document.getElementById('main-content');
         
-        const headerBtn = `<div class="flex gap-2">
-            ${mode!=='print' && mode!=='data' ? `<button onclick="triggerImport('${mode}', '${kelas}')" class="bg-green-600 text-white px-3 py-1 rounded shadow text-sm font-bold">Import</button>`:''}
-            ${mode!=='print' ? `<button onclick="exportExcelWali('${mode}', '${kelas}')" class="bg-blue-600 text-white px-3 py-1 rounded shadow text-sm font-bold">Export</button>`:''}
-            ${mode!=='print' && mode!=='data' ? `<button onclick="saveWaliDataLocal('${mode}')" class="bg-blue-800 text-white px-4 py-1 rounded shadow text-sm font-bold">Simpan</button>`:''}
+        const headerBtn = `<div class="flex flex-wrap gap-2 justify-end">
+            ${(mode!=='print' && mode!=='data') ? `<button onclick="triggerImport('${mode}', '${kelas}')" class="bg-green-600 text-white px-4 py-2 rounded font-bold shadow text-sm">Import</button>` : ''}
+            ${mode!=='print' ? `<button onclick="exportExcelWali('${mode}', '${kelas}')" class="bg-blue-600 text-white px-4 py-2 rounded font-bold shadow text-sm">Export</button>` : ''}
+            ${(mode==='absen' || mode==='catatan') ? `<button onclick="saveWaliDataLocal('${mode}')" class="bg-blue-800 text-white px-4 py-2 rounded font-bold shadow text-sm">Simpan</button>` : ''}
+            ${mode==='data' ? `<button onclick="refreshWaliDataKelas()" class="bg-blue-800 text-white px-4 py-2 rounded font-bold shadow text-sm">Simpan</button>` : ''}
         </div>`;
 
-        let content = '';
+let content = '';
         
         if (mode === 'data') {
-            const rows = siswa.map((s, i) => `
+            // Sama persis dengan mode admin > data santri, tapi:
+            // - data difilter hanya kelas wali
+            // - tidak ada tombol import & tambah
+            const list = siswa;
+            const rows = list.map((s, i) => {
+                const canEdit = !!s.id;
+                return `
                 <tr class="hover:bg-gray-50 border-b">
-                    <td class="p-2 text-center">${i+1}</td>
-                    <td class="p-2 text-center">${s.nis||'-'}</td>
-                    <td class="p-2 font-bold text-left"><div class="single-line" title="${s.name}">${s.name}</div></td>
-                    <td class="p-2 text-center">${s.lp||s.jk||'-'}</td>
-                    <td class="p-2 text-center">${s.ttl||'-'}</td>
-                </tr>`).join('');
+                    <td class="p-2 text-center">${i + 1}</td>
+                    <td class="p-2 text-center font-mono">${s.nis||'-'}</td>
+                    <td class="p-2 text-left font-bold filter-target"><div class="single-line w-64" title="${s.name||''}">${s.name||'-'}</div></td>
+                    <td class="p-2 text-center">${s.jk||s.lp||'-'}</td>
+                    <td class="p-2 text-center">${s.kelas||'-'}</td>
+                    <td class="p-2 text-left"><div class="single-line w-56" title="${s.ttl||''}">${s.ttl||'-'}</div></td>
+                    <td class="p-2 text-left"><div class="single-line w-40" title="${s.status_keluarga||''}">${s.status_keluarga||'-'}</div></td>
+                    <td class="p-2 text-center">${(s.anak_ke ?? '-') }</td>
+                    <td class="p-2 text-left"><div class="single-line w-56" title="${s.asal_sekolah||''}">${s.asal_sekolah||'-'}</div></td>
+                    <td class="p-2 text-center">${s.tanggal_diterima||'-'}</td>
+                    <td class="p-2 text-center">${s.diterima_kelas||'-'}</td>
+                    <td class="p-2 text-left"><div class="single-line w-44" title="${s.nama_ayah||''}">${s.nama_ayah||'-'}</div></td>
+                    <td class="p-2 text-left"><div class="single-line w-44" title="${s.nama_ibu||''}">${s.nama_ibu||'-'}</div></td>
+                    <td class="p-2 text-left"><div class="single-line w-44" title="${s.pekerjaan_ayah||''}">${s.pekerjaan_ayah||'-'}</div></td>
+                    <td class="p-2 text-left"><div class="single-line w-44" title="${s.pekerjaan_ibu||''}">${s.pekerjaan_ibu||'-'}</div></td>
+                    <td class="p-2 text-left"><div class="single-line w-72" title="${s.alamat_ortu||''}">${s.alamat_ortu||'-'}</div></td>
+                    <td class="p-2 text-left"><div class="single-line w-44" title="${s.nama_wali||''}">${s.nama_wali||'-'}</div></td>
+                    <td class="p-2 text-left"><div class="single-line w-44" title="${s.pekerjaan_wali||''}">${s.pekerjaan_wali||'-'}</div></td>
+                    <td class="p-2 text-left"><div class="single-line w-72" title="${s.alamat_wali||''}">${s.alamat_wali||'-'}</div></td>
+                    <td class="p-2 text-center">
+                        <button ${canEdit ? `onclick=\"editSantri(${s.id})\"` : 'disabled'} class="${canEdit ? 'text-blue-600 hover:bg-blue-100' : 'text-gray-400 cursor-not-allowed'} font-bold text-xs p-1 rounded">Edit</button>
+                    </td>
+                </tr>`;
+            }).join('');
+
             content = `
-              <div class="overflow-x-auto">
-                <table class="w-full text-sm border std-table" id="table-data-kelas">
-                  <thead class="bg-blue-600 text-white">
-                    <tr>
-                      <th class="p-2 w-12">No</th>
-                      <th class="p-2">NIS</th>
-                      <th class="p-2 text-left">Nama</th>
-                      <th class="p-2 w-16">L/P</th>
-                      <th class="p-2 w-40">TTL</th>
-                    </tr>
-                  </thead>
-                  <tbody>${rows}</tbody>
+            <input type="text" onkeyup="filterTable('tbody-wali-data')" placeholder="Cari Santri..." class="w-full border p-2 mb-4 rounded">
+            <div class="overflow-auto max-h-[70vh]">
+                <table class="min-w-[1700px] w-full text-xs border std-table whitespace-nowrap">
+                    <thead class="bg-blue-600 text-white sticky top-0">
+                        <tr>
+                            <th>No</th><th>NIS</th><th class="text-left">Nama</th><th>JK</th><th>Kelas</th>
+                            <th class="text-left">TTL</th><th class="text-left">Status Keluarga</th><th>Anak Ke</th><th class="text-left">Asal Sekolah</th>
+                            <th>Tgl Diterima</th><th>Diterima Kelas</th>
+                            <th class="text-left">Nama Ayah</th><th class="text-left">Nama Ibu</th>
+                            <th class="text-left">Pekerjaan Ayah</th><th class="text-left">Pekerjaan Ibu</th>
+                            <th class="text-left">Alamat Ortu</th>
+                            <th class="text-left">Nama Wali</th><th class="text-left">Pekerjaan Wali</th><th class="text-left">Alamat Wali</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-wali-data">${rows}</tbody>
                 </table>
-              </div>`;
-        } 
- 
+            </div>`;
+        }
+
         else if (mode === 'absen') {
             const rows = siswa.map((s, i) => {
                 const { tahun_ajar, semester } = getActivePeriode();
@@ -1025,13 +1136,13 @@ enableArrowNavigation('table-nilai');
                     <td class="p-2"><input type="number" data-id="${s.id}" data-nis="${s.nis||''}" data-field="hadir_s" value="${sc.hadir_s||0}"></td>
                     <td class="p-2"><input type="number" data-id="${s.id}" data-nis="${s.nis||''}" data-field="hadir_i" value="${sc.hadir_i||0}"></td>
                     <td class="p-2"><input type="number" data-id="${s.id}" data-nis="${s.nis||''}" data-field="hadir_a" value="${sc.hadir_a||0}"></td>
-                    <td class="p-2"><input type="number" data-id="${s.id}" data-nis="${s.nis||''}" data-field="akhlak" value="${sc.akhlak||0}" class="bg-blue-50"></td>
-                    <td class="p-2"><input type="number" data-id="${s.id}" data-nis="${s.nis||''}" data-field="kerajinan" value="${sc.kerajinan||0}" class="bg-blue-50"></td>
-                    <td class="p-2"><input type="number" data-id="${s.id}" data-nis="${s.nis||''}" data-field="kebersihan" value="${sc.kebersihan||0}" class="bg-blue-50"></td>
-                    <td class="p-2"><input type="number" data-id="${s.id}" data-nis="${s.nis||''}" data-field="kedisiplinan" value="${sc.kedisiplinan||0}" class="bg-blue-50"></td>
+                    <td class="p-2">${_sikapSelectHTML(s.id, s.nis||'', 'akhlak', sc.akhlak)}</td>
+                    <td class="p-2">${_sikapSelectHTML(s.id, s.nis||'', 'kerajinan', sc.kerajinan)}</td>
+                    <td class="p-2">${_sikapSelectHTML(s.id, s.nis||'', 'kebersihan', sc.kebersihan)}</td>
+                    <td class="p-2">${_sikapSelectHTML(s.id, s.nis||'', 'kedisiplinan', sc.kedisiplinan)}</td>
                 </tr>`;
             }).join('');
-            content = `<table class="w-full text-sm border std-table" id="table-absen"><thead class="bg-blue-600 text-white"><tr><th rowspan="2">No</th><th rowspan="2" class="text-left w-64">Nama</th><th colspan="3">Absensi</th><th colspan="4">Sikap (0-100)</th></tr><tr><th>S</th><th>I</th><th>A</th><th>Akhlak</th><th>Kerajinan</th><th>Bersih</th><th>Disiplin</th></tr></thead><tbody id="tbody-wali">${rows}</tbody></table>`;
+            content = `<table class="w-full text-sm border std-table" id="table-absen"><thead class="bg-blue-600 text-white"><tr><th rowspan="2">No</th><th rowspan="2" class="text-left w-64">Nama</th><th colspan="3">Absensi</th><th colspan="4">Sikap (A/B/C/D)</th></tr><tr><th>S</th><th>I</th><th>A</th><th>Akhlak</th><th>Kerajinan</th><th>Bersih</th><th>Disiplin</th></tr></thead><tbody id="tbody-wali">${rows}</tbody></table>`;
         } 
         else if (mode === 'catatan') {
             const rows = siswa.map((s, i) => {
@@ -1050,12 +1161,19 @@ enableArrowNavigation('table-nilai');
             content = `<table class="w-full text-sm border std-table"><thead class="bg-blue-600 text-white"><tr><th>No</th><th class="text-left w-64">Nama</th><th>Catatan</th><th>Prestasi 1</th><th>Prestasi 2</th><th>Prestasi 3</th></tr></thead><tbody id="tbody-wali">${rows}</tbody></table>`;
         }
         else if (mode === 'print') {
-            content = `<div class="p-8 text-center bg-gray-50 border rounded-lg">
-                <h3 class="text-xl font-bold mb-4">Menu Cetak</h3>
-                <div class="flex justify-center gap-4">
-                    <button onclick="alert('Fitur Generate PDF akan aktif')" class="bg-blue-600 text-white px-6 py-3 rounded shadow font-bold hover:bg-blue-700">📄 Cetak Raport</button>
-                    <button onclick="alert('Fitur Legger akan aktif')" class="bg-green-600 text-white px-6 py-3 rounded shadow font-bold hover:bg-green-700">📊 Cetak Legger</button>
+            content = `
+            <div class="bg-white rounded-xl border shadow p-4">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
+                    <div>
+                        <div class="text-sm text-gray-500">Tabel Legger</div>
+                        <div class="font-bold">Kelas: <span class="font-mono">${kelas}</span></div>
+                    </div>
+                    <div class="flex gap-2 justify-end">
+                        <button onclick="renderWaliPage('print')" class="bg-gray-200 text-gray-800 px-4 py-2 rounded font-bold hover:bg-gray-300">Refresh</button>
+                        <button onclick="exportLeggerExcel('${kelas}')" class="bg-blue-600 text-white px-4 py-2 rounded font-bold shadow text-sm">Export</button>
+                    </div>
                 </div>
+                <div id="legger-wali-wrap" class="overflow-auto max-h-[70vh]"></div>
             </div>`;
         }
 
@@ -1068,44 +1186,84 @@ enableArrowNavigation('table-nilai');
             ${content}
         </div>`;
         if(mode==='absen') enableArrowNavigation('table-absen');
+
+        if (mode === 'print') {
+            // render legger async
+            setTimeout(() => {
+                renderLeggerInto('legger-wali-wrap', { kelasFilter: kelas, scope: 'wali' });
+            }, 0);
+        }
+    }
+
+    function refreshWaliDataKelas() {
+        // Tidak ada import/tambah di mode wali. Simpan disini = refresh data agar konsisten.
+        loadInitialData({ onProgress: (pct, label) => setLoadingProgress(pct, label) })
+          .then(() => { showToast('Data kelas diperbarui', 'success'); renderWaliPage('data'); })
+          .catch(e => { console.error(e); showToast('Gagal refresh: ' + (e.message||e), 'error'); });
     }
 
     async function saveWaliDataLocal(mode) {
+        // mode: 'absen' atau 'catatan'
         setLoading(true, "Menyimpan Data Wali (Batch)...");
         try {
             const { tahun_ajar, semester } = getActivePeriode();
-            const inputs = Array.from(document.querySelectorAll('#tbody-wali input, #tbody-wali textarea'));
-            const rowsMap = new Map();
-            const numeric = new Set(['hadir_s','hadir_i','hadir_a','akhlak','kerajinan','kebersihan','kedisiplinan']);
+
+            // hanya ambil input yang ada di tabel saat ini
+            const inputs = Array.from(document.querySelectorAll('#tbody-wali input, #tbody-wali textarea, #tbody-wali select'));
+
+            // field sets
+            const numeric = new Set(['hadir_s','hadir_i','hadir_a']); // S/I/A = angka
+            const sikapFields = new Set(['akhlak','kerajinan','kebersihan','kedisiplinan']); // Sikap = A/B/C/D (TEXT)
             const textFields = new Set(['catatan','prestasi1','prestasi2','prestasi3']);
+
+            const allowed = new Set();
+            if (mode === 'absen') {
+                [...numeric, ...sikapFields].forEach(x => allowed.add(x));
+            } else if (mode === 'catatan') {
+                [...textFields].forEach(x => allowed.add(x));
+            }
+
+            const rowsMap = new Map();
 
             for (const inp of inputs) {
                 const nis = String(inp.dataset.nis || '').trim();
                 const sid = Number(inp.dataset.id) || null;
-                if (!nis) continue;
+                const f = String(inp.dataset.field || '').trim();
+                if (!nis || !f) continue;
+                if (allowed.size && !allowed.has(f)) continue;
+
                 const s = students.find(x => String(x.nis) === String(nis)) || {};
                 if (!rowsMap.has(nis)) {
                     rowsMap.set(nis, {
                         student_id: sid || s.id || null,
-                        nis,
-                        kelas: String(s.kelas || ''),
-                        nama_santri: String(s.name || ''),
-                        tahun_ajar: String(tahun_ajar || ''),
-                        semester: Number(semester) || 1,
-                        hadir_s: 0, hadir_i: 0, hadir_a: 0,
-                        akhlak: 0, kerajinan: 0, kebersihan: 0, kedisiplinan: 0,
-                        catatan: '-', prestasi1: '-', prestasi2: '-', prestasi3: '-',
+                        nis: String(nis),
+                        kelas: String(getWaliKelas(getCurrentUser()) || s.kelas || ''),
+                        nama_santri: String(s.nama_santri || s.name || ''),
+                        tahun_ajar: String(tahun_ajar),
+                        semester: Number(semester)
                     });
                 }
                 const r = rowsMap.get(nis);
-                const f = inp.dataset.field;
-                if (!f) continue;
-                if (numeric.has(f)) r[f] = (inp.value === '' ? 0 : Number(inp.value) || 0);
-                else if (textFields.has(f)) r[f] = (String(inp.value || '').trim() || '-');
+
+                if (numeric.has(f)) {
+                    r[f] = (inp.value === '' ? 0 : Number(inp.value) || 0);
+                } else if (sikapFields.has(f)) {
+                    const v = String(inp.value || '').trim().toUpperCase();
+                    r[f] = (['A','B','C','D'].includes(v) ? v : (v ? v[0] : '-'));
+                } else if (textFields.has(f)) {
+                    r[f] = (String(inp.value || '').trim() || '-');
+                }
             }
 
-            const rows = Array.from(rowsMap.values());
+            const rows = Array.from(rowsMap.values()).filter(r => r.nis);
+
             if (!rows.length) throw new Error('Tidak ada data untuk disimpan.');
+
+            // validasi student_id untuk insert baru
+            const missingId = rows.filter(r => !r.student_id);
+            if (missingId.length) {
+                console.warn('Ada santri tanpa student_id (id santri). Pastikan data santri sudah termuat.', missingId.slice(0, 3));
+            }
 
             await window.upsertNilaiWaliBatch(rows, {
                 batchSize: 200,
@@ -1123,7 +1281,48 @@ enableArrowNavigation('table-nilai');
         }
     }
 
-    // --- MUSYRIF PAGE (FIX: Width Nama) ---
+    
+    async function saveWaliKelasDataLocal() {
+        setLoading(true, "Menyimpan Data Kelas (Batch)...");
+        try {
+            const u = getCurrentUser();
+            const kelas = getWaliKelas(u);
+            if (!kelas) throw new Error('Bukan Wali Kelas.');
+            const rows = Array.isArray(window.tempWaliDataSantri) ? window.tempWaliDataSantri : [];
+            if (!rows.length) throw new Error('Tidak ada data import untuk disimpan.');
+
+            // paksa kelas = kelas wali untuk semua baris
+            const payload = rows.map(r => ({
+                id: null,
+                nis: (typeof _toNIS === 'function' ? _toNIS(r.nis) : r.nis),
+                name: r.name || r.nama_santri,
+                jk: r.jk || r.lp || '',
+                ttl: r.ttl || '',
+                kelas: kelas
+            })).filter(x => x.nis && x.name);
+
+            if (!payload.length) throw new Error('Data import kosong / tidak valid.');
+
+            await upsertSantriBatchByNIS(payload, {
+                batchSize: 200,
+                onProgress: (pct, lbl) => setLoadingProgress(pct, `Menyimpan ${lbl}`)
+            });
+
+            window.tempWaliDataSantri = null;
+            setLoadingProgress(0, 'Memuat ulang data...');
+            await loadInitialData({ onProgress: (pct, label) => setLoadingProgress(pct, label) });
+            renderWaliPage('data');
+            showToast('Data kelas tersimpan!', 'success');
+        } catch (e) {
+            console.error(e);
+            showToast('Gagal simpan data kelas: ' + (e.message || e), 'error');
+        } finally {
+            setLoading(false);
+        }
+    }
+    window.saveWaliKelasDataLocal = saveWaliKelasDataLocal;
+
+// --- MUSYRIF PAGE (FIX: Width Nama) --- (FIX: Width Nama) ---
     function renderMusyrifPage() {
         const u = getCurrentUser();
         const kelas = u.musyrif || '';
@@ -1293,29 +1492,57 @@ enableArrowNavigation('table-nilai');
              renderAdminSantri();
              showToast(`Preview ${data.length} Data Santri. Klik Simpan.`, 'success');
              return;
+        
+        // WALI KELAS: DATA KELAS (Import roster)
+        if (type === 'wali_data') {
+            const kelas = importContext.p1;
+            window.tempWaliDataSantri = data.map(row => ({
+                id: null,
+                nis: (typeof _toNIS === 'function' ? _toNIS(_get(row, ['NIS','nis','Nis'])) : _get(row, ['NIS','nis','Nis'])),
+                name: _get(row, ['Nama','Nama_Santri','Nama Santri','nama_santri']),
+                jk: _get(row, ['JK','jk','LP','lp','L/P','L_P']),
+                ttl: _get(row, ['TTL','ttl'])
+            })).filter(x => x.nis && x.name);
+
+            renderWaliPage('data');
+            showToast(`Preview ${window.tempWaliDataSantri.length} Data Kelas. Klik Simpan.`, 'success');
+            return;
         }
+
+}
 
         // NILAI/WALI/MUSYRIF (ISI INPUT)
         // FIX: sebelumnya cari td[data-name] (tidak ada), sehingga import selalu 0.
         // Sekarang kita pakai NIS sebagai kunci (lebih stabil) via atribut data-nis di input/textarea.
         let filledCount = 0;
-        const _cssEscape = (s) => (window.CSS && CSS.escape) ? CSS.escape(String(s)) : String(s).replace(/[\\\"\']/g, '\\$&');
+        const _cssEscape = (s) => (window.CSS && CSS.escape) ? CSS.escape(String(s)) : String(s).replace(/[\\"\']/g, '\$&');
+        const _normKey = (k) => String(k || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const _rowNorm = (row) => {
+            const m = {};
+            if (!row) return m;
+            Object.keys(row).forEach(k => { m[_normKey(k)] = row[k]; });
+            return m;
+        };
         const _getRowNIS = (row) => {
-            const raw = row?.NIS ?? row?.Nis ?? row?.nis ?? row?.['N I S'] ?? row?.['NIS '] ?? '';
+            const rn = _rowNorm(row);
+            const raw = row?.NIS ?? row?.Nis ?? row?.nis ?? row?.['N I S'] ?? row?.['NIS '] ?? rn['nis'] ?? '';
             return (typeof _toNIS === 'function') ? _toNIS(raw) : String(raw || '').trim();
         };
         const _findInputs = (row) => {
             const nis = _getRowNIS(row);
             if (nis) return Array.from(document.querySelectorAll(`[data-nis="${_cssEscape(nis)}"]`));
-            // fallback legacy: match by data-name
-            const nm = (row?.Nama ?? row?.nama ?? '').toString().trim();
+            const rn = _rowNorm(row);
+            const nm = (row?.Nama ?? row?.nama ?? row?.Nama_Santri ?? rn['nama'] ?? rn['namasantri'] ?? '').toString().trim();
             if (!nm) return [];
             return Array.from(document.querySelectorAll(`[data-name="${_cssEscape(nm)}"]`));
         };
 
         const _get = (row, keys) => {
+            const rn = _rowNorm(row);
             for (const k of keys) {
                 if (row && row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== '') return row[k];
+                const nk = _normKey(k);
+                if (rn[nk] !== undefined && rn[nk] !== null && String(rn[nk]).trim() !== '') return rn[nk];
             }
             return undefined;
         };
@@ -1347,13 +1574,13 @@ enableArrowNavigation('table-nilai');
                     if(f==='pas_pat' && vPAS!==undefined) inp.value = vPAS;
                 });
             } else if (type === 'absen') {
-                const vSakit = _get(row, ['Sakit','sakit']);
-                const vIzin  = _get(row, ['Izin','izin']);
-                const vAlpha = _get(row, ['Alpha','alpha','Alpa','alpa']);
-                const vAkhlak = _get(row, ['Akhlak','akhlak']);
-                const vKerajinan = _get(row, ['Kerajinan','kerajinan']);
-                const vDisiplin = _get(row, ['Disiplin','disiplin']);
-                const vBersih = _get(row, ['Bersih','bersih']);
+                const vSakit = _get(row, ['S','Sakit','SAKIT','sakit']);
+                const vIzin  = _get(row, ['I','Izin','IZIN','izin']);
+                const vAlpha = _get(row, ['A','Alpha','ALPHA','Alpa','alpa','alpha']);
+                const vAkhlak = _get(row, ['Akhlak','Sikap_Akhlak','Sikap Akhlak','akhlak']);
+                const vKerajinan = _get(row, ['Kerajinan','Sikap_Kerajinan','Sikap Kerajinan','kerajinan']);
+                const vDisiplin = _get(row, ['Disiplin','Sikap_Disiplin','Sikap Disiplin','kedisiplinan']);
+                const vBersih = _get(row, ['Bersih','Kebersihan','Sikap_Bersih','Sikap Kebersihan','kebersihan']);
 
                 inputs.forEach(inp => {
                     const f = inp.dataset.field;
@@ -1366,10 +1593,10 @@ enableArrowNavigation('table-nilai');
                     if(f==='kebersihan' && vBersih!==undefined) inp.value = vBersih;
                 });
             } else if (type === 'catatan') {
-                const vCat = _get(row, ['Catatan','catatan']);
-                const vP1  = _get(row, ['Prestasi_1','Prestasi1','Prestasi','prestasi']);
-                const vP2  = _get(row, ['Prestasi_2','Prestasi2','prestasi2']);
-                const vP3  = _get(row, ['Prestasi_3','Prestasi3','prestasi3']);
+                const vCat = _get(row, ['Catatan','Catatan_Wali','Catatan Wali','CatatanWali','catatan']);
+                const vP1  = _get(row, ['Prestasi 1','Prestasi_1','Prestasi1','Prestasi','prestasi1','prestasi']);
+                const vP2  = _get(row, ['Prestasi 2','Prestasi_2','Prestasi2','prestasi2']);
+                const vP3  = _get(row, ['Prestasi 3','Prestasi_3','Prestasi3','prestasi3']);
 
                 inputs.forEach(inp => {
                     const f = inp.dataset.field;
@@ -1494,23 +1721,47 @@ enableArrowNavigation('table-nilai');
     function exportExcelWali(mode, kelas) {
         const siswa = students.filter(s => s.kelas === kelas);
         let data = [];
-        if(mode==='absen') {
+        if (mode === 'data') {
+            data = siswa.map((s, i) => ({
+                No: i + 1,
+                NIS: s.nis,
+                Nama: s.name,
+                LP: s.jk,
+                TTL: s.ttl
+            }));
+        } else if(mode==='absen') {
              data = siswa.map(s => {
                 const { tahun_ajar, semester } = getActivePeriode();
                 const sc = waliScores.find(x => String(x.nis)===String(s.nis) && String(x.tahun_ajar)===String(tahun_ajar) && Number(x.semester)===Number(semester)) || {};
-                return { Nama: s.name, Sakit: sc.hadir_s||0, Izin: sc.hadir_i||0, Alpha: sc.hadir_a||0, Akhlak: sc.akhlak||0, Kerajinan: sc.kerajinan||0, Disiplin: sc.kedisiplinan||0, Bersih: sc.kebersihan||0 };
+                return {
+                    NIS: s.nis,
+                    Nama: s.name,
+                    S: sc.hadir_s||0,
+                    I: sc.hadir_i||0,
+                    A: sc.hadir_a||0,
+                    Akhlak: sc.akhlak||'-',
+                    Kerajinan: sc.kerajinan||'-',
+                    Kebersihan: sc.kebersihan||'-',
+                    Kedisiplinan: sc.kedisiplinan||'-',
+                };
             });
-        }
-        else if(mode==='catatan') {
-             data = siswa.map(s => {
+        } else if (mode === 'catatan') {
+            data = siswa.map(s => {
                 const { tahun_ajar, semester } = getActivePeriode();
                 const sc = waliScores.find(x => String(x.nis)===String(s.nis) && String(x.tahun_ajar)===String(tahun_ajar) && Number(x.semester)===Number(semester)) || {};
-                return { Nama: s.name, Catatan: sc.catatan||'-', Prestasi_1: sc.prestasi1||'-', Prestasi_2: sc.prestasi2||'-', Prestasi_3: sc.prestasi3||'-' };
+                return {
+                    NIS: s.nis,
+                    Nama: s.name,
+                    Catatan: sc.catatan||'-',
+                    'Prestasi 1': sc.prestasi1||'-',
+                    'Prestasi 2': sc.prestasi2||'-',
+                    'Prestasi 3': sc.prestasi3||'-',
+                };
             });
         }
         saveExcel(data, `Wali_${mode}_${kelas}.xlsx`, [{wch:30}]);
     }
-    function exportExcelMusyrif(kelas) {
+function exportExcelMusyrif(kelas) {
         const siswa = students.filter(s => s.kelas === kelas);
         const data = siswa.map(s => {
             const { tahun_ajar, semester } = getActivePeriode();
@@ -1572,7 +1823,7 @@ enableArrowNavigation('table-nilai');
         setTimeout(() => t.classList.add('translate-y-20'), 3000);
     }
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('-translate-x-full'); }
-    function logout() { localStorage.removeItem('erapor_user'); window.location.href = 'index.html'; }
+    function logout() { localStorage.removeItem('erapor_user'); window.location.href = 'login.html'; }
     function filterTable(tbodyId) {
         const filter = document.activeElement.value.toUpperCase();
         const tr = document.getElementById(tbodyId).getElementsByTagName('tr');
@@ -1677,6 +1928,224 @@ enableArrowNavigation('table-nilai');
         document.getElementById('inp-alamat-wali').value = s.alamat_wali || '';
     }
 
+
+    // -----------------------------
+    // LEGGER (WALI & ADMIN)
+    // -----------------------------
+
+    function _normMapelName(s) {
+        return String(s || '').trim().toUpperCase();
+    }
+    function _normKelas(s) {
+        return String(s || '').trim();
+    }
+
+    function _getMapelListForKelas(kelas) {
+        const k = _normKelas(kelas);
+        const set = new Set();
+        users.forEach(g => {
+            const list = parseMapelData(g.mapel);
+            list.forEach(m => {
+                const mName = _normMapelName(m?.nama);
+                if (!mName) return;
+                const kArr = Array.isArray(m.kelas) ? m.kelas.map(_normKelas) : [];
+                if (kArr.includes(k)) set.add(mName);
+            });
+        });
+        const arr = Array.from(set);
+        arr.sort((a,b) => a.localeCompare(b, 'id'));
+        // fallback: kalau mapel belum disetting di guru, ambil dari nilai_mapel
+        if (!arr.length) {
+            const { tahun_ajar, semester } = getActivePeriode();
+            scores
+              .filter(sc => _normKelas(sc.kelas) === k && String(sc.tahun_ajar) === String(tahun_ajar) && Number(sc.semester) === Number(semester))
+              .forEach(sc => { if (sc.mapel) set.add(_normMapelName(sc.mapel)); });
+            const arr2 = Array.from(set);
+            arr2.sort((a,b) => a.localeCompare(b, 'id'));
+            return arr2;
+        }
+        return arr;
+    }
+
+    async function renderLeggerInto(containerId, { kelasFilter = null, scope = 'admin' } = {}) {
+        const el = document.getElementById(containerId);
+        if (!el) return;
+        el.innerHTML = `<div class="p-6 text-center text-gray-500">Memuat legger...</div>`;
+        try {
+            const bobot = await fetchBobotNilaiGlobal();
+            const bK = Number(bobot.bobot_kehadiran ?? 10) || 0;
+            const bT = Number(bobot.bobot_tugas ?? 20) || 0;
+            const bU = Number(bobot.bobot_uh ?? 40) || 0;
+            const bP = Number(bobot.bobot_paspat ?? 30) || 0;
+            const { tahun_ajar, semester } = getActivePeriode();
+
+            const kelasList = kelasFilter ? [_normKelas(kelasFilter)] : Array.from(new Set(students.map(s => _normKelas(s.kelas)).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'id'));
+
+            const makeTableForClass = (kelas) => {
+                const k = _normKelas(kelas);
+                const santriKelas = students.filter(s => _normKelas(s.kelas) === k);
+                const mapelList = _getMapelListForKelas(k);
+
+                // index nilai_mapel untuk kelas+periode
+                const idx = new Map();
+                scores
+                  .filter(sc => _normKelas(sc.kelas) === k && String(sc.tahun_ajar) === String(tahun_ajar) && Number(sc.semester) === Number(semester))
+                  .forEach(sc => {
+                      const key = `${String(sc.nis||'')}|${_normMapelName(sc.mapel)}`;
+                      idx.set(key, sc);
+                  });
+
+                const calcRapor = (sc) => {
+                    if (!sc) return 0;
+                    const kehadiran = Number(sc.kehadiran || 0) || 0;
+                    const tugas = Number(sc.tugas || 0) || 0;
+                    const pas = Number(sc.pas_pat || 0) || 0;
+                    const uhVals = [sc.uh1, sc.uh2, sc.uh3, sc.uh4, sc.uh5]
+                      .map(v => Number(v || 0) || 0)
+                      .filter(v => v > 0);
+                    const uh = uhVals.length ? (uhVals.reduce((a,b)=>a+b,0) / uhVals.length) : 0;
+                    const nilai = (kehadiran*bK/100) + (tugas*bT/100) + (uh*bU/100) + (pas*bP/100);
+                    return Math.round(nilai);
+                };
+
+                const rows = santriKelas.map(s => {
+                    const perMapel = mapelList.map(m => {
+                        const sc = idx.get(`${String(s.nis||'')}|${m}`);
+                        return calcRapor(sc);
+                    });
+                    const jumlah = perMapel.reduce((a,b)=>a+b,0);
+                    const rata = mapelList.length ? (jumlah / mapelList.length) : 0;
+                    return { s, perMapel, jumlah, rata };
+                });
+
+                // ranking per kelas
+                const sorted = [...rows].sort((a,b) => (b.rata - a.rata) || String(a.s.nama_santri||a.s.name||'').localeCompare(String(b.s.nama_santri||b.s.name||''),'id'));
+                const rankMap = new Map();
+                let lastScore = null;
+                let currentRank = 0;
+                sorted.forEach((r, i) => {
+                    const sc = Number(r.rata.toFixed(6));
+                    if (lastScore === null || sc < lastScore) currentRank = i + 1;
+                    rankMap.set(String(r.s.nis||''), currentRank);
+                    lastScore = sc;
+                });
+
+                const theadMapel = mapelList.map(m => `<th class="px-2 py-2 border">${m}</th>`).join('');
+                const tbody = rows.map((r, i) => {
+                    const nama = r.s.nama_santri || r.s.name || '';
+                    const perMapelCells = r.perMapel.map(v => `<td class="px-2 py-1 border text-center">${v || '-'}</td>`).join('');
+                    const rataTxt = mapelList.length ? r.rata.toFixed(2) : '0.00';
+                    const rank = rankMap.get(String(r.s.nis||'')) || '-';
+                    return `<tr class="hover:bg-gray-50">
+                        <td class="px-2 py-1 border text-center">${i+1}</td>
+                        <td class="px-2 py-1 border font-mono">${r.s.nis||''}</td>
+                        <td class="px-2 py-1 border">${nama}</td>
+                        <td class="px-2 py-1 border text-center">${r.s.jk||r.s.lp||''}</td>
+                        ${perMapelCells}
+                        <td class="px-2 py-1 border text-center font-bold">${r.jumlah}</td>
+                        <td class="px-2 py-1 border text-center font-bold">${rataTxt}</td>
+                        <td class="px-2 py-1 border text-center font-bold">${rank}</td>
+                    </tr>`;
+                }).join('');
+
+                return `
+                  <div class="mb-6">
+                    <div class="flex items-center justify-between mb-2">
+                      <div class="font-extrabold text-gray-800">Kelas: <span class="font-mono">${k}</span></div>
+                      <div class="text-xs text-gray-500">Periode: ${tahun_ajar} • Semester ${semester}</div>
+                    </div>
+                    <div class="overflow-auto max-h-[70vh] border rounded">
+                      <table class="min-w-max w-full text-xs std-table whitespace-nowrap">
+                        <thead class="bg-blue-600 text-white sticky top-0">
+                          <tr>
+                            <th class="px-2 py-2 border">No</th>
+                            <th class="px-2 py-2 border">NIS</th>
+                            <th class="px-2 py-2 border text-left">Nama</th>
+                            <th class="px-2 py-2 border">L/P</th>
+                            ${theadMapel}
+                            <th class="px-2 py-2 border">Jumlah</th>
+                            <th class="px-2 py-2 border">Rata-rata</th>
+                            <th class="px-2 py-2 border">Ranking</th>
+                          </tr>
+                        </thead>
+                        <tbody>${tbody}</tbody>
+                      </table>
+                    </div>
+                  </div>
+                `;
+            };
+
+            if (!kelasList.length) {
+                el.innerHTML = `<div class="p-6 text-center text-gray-500">Belum ada data kelas.</div>`;
+                return;
+            }
+
+            // scope wali: hanya 1 tabel
+            if (scope === 'wali') {
+                el.innerHTML = makeTableForClass(kelasList[0]);
+                return;
+            }
+
+            // admin: render semua (atau 1 kelas jika dipilih)
+            el.innerHTML = kelasList.map(k => makeTableForClass(k)).join('');
+        } catch (e) {
+            console.error(e);
+            el.innerHTML = `<div class="p-6 text-center text-red-600 font-bold">Gagal memuat legger: ${e.message || e}</div>`;
+        }
+    }
+
+    function exportLeggerExcel(kelas) {
+        try {
+            const wrap = document.getElementById('legger-wali-wrap');
+            if (!wrap) return;
+            const table = wrap.querySelector('table');
+            if (!table) throw new Error('Tabel legger belum siap.');
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.table_to_sheet(table);
+            XLSX.utils.book_append_sheet(wb, ws, 'Legger');
+            const { tahun_ajar, semester } = getActivePeriode();
+            XLSX.writeFile(wb, `Legger_${kelas}_${tahun_ajar}_S${semester}.xlsx`);
+        } catch (e) {
+            console.error(e);
+            showToast('Gagal export: ' + (e.message || e), 'error');
+        }
+    }
+
+    function renderAdminLegger() {
+        const main = document.getElementById('main-content');
+        const kelasList = Array.from(new Set(students.map(s => _normKelas(s.kelas)).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'id'));
+        const options = ['SEMUA', ...kelasList].map(k => `<option value="${k}">${k}</option>`).join('');
+        main.innerHTML = `
+        <div class="bg-white p-6 rounded shadow">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+                <div>
+                    <h2 class="text-2xl font-bold">📊 Legger Santri</h2>
+                    <p class="text-sm text-gray-600">Menampilkan legger semua kelas (atau pilih 1 kelas).</p>
+                </div>
+                <div class="flex flex-wrap gap-2 justify-end">
+                    <select id="admin-legger-kelas" class="border p-2 rounded font-bold">
+                        ${options}
+                    </select>
+                    <button onclick="refreshAdminLegger()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded font-bold hover:bg-gray-300">Refresh</button>
+                </div>
+            </div>
+            <div id="legger-admin-wrap"></div>
+        </div>`;
+
+        const sel = document.getElementById('admin-legger-kelas');
+        sel.addEventListener('change', () => refreshAdminLegger());
+        refreshAdminLegger();
+    }
+
+    function refreshAdminLegger() {
+        const sel = document.getElementById('admin-legger-kelas');
+        const v = sel ? String(sel.value || 'SEMUA') : 'SEMUA';
+        const kelasFilter = (v === 'SEMUA') ? null : v;
+        renderLeggerInto('legger-admin-wrap', { kelasFilter, scope: 'admin' });
+    }
+
+    // expose
+    window.renderAdminLegger = renderAdminLegger;
 
     async function saveData() {
         setLoading(true, "Menyimpan...");
