@@ -2701,13 +2701,18 @@ let content = '';
         'BAHASA INGGRIS':'اللغة الإنجليزية',
         'PIDATO':'الخطابة',
         'AKIDAH':'العقيدة',
+        'FIKIH DAKWAH':'فقه الدعوة',
+        'USHUL FIKIH':'أصول الفقه',
+        'QOWAID FIKHIYAH':'القواعد الفقهية',
         'HADITS':'الحديث',
         'TAFSIR':'التفسير',
         'NAHWU':'النحو',
+        'SEJARAH INDONESIA':'تاريخ إندونيسيا',
         'SEJARAH KEBUDAYAAN ISLAM':'التاريخ الإسلامي',
         'PENDIDIKAN KEWARGANEGARAAN':'التربية الوطنية',
         'BAHASA INDONESIA':'اللغة الإندونيسية',
         'MATEMATIKA':'الرياضيات',
+        'MATEMATIKA PEMINATAN':'الرياضيات (تخصص)',
         'BIOLOGI':'البيولوجيا',
         'FISIKA':'الفيزياء',
         'KIMIA':'الكيمياء',
@@ -2715,6 +2720,69 @@ let content = '';
         'SOSIOLOGI':'علم الاجتماع',
         'INFORMATIKA':'تقنية المعلومات'
     };
+
+    // Template mapel rapor (agar mapel yang belum didaftarkan tetap tercetak dengan nilai "-")
+    // Disusun mengikuti contoh rapor yang kamu kirim.
+    const _raporTemplate = {
+        lisan: [
+            'FIKIH',
+            'BAHASA ARAB',
+            'BAHASA INGGRIS',
+            'PIDATO'
+        ],
+        tulis: [
+            'AKIDAH',
+            'BAHASA ARAB',
+            'FIKIH',
+            'FIKIH DAKWAH',
+            'USHUL FIKIH',
+            'HADITS',
+            'NAHWU',
+            'TAFSIR',
+            'QOWAID FIKHIYAH',
+            'SEJARAH KEBUDAYAAN ISLAM',
+            'PENDIDIKAN KEWARGANEGARAAN',
+            'BAHASA INDONESIA',
+            'BAHASA INGGRIS',
+            'MATEMATIKA',
+            'SEJARAH INDONESIA',
+            'MATEMATIKA PEMINATAN',
+            'BIOLOGI',
+            'FISIKA',
+            'KIMIA',
+            'GEOGRAFI',
+            'SOSIOLOGI',
+            'INFORMATIKA'
+        ]
+    };
+
+    function _toArabicIndic(str){
+        const map = { '0':'٠','1':'١','2':'٢','3':'٣','4':'٤','5':'٥','6':'٦','7':'٧','8':'٨','9':'٩' };
+        return String(str||'').replace(/[0-9]/g, d => map[d] || d);
+    }
+
+    function _semesterToArab(sem){
+        const s = Number(sem)||0;
+        if(s===1) return 'الأول';
+        if(s===2) return 'الثاني';
+        return String(sem||'');
+    }
+
+    function _jenjangToArab(j){
+        const x = String(j||'').trim().toUpperCase();
+        if(x==='X') return 'العاشر';
+        if(x==='XI') return 'الحادي عشر';
+        if(x==='XII') return 'الثاني عشر';
+        return x;
+    }
+
+    function _jurusanToArab(kelas){
+        const k = String(kelas||'').toUpperCase();
+        if(k.includes('IPA')) return 'العلوم';
+        if(k.includes('IPS')) return 'الاجتماعية';
+        if(k.includes('BAHASA')) return 'اللغة';
+        return '-';
+    }
 
     // Hitung nilai rapor mapel dari record nilai_mapel (bobot + UH rata2)
     function _calcNilaiRaporFromMapel(sc, bobot){
@@ -2734,9 +2802,12 @@ let content = '';
             if(!s){ showToast('Santri tidak ditemukan', 'error'); return; }
             const { tahun_ajar, semester } = getActivePeriode();
 
-            // ambil daftar mapel persis seperti legger (biar mapel kosong tetap tampil)
+            // Ambil daftar mapel dari template (mapel yang belum didaftarkan tetap tampil "-")
+            // Lalu tambahkan mapel extra yang mungkin ada di legger tapi tidak ada di template.
+            const templateMapels = [..._raporTemplate.lisan, ..._raporTemplate.tulis].map(_normMapel);
             const leger = buildLeggerDataForKelas(kelas);
-            const mapels = (leger && leger.mapels) ? leger.mapels : [];
+            const extraMapels = (leger && Array.isArray(leger.mapels)) ? leger.mapels.map(_normMapel) : [];
+            const mapels = [...templateMapels, ...extraMapels.filter(m => !templateMapels.includes(m))];
 
             // bobot dari memori/config (fallback default)
             const b = (window.bobotNilai && typeof window.bobotNilai === 'object') ? window.bobotNilai : {kehadiran:10, tugas:20, uh:40, pas_pat:30};
@@ -2758,7 +2829,7 @@ let content = '';
                 return Math.round((vals.reduce((a,c)=>a+c,0)/vals.length)*100)/100;
             };
 
-            const lisanSet = new Set(['FIKIH','BAHASA ARAB','BAHASA INGGRIS','PIDATO']);
+            const lisanSet = new Set(_raporTemplate.lisan.map(_normMapel));
             const rows = mapels.map((m, idx) => {
                 const nm = _normMapel(m);
                 const nilai = getNilai(m);
@@ -2793,85 +2864,119 @@ let content = '';
             }).sort((a,b)=>b.avg-a.avg);
             const ranking = Math.max(1, rankArr.findIndex(r=>String(r.nis)===String(nis))+1);
 
+            const years = String(tahun_ajar||'').match(/\d{4}/g) || [];
+            const y1 = years[0] || '';
+            const y2 = years[1] || '';
+            const tahunAr = (y1 && y2) ? `${_toArabicIndic(y1)} / ${_toArabicIndic(y2)}` : _toArabicIndic(tahun_ajar);
+
+            const jenjang = _inferJenjangFromKelas(kelas);
             const css = `
-                @page { size: A4; margin: 12mm; }
-                body{ font-family: Arial, sans-serif; color:#111; }
+                @page { size: A4; margin: 10mm; }
+                body{ font-family: Arial, sans-serif; color:#000; }
                 .arab{ font-family: "Amiri","Scheherazade New",Arial,sans-serif; }
-                .hdr{ text-align:center; }
-                .row{ display:flex; justify-content:space-between; gap:10px; margin-top:8px; }
-                .box{ border:1px solid #000; padding:8px; }
-                table{ width:100%; border-collapse:collapse; margin-top:8px; }
-                th,td{ border:1px solid #000; padding:6px; font-size:12px; }
-                th{ background:#f2f2f2; }
-                .subttl{ margin-top:10px; font-weight:700; text-align:center; }
-                .sum td{ font-weight:700; }
-                .logo{ width:55px; height:auto; }
+                .wrap{ width: 100%; }
+                .head{ text-align:center; position: relative; }
+                .logo{ position:absolute; right:0; top:0; width:72px; height:auto; }
+                .title-ar{ font-size:22px; font-weight:800; }
+                .subtitle-ar{ font-size:12px; margin-top:2px; }
+                .meta{ border:2px solid #000; margin-top:8px; }
+                .meta td{ border:1px solid #000; padding:6px 8px; font-size:12px; }
+                .meta .lbl{ width:160px; font-weight:700; }
+                .meta .lbl.arab{ font-weight:800; }
+                .section{ margin-top:10px; }
+                .section-title{ text-align:center; font-weight:800; margin:6px 0 2px; }
+                .score{ width:100%; border-collapse:collapse; }
+                .score th, .score td{ border:2px solid #000; padding:6px 6px; font-size:12px; }
+                .score thead th{ background:#f3f4f6; }
+                .score .thin{ border-width:1px; }
+                .score .c{ text-align:center; }
+                .score .r{ text-align:right; }
+                .sum{ width:100%; border-collapse:collapse; margin-top:10px; }
+                .sum td{ border:2px solid #000; padding:6px; font-size:12px; font-weight:800; }
                 .small{ font-size:11px; }
             `;
 
             const makeTable = (titleAr, titleId, partRows) => {
-                const body = partRows.map((r,i)=>`
-                    <tr>
-                        <td style="text-align:center;">${i+1}</td>
-                        <td class="arab" style="text-align:right;">${r.mapel_ar||''}</td>
-                        <td>${r.mapel_id}</td>
-                        <td style="text-align:center;">${r.rata}</td>
-                        <td style="text-align:center;">${r.nilai? r.nilai : '-'}</td>
-                        <td class="arab" style="text-align:right;">${r.nilai? r.nilai_ar : '-'}</td>
-                    </tr>
-                `).join('');
+                const body = partRows.map((r,i)=>{
+                    const no = _toArabicIndic(i+1);
+                    const angka = r.nilai ? r.nilai : '-';
+                    const terbilang = r.nilai ? r.nilai_ar : '-';
+                    return `
+                        <tr>
+                            <td class="arab c" style="width:44px;">${no}</td>
+                            <td class="arab r" style="width:220px;">${r.mapel_ar||''}</td>
+                            <td class="r">${r.mapel_id}</td>
+                            <td class="c" style="width:90px;">${r.rata || '-'}</td>
+                            <td class="c" style="width:70px;">${angka}</td>
+                            <td class="arab r" style="width:170px;">${terbilang}</td>
+                        </tr>
+                    `;
+                }).join('');
 
                 return `
-                    <div class="subttl arab">${titleAr}</div>
-                    <div class="subttl">${titleId}</div>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th style="width:36px;">الرقم<br><span class="small">No</span></th>
-                                <th class="arab">المواد الدراسية<br><span class="small">(Arab)</span></th>
-                                <th>Mata Pelajaran</th>
-                                <th style="width:90px;">معدل الصف<br><span class="small">Rata-rata</span></th>
-                                <th style="width:70px;">رقما<br><span class="small">Angka</span></th>
-                                <th style="width:110px;">كتابة<br><span class="small">Terbilang</span></th>
-                            </tr>
-                        </thead>
-                        <tbody>${body}</tbody>
-                    </table>
+                    <div class="section">
+                        <div class="section-title arab">${titleAr}</div>
+                        <div class="section-title">${titleId}</div>
+                        <table class="score">
+                            <thead>
+                                <tr>
+                                    <th rowspan="2" class="arab c" style="width:44px;">الرقم</th>
+                                    <th rowspan="2" class="arab c">المواد الدراسية</th>
+                                    <th rowspan="2" class="c">Mata Pelajaran</th>
+                                    <th rowspan="2" class="arab c" style="width:90px;">معدل الصف</th>
+                                    <th colspan="2" class="arab c" style="width:240px;">الدرجة المكتسبة</th>
+                                </tr>
+                                <tr>
+                                    <th class="arab c" style="width:70px;">رقما</th>
+                                    <th class="arab c" style="width:170px;">كتابة</th>
+                                </tr>
+                            </thead>
+                            <tbody>${body}</tbody>
+                        </table>
+                    </div>
                 `;
             };
 
+            const namaLabel = (String(s.jk||'').toUpperCase()==='P') ? 'اسم الطالبة' : 'اسم الطالب';
             const html = `
-                <div class="hdr">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <div style="width:55px;"></div>
-                        <div class="arab" style="font-size:22px; font-weight:800;">معهد حسن الخاتمة الإسلامي</div>
+                <div class="wrap">
+                    <div class="head">
                         <img class="logo" src="logo.png" />
+                        <div class="arab title-ar">معهد حسن الخاتمة الإسلامي</div>
+                        <div class="arab subtitle-ar">مانيسكيدول - جالكسا - جالكسانا - كونينجان - جاوى الغربية</div>
+                        <div class="arab subtitle-ar">السنة الدراسية : ${tahunAr}</div>
+                        <div class="arab" style="margin-top:6px; font-size:14px; font-weight:800;">كشف درجات امتحانات اللغة لعام ${_toArabicIndic(y2||'')}</div>
+                        <div class="arab" style="margin-top:2px; font-size:13px; font-weight:800;">الفصل ${_semesterToArab(semester)}</div>
                     </div>
-                    <div class="small"><b>Tahun Ajar:</b> ${tahun_ajar} • <b>Semester:</b> ${semester}</div>
+
+                    <table class="meta" style="width:100%; border-collapse:collapse;">
+                        <tbody>
+                            <tr>
+                                <td class="arab lbl">المستوى</td>
+                                <td class="arab">${_jenjangToArab(jenjang)}</td>
+                                <td class="arab lbl">القسم</td>
+                                <td class="arab">${_jurusanToArab(kelas)}</td>
+                            </tr>
+                            <tr>
+                                <td class="arab lbl">${namaLabel}</td>
+                                <td>${s.name}</td>
+                                <td class="arab lbl">رقم القيد</td>
+                                <td>${s.nis||'-'}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    ${makeTable('الامتحان الشفوي', 'Ujian Lisan', lisan)}
+                    ${makeTable('الامتحان التحريري', 'Ujian Tulis', tulis)}
+
+                    <table class="sum">
+                        <tbody>
+                            <tr><td class="arab" style="text-align:right;">المجموع</td><td class="c" style="width:140px;">${jumlah || '-'}</td></tr>
+                            <tr><td class="arab" style="text-align:right;">المعدل</td><td class="c">${rata2 || '-'}</td></tr>
+                            <tr><td class="arab" style="text-align:right;">الترتيب</td><td class="c">${ranking || '-'}</td></tr>
+                        </tbody>
+                    </table>
                 </div>
-
-                <div class="row">
-                    <div class="box" style="flex:1;">
-                        <div><b>Nama:</b> ${s.name}</div>
-                        <div><b>NIS:</b> ${s.nis||'-'}</div>
-                    </div>
-                    <div class="box" style="width:260px;">
-                        <div><b>Kelas:</b> ${kelas}</div>
-                        <div><b>L/P:</b> ${s.jk||'-'}</div>
-                    </div>
-                </div>
-
-                ${makeTable('الامتحان الشفوي', 'Ujian Lisan', lisan)}
-                ${makeTable('الامتحان التحريري', 'Ujian Tulis', tulis)}
-
-                <table>
-                    <tbody class="sum">
-                        <tr><td colspan="5" style="text-align:right;">Jumlah</td><td style="text-align:center;">${jumlah || '-'}</td></tr>
-                        <tr><td colspan="5" style="text-align:right;">Rata-rata</td><td style="text-align:center;">${rata2 || '-'}</td></tr>
-                        <tr><td colspan="5" style="text-align:right;">Ranking</td><td style="text-align:center;">${ranking || '-'}</td></tr>
-                    </tbody>
-                </table>
-                <div class="small" style="margin-top:10px; color:#555;">Format rapor ini dibuat mirip contoh. Mapel yang kosong tetap ditampilkan.</div>
             `;
 
             _printHTML('RAPOR_' + kelas + '_' + s.nis, `<style>${css}</style>${html}`);
