@@ -1,6 +1,7 @@
-document.addEventListener('DOMContentLoaded', async () => {
+
+    document.addEventListener('DOMContentLoaded', async () => {
         const u = getCurrentUser();
-        if(!u) { window.location.href = 'index.html'; return; }
+        if(!u) { window.location.href = 'login.html'; return; }
         document.getElementById('user-info-name').innerText = u.name;
         document.getElementById('user-info-role').innerText = u.role;
         setLoading(true, "Memuat Data...");
@@ -8,34 +9,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             await loadInitialData({ onProgress: (pct, label) => setLoadingProgress(pct, label) });
         setLoading(false);
         renderSidebar();
-        bindMobileSidebarAutoClose();
-        // Ensure sidebar starts closed on small screens
-        closeSidebar();
         renderDashboardContent();
     });
-
-    function bindMobileSidebarAutoClose() {
-        const menu = document.getElementById('sidebar-menu');
-        if (!menu) return;
-        if (menu.dataset.boundMobileClose === '1') return;
-        menu.dataset.boundMobileClose = '1';
-
-        menu.addEventListener('click', (e) => {
-            // Close only when a link is clicked (not when expanding collapsible headers)
-            const a = e.target && e.target.closest && e.target.closest('a');
-            if (!a) return;
-            if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) {
-                closeSidebar();
-            }
-        });
-
-        // If user rotates / resizes to desktop, ensure backdrop disappears
-        window.addEventListener('resize', () => {
-            if (window.matchMedia && !window.matchMedia('(max-width: 768px)').matches) {
-                closeSidebar();
-            }
-        });
-    }
     const isGuru = u => (u?.role || '').toLowerCase().includes('guru') || (u?.mapel && parseMapelData(u.mapel).length > 0);
     // isAdmin, isWali, getWaliKelas sudah didefinisikan di data.js (hindari duplicate declaration)
 
@@ -46,16 +21,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (isAdmin(u)) {
             menu.innerHTML += `
-            <li class="px-3 mt-6 mb-2 text-xs text-blue-300 uppercase font-bold tracking-wider">Database</li>
+            <li class="px-3 mt-6 mb-2 text-xs text-blue-300 uppercase font-bold tracking-wider">Administrator</li>
             <li><a href="#" onclick="renderAdminGuru()" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">👥 Data Guru</a></li>
             <li><a href="#" onclick="renderAdminSantri()" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">🎓 Data Santri</a></li>
             <li><a href="#" onclick="renderAdminLegger()" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">📊 Legger Santri</a></li>
-
-            <li><a href="#" onclick="renderAdminRanking()" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">🏆 Ranking / Juara</a></li>
-<li class="px-3 mt-6 mb-2 text-xs text-blue-300 uppercase font-bold tracking-wider">Pengaturan</li>
             <li><a href="#" onclick="renderBobotNilai()" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">⚖️ Bobot Nilai</a></li>
-            <li><a href="#" onclick="renderKonversiNilai()" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">🔄 Konversi Nilai</a></li>
-`;
+            <li><a href="#" onclick="renderKonversiNilai()" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">🔄 Konversi Nilai</a></li>`;
         }
         
         if (isGuru(u)) {
@@ -108,7 +79,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <li><a href="#" onclick="renderWaliPage('data')" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">📋 Data Kelas</a></li>
             <li><a href="#" onclick="renderWaliPage('absen')" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">📅 Absensi & Sikap</a></li>
             <li><a href="#" onclick="renderWaliPage('catatan')" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">📝 Catatan & Prestasi</a></li>
-            <li><a href="#" onclick="renderWaliPage('print')" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">🖨️ Rapor & Legger</a></li>`;
+            <li><a href="#" onclick="renderWaliPage('print')" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">🖨️ Raport & Legger</a></li>`;
         }
     }
 
@@ -124,10 +95,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // hitung mapel unik
             const mapelSet = new Set();
-            const { tahun_ajar, semester } = getActivePeriode();
-            const _todosNilai = computeNilaiTodoEntries({ tahun_ajar, semester });
-            const _adminTodoHtml = renderAdminTodoDashboardHTML(_todosNilai);
-            const _adminAnalyticsHtml = renderAdminAnalyticsHTML({ tahun_ajar, semester });
             users.forEach(g => {
                 const m = parseMapelData(g.mapel);
                 m.forEach(x => { if (x?.nama) mapelSet.add(String(x.nama).toUpperCase().trim()); });
@@ -165,33 +132,43 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <div class="text-3xl font-extrabold text-gray-800">${mapelSet.size}</div>
                     </div>
                 </div>
-${_adminAnalyticsHtml}
 
-${_adminTodoHtml}
-
-
-
-                
-                <div class="bg-blue-50 p-6 rounded-xl border border-blue-200">
-                    <h3 class="text-lg font-extrabold text-blue-900 mb-2">Panduan Singkat Admin</h3>
-                    <ol class="list-decimal pl-6 text-sm text-blue-900 space-y-1">
-                        <li>Cek <b>Periode Aktif</b> (Tahun Ajar & Semester) di bagian atas.</li>
-                        <li>Isi/cek <b>Database</b>: Guru, Santri, Legger (import/export tersedia).</li>
-                        <li>Atur <b>Bobot</b> & <b>Konversi</b> sebelum input nilai berjalan jauh.</li>
-                        <li>Pantau <b>Status Nilai</b> dan gunakan menu <b>Ranking</b> untuk Top 3.</li>
-                        <li>Bangun/cetak <b>Rapor & Legger</b> setelah nilai mapel lengkap.</li>
-                    </ol>
-                    <div class="text-xs text-blue-800 mt-3">Tip: Kalau ada menu yang hilang, biasanya karena kolom <b>wali</b> / <b>musyrif</b> pada data guru belum terisi.</div>
-                </div>
-
-<div class="bg-white p-6 rounded-xl shadow border">
+                <div class="bg-white p-6 rounded-xl shadow border">
                     <h3 class="text-lg font-bold text-gray-800 mb-2">Catatan Singkat</h3>
                     <ul class="list-disc pl-6 text-sm text-gray-700 space-y-1">
                         <li>Role akun hanya: <b>admin</b> dan <b>guru</b>. Peran wali kelas/musyrif otomatis aktif kalau kolom <b>wali</b> / <b>musyrif</b> terisi.</li>
                         <li>Menu <b>Data Santri</b> kini menampilkan semua kolom sesuai tabel <b>public.santri</b> (import/export juga sama).</li>
                     </ul>
                 </div>
-</div>`;
+                <div class="bg-white p-6 rounded-xl shadow border">
+                    <h3 class="text-lg font-bold text-gray-800 mb-2">Panduan Penggunaan (Admin)</h3>
+                    <div class="text-sm text-gray-700 space-y-3">
+                        <details class="bg-gray-50 border rounded-lg p-3">
+                            <summary class="font-bold cursor-pointer">1) Kelola Data Guru</summary>
+                            <ul class="list-disc pl-6 mt-2 space-y-1">
+                                <li>Role akun hanya <b>admin</b> dan <b>guru</b>.</li>
+                                <li>Kolom <b>wali</b> dan <b>musyrif</b> akan mengaktifkan mode Wali Kelas/Musyrif otomatis.</li>
+                                <li>Saat edit, <b>biarkan password kosong</b> jika tidak ingin mengganti password.</li>
+                            </ul>
+                        </details>
+                        <details class="bg-gray-50 border rounded-lg p-3">
+                            <summary class="font-bold cursor-pointer">2) Kelola Data Santri</summary>
+                            <ul class="list-disc pl-6 mt-2 space-y-1">
+                                <li>Pastikan kolom <b>NIS</b> di Excel diset sebagai <b>Text</b> sebelum isi data.</li>
+                                <li>Import akan dipreview dulu; klik <b>Simpan</b> untuk upsert ke database (batch).</li>
+                            </ul>
+                        </details>
+                        <details class="bg-gray-50 border rounded-lg p-3">
+                            <summary class="font-bold cursor-pointer">3) Legger Santri</summary>
+                            <ul class="list-disc pl-6 mt-2 space-y-1">
+                                <li>Pilih filter kelas, lalu export <b>XLSX</b> atau cetak (bisa <i>Save as PDF</i>).</li>
+                                <li>Kolom <b>PRINT</b> di tiap baris untuk cetak per-santri (format detail menyusul).</li>
+                            </ul>
+                        </details>
+                    </div>
+                </div>
+
+            </div>`;
             return;
         }
 
@@ -211,16 +188,15 @@ ${_adminTodoHtml}
             const santriKelas = students.filter(s => String(s.kelas||'') === String(c.kelas));
             expected += santriKelas.length;
             santriKelas.forEach(s => santriSet.add(String(s.nis)));
-            filled += _countDistinctScoresFor(c.mapel, c.kelas, tahun_ajar, semester);
+            filled += scores.filter(sc =>
+                String(sc.kelas||'') === String(c.kelas) &&
+                String(sc.mapel||'').toUpperCase() === String(c.mapel||'').toUpperCase()
+            ).length;
         });
 
         const pct = expected ? Math.min(100, Math.round((filled/expected)*100)) : 0;
         const isWaliRole = isWali(u);
         const isMusyrifRole = !!(u.musyrif && String(u.musyrif).trim());
-
-        const _comboProgress = computeGuruComboProgress(u, combos);
-        const _guruQuickHtml = renderGuruQuickContinueHTML(_comboProgress);
-        const _guruAnalyticsHtml = renderGuruAnalyticsHTML(u, combos);
 
         document.getElementById('main-content').innerHTML = `
         <div class="max-w-6xl mx-auto space-y-6">
@@ -253,1072 +229,54 @@ ${_adminTodoHtml}
                     </div>
                 </div>
                 <div class="bg-white p-5 rounded-xl shadow border">
-                    <div class="text-sm text-gray-500 font-bold mb-1">Input Nilai (Terisi)</div>
+                    <div class="text-sm text-gray-500 font-bold mb-1">Input Nilai (Tersimpan)</div>
                     <div class="text-3xl font-extrabold text-gray-800">${pct}%</div>
-                    <div class="mt-2 h-2 bg-gray-200 rounded w-full">
+                    <div class="mt-2 h-2 bg-gray-200 rounded">
                         <div class="h-2 bg-blue-600 rounded" style="width:${pct}%"></div>
                     </div>
                     <div class="text-xs text-gray-500 mt-1">${filled} / ${expected} baris</div>
                 </div>
             </div>
 
-            <div class="space-y-6">
-                ${_guruQuickHtml}
-            </div>
-
-            ${_guruAnalyticsHtml}
-
-            <div class="bg-green-50 p-6 rounded-xl border border-green-200">
-                <h3 class="text-lg font-extrabold text-green-900 mb-2">Panduan Singkat Guru</h3>
-                <ol class="list-decimal pl-6 text-sm text-green-900 space-y-1">
-                    <li>Pilih <b>Mapel → Kelas</b> dari sidebar.</li>
-                    <li>Isi nilai, lalu klik <b>Simpan</b> (disimpan batch agar aman untuk data banyak).</li>
-                    <li>Cek <b>Status Nilai</b> (jika tersedia) untuk memastikan mapel sudah terkirim.</li>
-                    <li>Kalau Anda juga <b>Wali Kelas</b> atau <b>Musyrif</b>, menu tambahan akan muncul otomatis.</li>
-                </ol>
-                <div class="text-xs text-green-800 mt-3">Tip: Pastikan periode aktif sudah benar: <b>${tahun_ajar}</b> / Semester <b>${semester}</b>.</div>
-            </div>
-
-<div class="bg-white p-6 rounded-xl shadow border">
+            <div class="bg-white p-6 rounded-xl shadow border">
                 <h3 class="text-lg font-bold text-gray-800 mb-2">Catatan</h3>
                 <ul class="list-disc pl-6 text-sm text-gray-700 space-y-1">
                     <li>Input nilai disimpan <b>batch</b> agar tidak terpotong saat data banyak.</li>
                     <li>Absensi (S/I/A) berbentuk angka; Sikap berbentuk <b>A/B/C/D</b>.</li>
                 </ul>
             </div>
-            </div>
-
-        </div>`;
-    }
-
-
-// ===============================
-// DASHBOARD: TO-DO NILAI (ADMIN) & QUICK CONTINUE (GURU)
-// ===============================
-
-function _normUpper(s){ return String(s||'').toUpperCase().trim(); }
-function _normStr(s){ return String(s||'').trim(); }
-
-
-
-// Safe encode for inline onclick attributes
-function _encArg(v){ return encodeURIComponent(String(v ?? '')); }
-
-
-// A score row is considered "filled" only if at least one component > 0.
-function _isScoreFilled(sc){
-    if (!sc) return false;
-    const nums = [
-        sc.kehadiran, sc.tugas,
-        sc.uh1, sc.uh2, sc.uh3, sc.uh4, sc.uh5,
-        sc.pas, sc.pas_pat, sc.paspat
-    ];
-    for (const v of nums){
-        const n = Number(v) || 0;
-        if (n > 0) return true;
-    }
-    return false;
-}
-function _countDistinctScoresFor(mapel, kelas, tahun_ajar, semester){
-    const set = new Set();
-    (scores || []).forEach(sc => {
-        if (_normUpper(sc.mapel) !== _normUpper(mapel)) return;
-        if (_normStr(sc.kelas) !== _normStr(kelas)) return;
-        if (String(sc.tahun_ajar||'') !== String(tahun_ajar||'')) return;
-        if (Number(sc.semester||0) !== Number(semester||0)) return;
-        if (!_isScoreFilled(sc)) return;
-        const nis = sc.nis ?? sc.nis_santri ?? sc.student_id ?? '';
-        if (nis !== null && nis !== undefined && String(nis).trim() !== '') set.add(String(nis).trim());
-    });
-    return set.size;
-}
-
-function computeNilaiTodoEntries({ tahun_ajar, semester }){
-    const todos = [];
-    (users || []).forEach(g => {
-        const mapelArr = parseMapelData(g.mapel);
-        mapelArr.forEach(m => {
-            const mapel = m?.nama;
-            (m.kelas || []).forEach(kelas => {
-                const siswa = (students || []).filter(s => _normStr(s.kelas) === _normStr(kelas));
-                const expected = siswa.length;
-                if (!expected) return;
-                const filled = _countDistinctScoresFor(mapel, kelas, tahun_ajar, semester);
-                const missing = Math.max(0, expected - filled);
-                if (missing > 0) {
-                    todos.push({
-                        kelas: _normStr(kelas),
-                        mapel: String(mapel || '').trim(),
-                        guru: String(g.name || g.nama_guru || g.username || '-').trim(),
-                        expected, filled, missing
-                    });
-                }
-            });
-        });
-    });
-    // sort: paling banyak yang belum masuk dulu
-    todos.sort((a,b)=> (b.missing-a.missing) || a.kelas.localeCompare(b.kelas) || a.mapel.localeCompare(b.mapel));
-    return todos;
-}
-
-function _aggTop(todos, key){
-    const m = new Map();
-    (todos || []).forEach(t => {
-        const k = String(t[key] || '').trim();
-        if (!k) return;
-        m.set(k, (m.get(k)||0) + Number(t.missing||0));
-    });
-    return Array.from(m.entries()).sort((a,b)=>b[1]-a[1]);
-}
-
-function renderAdminTodoDashboardHTML(todos){
-    const { tahun_ajar, semester } = getActivePeriode();
-    if (!todos || todos.length === 0){
-        return `
-        <div class="bg-green-50 p-6 rounded-xl border border-green-200">
-            <h3 class="text-lg font-extrabold text-green-900 mb-1">✅ To-do Otomatis: Nilai Mapel</h3>
-            <div class="text-sm text-green-900">Periode <b>${tahun_ajar}</b> / Semester <b>${semester}</b> sudah lengkap. Tidak ada mapel-kelas yang tertinggal.</div>
-        </div>`;
-    }
-
-    const topKelas = _aggTop(todos, 'kelas').slice(0, 8);
-    const topMapel = _aggTop(todos, 'mapel').slice(0, 8);
-    const topDetail = todos.slice(0, 15);
-
-    const smallList = (items, label) => `
-        <div class="bg-white p-4 rounded-xl border shadow-sm">
-            <div class="font-extrabold text-gray-800 mb-2">${label}</div>
-            <div class="space-y-2">
-                ${items.map(([k,v]) => `
-                    <div class="flex items-center justify-between gap-3">
-                        <div class="text-sm font-bold text-gray-800 truncate" title="${k}">${k}</div>
-                        <div class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full font-extrabold">${v}</div>
-                    </div>
-                `).join('')}
-            </div>
-        </div>
-    `;
-
-    const detailRows = topDetail.map((t, i) => `
-        <tr class="hover:bg-gray-50 border-b cursor-pointer"
-            onclick="renderAdminNilaiMonitor(decodeURIComponent('${_encArg(t.mapel)}'), decodeURIComponent('${_encArg(t.kelas)}'), decodeURIComponent('${_encArg(t.guru)}'))">
-            <td class="p-2 text-center text-xs text-gray-500">${i+1}</td>
-            <td class="p-2 font-bold">${t.kelas}</td>
-            <td class="p-2">${t.mapel}</td>
-            <td class="p-2">${t.guru}</td>
-            <td class="p-2 text-center text-sm font-mono">${t.filled}/${t.expected}</td>
-            <td class="p-2 text-center">
-                <span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-extrabold">${t.missing}</span>
-            </td>
-            <td class="p-2 text-center">
-                <button class="px-3 py-1 rounded bg-indigo-600 text-white text-xs font-bold shadow"
-                    onclick="event.stopPropagation(); renderAdminNilaiMonitor(decodeURIComponent('${_encArg(t.mapel)}'), decodeURIComponent('${_encArg(t.kelas)}'), decodeURIComponent('${_encArg(t.guru)}'))">Detail</button>
-                <button class="px-3 py-1 rounded bg-gray-700 text-white text-xs font-bold shadow ml-1"
-                    onclick="event.stopPropagation(); openAdminLeggerForKelas(decodeURIComponent('${_encArg(t.kelas)}'))">Legger</button>
-            </td>
-        </tr>
-    `).join('');
-
-    return `
-    <div class="bg-blue-50 p-6 rounded-xl border border-blue-200">
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-4">
-            <div>
-                <h3 class="text-lg font-extrabold text-blue-900">🧭 To-do Otomatis: Nilai Mapel yang Belum Masuk</h3>
-                <div class="text-xs text-blue-900">Periode <b>${tahun_ajar}</b> / Semester <b>${semester}</b> • Klik baris untuk lihat detail.</div>
-            </div>
-            <button class="bg-blue-700 text-white px-4 py-2 rounded font-bold text-sm shadow"
-                onclick="renderAdminTodoPage()">Lihat Semua</button>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-            ${smallList(topKelas, 'Top Kelas (paling banyak tertunda)')}
-            ${smallList(topMapel, 'Top Mapel (paling banyak tertunda)')}
-        </div>
-
-        <div class="bg-white p-4 rounded-xl border shadow-sm">
-            <div class="font-extrabold text-gray-800 mb-3">Detail Mapel × Kelas (Top 15)</div>
-            <div class="overflow-auto">
-                <table class="min-w-[900px] w-full text-sm border std-table">
-                    <thead class="bg-blue-600 text-white">
-                        <tr>
-                            <th class="p-2 w-12">No</th>
-                            <th class="p-2 text-left">Kelas</th>
-                            <th class="p-2 text-left">Mapel</th>
-                            <th class="p-2 text-left">Guru</th>
-                            <th class="p-2 w-24">Terisi</th>
-                            <th class="p-2 w-20">Sisa</th>
-                            <th class="p-2 w-44">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>${detailRows}</tbody>
-                </table>
-            </div>
-        </div>
-        <div class="text-xs text-blue-800 mt-3">Catatan: “Terisi” dihitung dari jumlah santri yang sudah punya record nilai di tabel <b>nilai_mapel</b> (periode aktif).</div>
-    </div>`;
-}
-
-function computeGuruComboProgress(u, combos){
-    const { tahun_ajar, semester } = getActivePeriode();
-    const list = [];
-    (combos || []).forEach(c => {
-        const mapel = c.mapel;
-        const kelas = c.kelas;
-        const siswa = (students || []).filter(s => _normStr(s.kelas) === _normStr(kelas));
-        const expected = siswa.length;
-        if (!expected) return;
-        const filled = _countDistinctScoresFor(mapel, kelas, tahun_ajar, semester);
-        const pct = expected ? Math.min(100, Math.round((filled/expected)*100)) : 0;
-        list.push({ mapel, kelas, expected, filled, missing: Math.max(0, expected-filled), pct });
-    });
-    list.sort((a,b)=> (a.pct-b.pct) || (b.missing-a.missing) || a.mapel.localeCompare(b.mapel) || a.kelas.localeCompare(b.kelas));
-    return list;
-}
-
-function renderGuruQuickContinueHTML(items){
-    if (!items || items.length === 0){
-        return `
-        <div class="bg-yellow-50 p-6 rounded-xl border border-yellow-200">
-            <h3 class="text-lg font-extrabold text-yellow-900 mb-1">🚀 Lanjut Input Nilai</h3>
-            <div class="text-sm text-yellow-900">Belum ada mapel-kelas yang terdeteksi untuk akun ini.</div>
-        </div>`;
-    }
-    const top = items.slice(0, 8);
-    const rows = top.map(it => `
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 p-3 rounded-lg border hover:bg-gray-50 w-full">
-            <div class="min-w-0 flex-1 w-full">
-                <div class="font-extrabold text-gray-800 truncate" title="${it.mapel} • ${it.kelas}">${it.mapel} <span class="text-gray-400 font-black">•</span> ${it.kelas}</div>
-                <div class="text-xs text-gray-600">${it.filled}/${it.expected} terisi • sisa <b>${it.missing}</b></div>
-                <div class="mt-2 h-2 bg-gray-200 rounded w-full">
-                    <div class="h-2 bg-blue-600 rounded" style="width:${it.pct}%"></div>
-                </div>
-            </div>
-            <div class="flex gap-2 shrink-0">
-                <button class="px-4 py-2 rounded bg-blue-600 text-white text-sm font-bold shadow"
-                    onclick="renderNilaiPage(decodeURIComponent('${_encArg(it.mapel)}'), decodeURIComponent('${_encArg(it.kelas)}'))">Lanjut</button>
-            </div>
-        </div>
-    `).join('');
-
-    return `
-    <div class="bg-white p-6 rounded-xl shadow border">
-        <div class="flex items-center justify-between gap-3 mb-3">
-            <h3 class="text-lg font-extrabold text-gray-800">🚀 Lanjut Input Nilai</h3>
-            <div class="text-xs text-gray-500">Diprioritaskan yang paling belum lengkap</div>
-        </div>
-        <div class="space-y-2">${rows}</div>
-    </div>`;
-}
-
-function renderAdminTodoPage(){
-    const main = document.getElementById('main-content');
-    const { tahun_ajar, semester } = getActivePeriode();
-    const todos = computeNilaiTodoEntries({ tahun_ajar, semester });
-
-    const rows = (todos || []).map((t,i)=>`
-        <tr class="hover:bg-gray-50 border-b cursor-pointer"
-            onclick="renderAdminNilaiMonitor(decodeURIComponent('${_encArg(t.mapel)}'), decodeURIComponent('${_encArg(t.kelas)}'), decodeURIComponent('${_encArg(t.guru)}'))">
-            <td class="p-2 text-center text-xs text-gray-500">${i+1}</td>
-            <td class="p-2 font-bold">${t.kelas}</td>
-            <td class="p-2">${t.mapel}</td>
-            <td class="p-2">${t.guru}</td>
-            <td class="p-2 text-center font-mono text-sm">${t.filled}/${t.expected}</td>
-            <td class="p-2 text-center"><span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-extrabold">${t.missing}</span></td>
-            <td class="p-2 text-center">
-                <button class="px-3 py-1 rounded bg-indigo-600 text-white text-xs font-bold shadow"
-                    onclick="event.stopPropagation(); renderAdminNilaiMonitor(decodeURIComponent('${_encArg(t.mapel)}'), decodeURIComponent('${_encArg(t.kelas)}'), decodeURIComponent('${_encArg(t.guru)}'))">Detail</button>
-                <button class="px-3 py-1 rounded bg-gray-700 text-white text-xs font-bold shadow ml-1"
-                    onclick="event.stopPropagation(); openAdminLeggerForKelas(decodeURIComponent('${_encArg(t.kelas)}'))">Legger</button>
-            </td>
-        </tr>
-    `).join('');
-
-    main.innerHTML = `
-    <div class="bg-white p-6 rounded shadow">
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-            <div>
-                <h2 class="text-2xl font-bold">🧭 To-do Nilai Mapel</h2>
-                <div class="text-sm text-gray-600">Periode: <b>${tahun_ajar}</b> / Semester <b>${semester}</b> • klik baris untuk detail.</div>
-            </div>
-            <div class="flex gap-2 justify-end">
-                <button onclick="renderDashboardContent()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded font-bold text-sm">Kembali</button>
-            </div>
-        </div>
-        <input type="text" onkeyup="filterTable('tbody-todo-nilai')" placeholder="Cari (kelas/mapel/guru)..." class="w-full border p-2 mb-4 rounded">
-        <div class="overflow-auto">
-            <table class="min-w-[900px] w-full text-sm border std-table">
-                <thead class="bg-blue-600 text-white sticky top-0">
-                    <tr>
-                        <th class="p-2 w-12">No</th>
-                        <th class="p-2 text-left">Kelas</th>
-                        <th class="p-2 text-left">Mapel</th>
-                        <th class="p-2 text-left">Guru</th>
-                        <th class="p-2 w-24">Terisi</th>
-                        <th class="p-2 w-20">Sisa</th>
-                        <th class="p-2 w-44">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody id="tbody-todo-nilai">${rows}</tbody>
-            </table>
-        </div>
-    </div>`;
-}
-
-
-// ===============================
-// DASHBOARD ANALYTICS (ADMIN/GURU)
-// - Admin tahap 1: Heatmap kelengkapan nilai + Kelas "rawan telat"
-// ===============================
-
-function _kelasJenjangNum(kelas){
-    const t = String(kelas||'').trim().split(/\s+/)[0] || '';
-    const up = t.toUpperCase();
-    if (up === 'X') return 10;
-    if (up === 'XI') return 11;
-    if (up === 'XII') return 12;
-    const n = Number(t);
-    if (n === 10) return 10;
-    if (n === 11) return 11;
-    if (n === 12) return 12;
-    return 999;
-}
-
-function _sortKelasList(list){
-    return (list||[]).slice().sort((a,b)=>{
-        const na = _kelasJenjangNum(a);
-        const nb = _kelasJenjangNum(b);
-        if (na !== nb) return na-nb;
-        return String(a).localeCompare(String(b), 'id', { numeric:true, sensitivity:'base' });
-    });
-}
-
-function _heatBgFromPct(pct){
-    const p = Math.max(0, Math.min(100, Number(pct)||0));
-    const hue = Math.round(p * 1.2); // 0 merah → 120 hijau
-    const light = 93 - Math.round(p * 0.18);
-    return `hsl(${hue}, 75%, ${light}%)`;
-}
-
-function _buildScoreIndexForPeriode(tahun_ajar, semester){
-    const idx = new Map(); // key -> Set(nis)
-    (scores || []).forEach(sc => {
-        if (String(sc.tahun_ajar||'') !== String(tahun_ajar||'')) return;
-        if (Number(sc.semester||0) !== Number(semester||0)) return;
-        if (!_isScoreFilled(sc)) return;
-        const mapel = _normUpper(sc.mapel);
-        const kelas = _normStr(sc.kelas);
-        if (!mapel || !kelas) return;
-        const nis = sc.nis ?? sc.nis_santri ?? sc.student_id ?? '';
-        const nisStr = String(nis||'').trim();
-        if (!nisStr) return;
-        const key = `${mapel}||${kelas}`;
-        let set = idx.get(key);
-        if (!set){ set = new Set(); idx.set(key, set); }
-        set.add(nisStr);
-    });
-    return idx;
-}
-
-function renderAdminAnalyticsHTML({ tahun_ajar, semester }){
-    // Tahap 1: Heatmap kelengkapan nilai + Kelas rawan telat
-    const kelasList = _sortKelasList(Array.from(new Set((students||[])
-        .map(s => _normStr(s.kelas))
-        .filter(Boolean))));
-
-    // Mapel unik dari data guru
-    const mapelSet = new Set();
-    (users || []).forEach(g => {
-        const arr = parseMapelData(g.mapel);
-        (arr||[]).forEach(m => {
-            const nama = String(m?.nama||'').trim();
-            if (nama) mapelSet.add(_normUpper(nama));
-        });
-    });
-    const mapelList = Array.from(mapelSet).sort((a,b)=>a.localeCompare(b, 'id', { sensitivity:'base' }));
-
-    // Jika data terlalu besar, tetap tampilkan tapi biar tidak "patah" di layar
-    const scoreIdx = _buildScoreIndexForPeriode(tahun_ajar, semester);
-    const kelasCount = new Map();
-    (students || []).forEach(s => {
-        const k = _normStr(s.kelas);
-        if (!k) return;
-        kelasCount.set(k, (kelasCount.get(k)||0) + 1);
-    });
-
-    // Heatmap rows
-    const heatRows = kelasList.map(kelas => {
-        const expected = kelasCount.get(kelas) || 0;
-        const tds = mapelList.map(mapel => {
-            if (!expected) {
-                return `<td class="p-1 text-center text-xs text-gray-400">-</td>`;
-            }
-            const key = `${_normUpper(mapel)}||${_normStr(kelas)}`;
-            const filled = scoreIdx.get(key)?.size || 0;
-            const pct = expected ? Math.round((filled/expected)*100) : 0;
-            const missing = Math.max(0, expected-filled);
-            const bg = _heatBgFromPct(pct);
-            const title = `${kelas} • ${mapel}\nTerisi: ${filled}/${expected} (${pct}%)\nSisa: ${missing}`;
-            return `
-                <td class="p-1 text-center align-middle">
-                    <div class="rounded-md border px-2 py-2 text-[11px] font-extrabold" style="background:${bg}" title="${title}">
-                        ${missing===0 ? '✓' : missing}
-                    </div>
-                </td>`;
-        }).join('');
-
-        return `
-            <tr class="border-b hover:bg-gray-50">
-                <td class="p-2 font-extrabold sticky left-0 bg-white z-10 border-r" style="min-width:140px">${kelas}</td>
-                ${tds}
-            </tr>`;
-    }).join('');
-
-    const heatHeader = mapelList.map(m => `
-        <th class="p-2 text-left text-xs whitespace-nowrap" style="min-width:92px">
-            <span class="font-extrabold">${m}</span>
-        </th>`).join('');
-
-    const legend = `
-        <div class="flex flex-wrap items-center gap-2 text-xs text-gray-700">
-            <span class="font-extrabold">Legenda:</span>
-            <span class="inline-flex items-center gap-1"><span class="w-4 h-4 rounded border" style="background:${_heatBgFromPct(0)}"></span> banyak kosong</span>
-            <span class="inline-flex items-center gap-1"><span class="w-4 h-4 rounded border" style="background:${_heatBgFromPct(50)}"></span> sedang</span>
-            <span class="inline-flex items-center gap-1"><span class="w-4 h-4 rounded border" style="background:${_heatBgFromPct(90)}"></span> hampir lengkap</span>
-            <span class="inline-flex items-center gap-1"><span class="w-4 h-4 rounded border" style="background:${_heatBgFromPct(100)}"></span> lengkap</span>
-            <span class="text-gray-500">(angka = sisa santri belum ada record nilai)</span>
-        </div>`;
-
-    // Kelas rawan telat: ambil dari todos
-    const todos = computeNilaiTodoEntries({ tahun_ajar, semester });
-    const perKelas = new Map();
-    (todos||[]).forEach(t => {
-        const k = _normStr(t.kelas);
-        if (!k) return;
-        let o = perKelas.get(k);
-        if (!o){ o = { kelas:k, missingTotal:0, combos:0, mapelMissing:new Map() }; perKelas.set(k,o); }
-        o.missingTotal += Number(t.missing||0);
-        o.combos += 1;
-        const m = String(t.mapel||'').trim();
-        if (m) o.mapelMissing.set(m, (o.mapelMissing.get(m)||0) + Number(t.missing||0));
-    });
-
-    const rawanArr = Array.from(perKelas.values())
-        .sort((a,b)=> (b.missingTotal-a.missingTotal) || (b.combos-a.combos) || a.kelas.localeCompare(b.kelas))
-        .slice(0, 12);
-
-    const rawanRows = rawanArr.map((o, i) => {
-        const topMapel = Array.from(o.mapelMissing.entries())
-            .sort((a,b)=>b[1]-a[1])
-            .slice(0,3)
-            .map(([m,v]) => `<span class="inline-flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-full text-xs font-bold"><span class="truncate" title="${m}">${m}</span><span class="bg-red-100 text-red-800 px-2 py-0.5 rounded-full text-[10px] font-extrabold">${v}</span></span>`)
-            .join(' ');
-
-        return `
-            <tr class="border-b hover:bg-gray-50">
-                <td class="p-2 text-center text-xs text-gray-500">${i+1}</td>
-                <td class="p-2 font-extrabold">${o.kelas}</td>
-                <td class="p-2 text-center"><span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-extrabold">${o.missingTotal}</span></td>
-                <td class="p-2 text-center text-sm font-mono">${o.combos}</td>
-                <td class="p-2">${topMapel || '<span class="text-xs text-gray-400">-</span>'}</td>
-                <td class="p-2 text-center">
-                    <button class="px-3 py-1 rounded bg-gray-700 text-white text-xs font-bold shadow"
-                        onclick="openAdminLeggerForKelas(decodeURIComponent('${_encArg(o.kelas)}'))">Legger</button>
-                </td>
-            </tr>`;
-    }).join('');
-
-    const rawanHtml = (!rawanArr.length) ? `
-        <div class="bg-green-50 p-5 rounded-xl border border-green-200">
-            <div class="font-extrabold text-green-900">✅ Tidak ada kelas rawan telat</div>
-            <div class="text-sm text-green-900">Semua mapel-kelas terdeteksi sudah lengkap untuk periode aktif.</div>
-        </div>
-    ` : `
-        <div class="bg-white p-6 rounded-xl shadow border">
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
-                <div>
-                    <h3 class="text-lg font-extrabold text-gray-800">⏳ Kelas Rawan Telat (nilai belum masuk)</h3>
-                    <div class="text-xs text-gray-500">Berdasarkan total “sisa santri” yang belum punya record nilai di periode aktif.</div>
-                </div>
-                <button class="bg-blue-700 text-white px-4 py-2 rounded font-bold text-sm shadow" onclick="renderAdminTodoPage()">Lihat Semua</button>
-            </div>
-            <div class="overflow-auto">
-                <table class="min-w-[900px] w-full text-sm border std-table">
-                    <thead class="bg-gray-800 text-white">
-                        <tr>
-                            <th class="p-2 w-12">No</th>
-                            <th class="p-2 text-left">Kelas</th>
-                            <th class="p-2 w-28">Total Sisa</th>
-                            <th class="p-2 w-24">Mapel Telat</th>
-                            <th class="p-2 text-left">Top Mapel Penyumbang</th>
-                            <th class="p-2 w-24">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>${rawanRows}</tbody>
-                </table>
-            </div>
-        </div>
-    `;
-
-    // Heatmap block (skip bila tidak ada data)
-    const heatmapHtml = (!kelasList.length || !mapelList.length) ? `
-        <div class="bg-yellow-50 p-5 rounded-xl border border-yellow-200">
-            <div class="font-extrabold text-yellow-900">ℹ️ Heatmap belum bisa dibuat</div>
-            <div class="text-sm text-yellow-900">Pastikan data <b>Santri (kelas)</b> dan <b>Mapel guru</b> sudah terisi.</div>
-        </div>
-    ` : `
-        <div class="bg-white p-6 rounded-xl shadow border">
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
-                <div>
-                    <h3 class="text-lg font-extrabold text-gray-800">🟩🟥 Heatmap Kelengkapan Nilai (Kelas × Mapel)</h3>
-                    <div class="text-xs text-gray-500">Periode <b>${tahun_ajar}</b> / Semester <b>${semester}</b> • Hover untuk detail.</div>
-                </div>
-            </div>
-            ${legend}
-            <div class="overflow-auto mt-3">
-                <table class="min-w-[1100px] w-full text-sm border std-table">
-                    <thead class="bg-blue-600 text-white sticky top-0 z-20">
-                        <tr>
-                            <th class="p-2 text-left sticky left-0 z-30 bg-blue-600" style="min-width:140px">Kelas</th>
-                            ${heatHeader}
-                        </tr>
-                    </thead>
-                    <tbody>${heatRows}</tbody>
-                </table>
-            </div>
-            <div class="text-xs text-gray-500 mt-2">Catatan: cell menampilkan <b>sisa santri</b> yang belum punya record nilai untuk mapel tersebut. Angka 0 ditandai ✓.</div>
-        </div>
-    `;
-    // Tahap 2: Outlier detector
-    const outlierHtml = buildAdminOutlierHTML({ tahun_ajar, semester });
-
-    return `
-        <div class="space-y-4">
-            ${heatmapHtml}
-            ${rawanHtml}
-            ${outlierHtml}
-        </div>
-    `;
-}
-
-// ===============================
-// ADMIN DASHBOARD — Tahap 2
-// - Distribusi nilai per Jenjang & Paralel (berdasarkan rata-rata legger)
-// - Outlier detector mapel×kelas (berdasarkan nilai rapor per mapel)
-// ===============================
-
-function _statMean(arr){
-    const a = (arr||[]).filter(v => Number.isFinite(v));
-    if (!a.length) return 0;
-    return a.reduce((x,y)=>x+y,0)/a.length;
-}
-function _statStd(arr){
-    const a = (arr||[]).filter(v => Number.isFinite(v));
-    if (a.length < 2) return 0;
-    const m = _statMean(a);
-    const v = a.reduce((s,x)=>s+Math.pow(x-m,2),0)/(a.length-1);
-    return Math.sqrt(v);
-}
-function _fmtNum(n, d=2){
-    const v = Number(n);
-    if (!Number.isFinite(v)) return '-';
-    return (Math.round(v*Math.pow(10,d))/Math.pow(10,d)).toFixed(d);
-}
-function _histBins(vals, bins=10){
-    const out = new Array(bins).fill(0);
-    const a = (vals||[]).filter(v => Number.isFinite(v) && v >= 0);
-    if (!a.length) return out;
-    const min = 0, max = 100;
-    const step = (max-min)/bins;
-    a.forEach(v=>{
-        let idx = Math.floor((v-min)/step);
-        if (idx < 0) idx = 0;
-        if (idx >= bins) idx = bins-1;
-        out[idx] += 1;
-    });
-    return out;
-}
-function _sparkHist(vals){
-    const bins = _histBins(vals, 10);
-    const maxC = Math.max(1, ...bins);
-    const bars = bins.map(c=>{
-        const h = 6 + Math.round((c/maxC) * 18); // 6..24px
-        const op = 0.25 + (c/maxC)*0.75;
-        return `<div class="w-[8px] rounded-sm" style="height:${h}px;background:rgba(17,24,39,${op})" title="${c}"></div>`;
-    }).join('');
-    return `<div class="flex items-end gap-[2px] h-[26px]">${bars}</div>`;
-}
-
-function buildAdminDistribusiHTML({ tahun_ajar, semester }){
-    try {
-        const rank = (typeof _getAllLeggerRowsForRanking === 'function') ? _getAllLeggerRowsForRanking() : { rows: [] };
-        const base = (rank.rows || []).filter(r => Number(r.rata||0) > 0);
-
-        const byJenjang = new Map();
-        const byParalel = new Map();
-        base.forEach(r=>{
-            const j = String(r.jenjang||'').trim() || 'NA';
-            const p = String(r.paralel||'').trim() || 'NA';
-            if (!byJenjang.has(j)) byJenjang.set(j, []);
-            if (!byParalel.has(p)) byParalel.set(p, []);
-            byJenjang.get(j).push(Number(r.rata||0));
-            byParalel.get(p).push(Number(r.rata||0));
-        });
-
-        const _rowsFor = (mp) => Array.from(mp.entries()).map(([k, vals])=>{
-            const a = (vals||[]).filter(v=>Number.isFinite(v) && v>0);
-            const mn = a.length ? Math.min(...a) : 0;
-            const mx = a.length ? Math.max(...a) : 0;
-            const me = a.length ? _statMean(a) : 0;
-            return { key:k, n:a.length, min:mn, mean:me, max:mx, vals:a };
-        }).sort((a,b)=> (b.mean-a.mean) || (b.n-a.n) || String(a.key).localeCompare(String(b.key), 'id', { sensitivity:'base' }));
-
-        const jenRows = _rowsFor(byJenjang);
-        const parRows = _rowsFor(byParalel).filter(x=>x.key!=='NA');
-
-        const _tbl = (title, rows) => {
-            if (!rows.length) return `
-                <div class="bg-yellow-50 p-5 rounded-xl border border-yellow-200">
-                    <div class="font-extrabold text-yellow-900">ℹ️ ${title}</div>
-                    <div class="text-sm text-yellow-900">Belum ada data nilai rapor yang bisa dihitung (pastikan legger bisa dibangun).</div>
-                </div>`;
-
-            const body = rows.map((r,i)=>`
-                <tr class="border-b hover:bg-gray-50">
-                    <td class="p-2 text-center text-xs text-gray-500">${i+1}</td>
-                    <td class="p-2 font-extrabold">${r.key}</td>
-                    <td class="p-2 text-center font-mono">${r.n}</td>
-                    <td class="p-2 text-center font-mono">${_fmtNum(r.min,2)}</td>
-                    <td class="p-2 text-center font-extrabold">${_fmtNum(r.mean,2)}</td>
-                    <td class="p-2 text-center font-mono">${_fmtNum(r.max,2)}</td>
-                    <td class="p-2">${_sparkHist(r.vals)}</td>
-                </tr>
-            `).join('');
-
-            return `
-                <div class="bg-white p-6 rounded-xl shadow border">
-                    <div class="mb-2">
-                        <h3 class="text-lg font-extrabold text-gray-800">📊 ${title}</h3>
-                        <div class="text-xs text-gray-500">Ringkasan min/mean/max dari <b>rata-rata rapor per santri</b> (mengikuti bobot & konversi jika aktif).</div>
-                    </div>
-                    <div class="overflow-auto">
-                        <table class="min-w-[900px] w-full text-sm border std-table">
-                            <thead class="bg-gray-800 text-white">
-                                <tr>
-                                    <th class="p-2 w-12">No</th>
-                                    <th class="p-2 text-left">Grup</th>
-                                    <th class="p-2 w-20">N</th>
-                                    <th class="p-2 w-24">Min</th>
-                                    <th class="p-2 w-24">Mean</th>
-                                    <th class="p-2 w-24">Max</th>
-                                    <th class="p-2 text-left">Histogram</th>
-                                </tr>
-                            </thead>
-                            <tbody>${body}</tbody>
-                        </table>
-                    </div>
-                </div>`;
-        };
-
-        return `
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                ${_tbl('Distribusi Nilai per Jenjang', jenRows)}
-                ${_tbl('Distribusi Nilai per Paralel/Jurusan', parRows)}
-            </div>
-        `;
-    } catch (e) {
-        console.warn('Gagal membangun distribusi nilai', e);
-        return `
-            <div class="bg-yellow-50 p-5 rounded-xl border border-yellow-200">
-                <div class="font-extrabold text-yellow-900">ℹ️ Distribusi nilai belum bisa dihitung</div>
-                <div class="text-sm text-yellow-900">Terjadi error saat menghitung distribusi. Coba refresh atau cek data legger.</div>
-            </div>
-        `;
-    }
-}
-
-function buildAdminOutlierHTML({ tahun_ajar, semester }){
-    try {
-        const { tahun_ajar: ta, semester: sem } = getActivePeriode();
-
-        // kumpulkan nilai rapor (raw) per mapel×kelas
-        const mk = new Map(); // key -> { mapel, kelas, valsRaw:[] }
-        (scores || []).forEach(sc=>{
-            if (!sc) return;
-            if (String(sc.tahun_ajar||'') !== String(ta||'')) return;
-            if (Number(sc.semester||0) !== Number(sem||0)) return;
-            const kelas = _normStr(sc.kelas);
-            const mapel = _normUpper(sc.mapel);
-            if (!kelas || !mapel) return;
-            const v = Number(_calcNilaiRapor(sc, bobotNilai || null) || 0);
-            if (!Number.isFinite(v) || v <= 0) return;
-            const key = `${mapel}||${kelas}`;
-            let o = mk.get(key);
-            if (!o){ o = { mapel, kelas, valsRaw: [] }; mk.set(key, o); }
-            o.valsRaw.push(v);
-        });
-
-        // ambil ideal sync agar konsisten dengan legger
-        const getIdeal = (kelas) => {
-            try {
-                const jenjang = _inferJenjangFromKelas(kelas) || 'X';
-                const m = window.konversiIdealMatrix;
-                return m && typeof m.get === 'function' ? (m.get(`${jenjang}|${sem}`) || null) : null;
-            } catch { return null; }
-        };
-
-        const combos = [];
-        mk.forEach(o=>{
-            const raw = (o.valsRaw||[]).filter(v=>Number.isFinite(v) && v>0);
-            if (raw.length < 5) return; // minimal biar tidak noise
-            const minAsli = Math.min(...raw);
-            const maxAsli = Math.max(...raw);
-            const meanAsli = _statMean(raw);
-            const denom = (maxAsli - minAsli);
-
-            const ideal = getIdeal(o.kelas);
-            const minIdeal = Number(ideal?.min_ideal ?? 0) || 0;
-            const maxIdeal = Number(ideal?.max_ideal ?? 100) || 100;
-            const meanIdeal = Number(ideal?.mean_ideal ?? 0) || 0;
-            const apply = !!ideal && (meanAsli < meanIdeal) && denom > 0;
-
-            const vals = apply ? raw.map(v=>{
-                let conv = meanIdeal + (v - meanAsli) * (maxIdeal - minIdeal) / denom;
-                conv = _clamp(conv, minIdeal, maxIdeal);
-                return Math.round(conv*100)/100;
-            }) : raw.map(v=>Math.round(v*100)/100);
-
-            combos.push({
-                mapel:o.mapel, kelas:o.kelas, n:vals.length,
-                min:Math.min(...vals), mean:_statMean(vals), max:Math.max(...vals),
-                applyKonversi: apply
-            });
-        });
-
-        // global per mapel (mean of class-means)
-        const perMapel = new Map();
-        combos.forEach(c=>{
-            if (!perMapel.has(c.mapel)) perMapel.set(c.mapel, []);
-            perMapel.get(c.mapel).push(c.mean);
-        });
-        const mapelStats = new Map();
-        perMapel.forEach((means, mapel)=>{
-            mapelStats.set(mapel, { gMean: _statMean(means), gStd: _statStd(means) });
-        });
-
-        const outliers = [];
-        combos.forEach(c=>{
-            const gs = mapelStats.get(c.mapel) || { gMean: 0, gStd: 0 };
-            const gStd = Number(gs.gStd||0);
-            const z = gStd > 0 ? ((c.mean - gs.gMean)/gStd) : 0;
-            const absz = Math.abs(z);
-            const flags = [];
-            if (gStd > 0 && absz >= 2.0) flags.push(z < 0 ? 'Mean terlalu rendah' : 'Mean terlalu tinggi');
-            if (gStd > 0 && c.min < (gs.gMean - 2.5*gStd)) flags.push('Min sangat rendah');
-            if (gStd > 0 && c.max > (gs.gMean + 2.5*gStd)) flags.push('Max sangat tinggi');
-            if ((c.max - c.min) >= 45) flags.push('Rentang terlalu lebar');
-            if (flags.length) outliers.push({ ...c, z, absz, flags });
-        });
-
-        const top = outliers
-            .sort((a,b)=> (b.absz-a.absz) || ((b.max-b.min)-(a.max-a.min)) || b.n-a.n)
-            .slice(0, 25);
-
-        if (!top.length){
-            return `
-                <div class="bg-green-50 p-5 rounded-xl border border-green-200">
-                    <div class="font-extrabold text-green-900">✅ Outlier tidak terdeteksi</div>
-                    <div class="text-sm text-green-900">Belum ada kombinasi mapel×kelas yang terlihat terlalu ekstrem dibanding kelas lain (dengan data minimal 5 santri terisi).</div>
-                </div>
-            `;
-        }
-
-        const body = top.map((o,i)=>{
-            const badge = o.applyKonversi ? `<span class="ml-2 px-2 py-0.5 rounded-full bg-blue-50 text-blue-800 text-[10px] font-extrabold">Konversi</span>` : '';
-            const flagHtml = o.flags.map(f=>`<span class="inline-flex items-center bg-red-100 text-red-800 px-2 py-1 rounded-full text-[10px] font-extrabold">${f}</span>`).join(' ');
-            return `
-                <tr class="border-b hover:bg-gray-50">
-                    <td class="p-2 text-center text-xs text-gray-500">${i+1}</td>
-                    <td class="p-2 font-extrabold">${o.mapel}${badge}</td>
-                    <td class="p-2 font-extrabold">${o.kelas}</td>
-                    <td class="p-2 text-center font-mono">${o.n}</td>
-                    <td class="p-2 text-center font-mono">${_fmtNum(o.min,2)}</td>
-                    <td class="p-2 text-center font-extrabold">${_fmtNum(o.mean,2)}</td>
-                    <td class="p-2 text-center font-mono">${_fmtNum(o.max,2)}</td>
-                    <td class="p-2 text-center font-mono">${_fmtNum(o.z,2)}</td>
-                    <td class="p-2">${flagHtml}</td>
-                    <td class="p-2 text-center">
-                        <button class="px-3 py-1 rounded bg-gray-700 text-white text-xs font-bold shadow"
-                            onclick="openAdminLeggerForKelas(decodeURIComponent('${_encArg(o.kelas)}'))">Legger</button>
-                    </td>
-                </tr>
-            `;
-        }).join('');
-
-        return `
             <div class="bg-white p-6 rounded-xl shadow border">
-                <div class="mb-2">
-                    <h3 class="text-lg font-extrabold text-gray-800">🧪 Outlier Detector (Mapel × Kelas)</h3>
-                    <div class="text-xs text-gray-500">Mendeteksi kombinasi mapel×kelas yang terlalu ekstrem dibanding kelas lain (berdasarkan <b>mean</b> antar kelas, z-score, serta min/max).</div>
+                <h3 class="text-lg font-bold text-gray-800 mb-2">Panduan Penggunaan</h3>
+                <div class="text-sm text-gray-700 space-y-3">
+                    <details class="bg-gray-50 border rounded-lg p-3">
+                        <summary class="font-bold cursor-pointer">Guru Mapel</summary>
+                        <ul class="list-disc pl-6 mt-2 space-y-1">
+                            <li>Pilih <b>MAPEL</b> di sidebar, lalu pilih <b>kelas</b> yang diajar.</li>
+                            <li>UH dihitung dari <b>rata-rata UH1..UH5</b>.</li>
+                            <li>Gunakan tombol <b>Export</b> untuk template, <b>Import</b> untuk preview, dan <b>Simpan</b> untuk kirim ke DB (batch).</li>
+                            <li>Di tabel, kamu bisa pindah cepat pakai tombol panah (↑ ↓ ← →).</li>
+                        </ul>
+                    </details>
+                    <details class="bg-gray-50 border rounded-lg p-3">
+                        <summary class="font-bold cursor-pointer">Musyrif</summary>
+                        <ul class="list-disc pl-6 mt-2 space-y-1">
+                            <li>Menu <b>Musyrif</b> aktif otomatis kalau kolom <b>musyrif</b> terisi di akun guru.</li>
+                            <li>Isi data hafalan, lalu <b>Simpan</b> (batch).</li>
+                        </ul>
+                    </details>
+                    <details class="bg-gray-50 border rounded-lg p-3">
+                        <summary class="font-bold cursor-pointer">Wali Kelas</summary>
+                        <ul class="list-disc pl-6 mt-2 space-y-1">
+                            <li>Menu <b>Wali Kelas</b> aktif otomatis kalau kolom <b>wali</b> terisi.</li>
+                            <li>Absensi: S/I/A = angka. Sikap = <b>A/B/C/D</b>.</li>
+                            <li>Raport & Legger: tersedia export <b>XLSX</b> dan cetak (bisa <i>Save as PDF</i>).</li>
+                        </ul>
+                    </details>
                 </div>
-                <div class="overflow-auto">
-                    <table class="min-w-[1100px] w-full text-sm border std-table">
-                        <thead class="bg-gray-800 text-white">
-                            <tr>
-                                <th class="p-2 w-12">No</th>
-                                <th class="p-2 text-left">Mapel</th>
-                                <th class="p-2 text-left">Kelas</th>
-                                <th class="p-2 w-16">N</th>
-                                <th class="p-2 w-20">Min</th>
-                                <th class="p-2 w-20">Mean</th>
-                                <th class="p-2 w-20">Max</th>
-                                <th class="p-2 w-20">Z</th>
-                                <th class="p-2 text-left">Indikasi</th>
-                                <th class="p-2 w-24">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody>${body}</tbody>
-                    </table>
-                </div>
-                <div class="text-xs text-gray-500 mt-2">Catatan: Z dihitung dari perbandingan <b>mean mapel</b> antar kelas. Kombinasi dengan data &lt; 5 santri terisi diabaikan agar tidak noise.</div>
             </div>
-        `;
-    } catch (e) {
-        console.warn('Gagal membangun outlier detector', e);
-        return `
-            <div class="bg-yellow-50 p-5 rounded-xl border border-yellow-200">
-                <div class="font-extrabold text-yellow-900">ℹ️ Outlier detector belum bisa dihitung</div>
-                <div class="text-sm text-yellow-900">Terjadi error saat menghitung outlier. Coba refresh atau cek data nilai_mapel.</div>
-            </div>
-        `;
+
+        </div>`;
     }
-}
-
-// Guru analytics: Progress per kelas + ringkas UH vs PAS/PAT
-
-// Guru analytics: Selisih UH(avg) vs PAS/PAT per mapel (diurutkan tertinggi→terendah)
-function renderGuruAnalyticsHTML(u, combos){
-    try {
-        const { tahun_ajar, semester } = getActivePeriode();
-
-        const comboList = (combos || []).map(c => ({
-            mapel: String(c.mapel||'').trim(),
-            kelas: String(c.kelas||'').trim()
-        })).filter(c => c.mapel && c.kelas);
-
-        if (!comboList.length) return '';
-
-        // fast lookup
-        const studentByNis = new Map((students || []).map(s => [String(s.nis||'').trim(), s]));
-        const allow = new Set(comboList.map(c => `${_normUpper(c.mapel)}||${_normStr(c.kelas)}`));
-
-        const byMapel = new Map(); // mapel -> rows
-        const seen = new Set(); // avoid dup: mapel||kelas||nis
-
-        (scores || []).forEach(sc => {
-            if (!sc) return;
-            if (String(sc.tahun_ajar||'') !== String(tahun_ajar||'')) return;
-            if (Number(sc.semester||0) !== Number(semester||0)) return;
-
-            const mapel = _normUpper(sc.mapel);
-            const kelas = _normStr(sc.kelas);
-            const key = `${mapel}||${kelas}`;
-            if (!allow.has(key)) return;
-
-            const nis = String(sc.nis ?? sc.nis_santri ?? sc.student_id ?? '').trim();
-            if (!nis) return;
-
-            const uniq = `${mapel}||${kelas}||${nis}`;
-            if (seen.has(uniq)) return;
-            seen.add(uniq);
-
-            const uhAvg = Number(_avgUH(sc) || 0);
-            const pas = Number(sc.pas_pat ?? sc.pas ?? sc.paspat ?? 0) || 0;
-
-            // butuh dua-duanya agar delta bermakna
-            if (uhAvg <= 0 || pas <= 0) return;
-
-            const st = studentByNis.get(nis) || {};
-            const nama = String(st.name || st.nama_santri || sc.nama_santri || '').trim() || '-';
-            const jk = String(st.jk || st.lp || '').trim() || '-';
-            const kls = String(st.kelas || kelas || '').trim() || kelas || '-';
-
-            const delta = Math.round((pas - uhAvg) * 10) / 10;
-
-            if (!byMapel.has(mapel)) byMapel.set(mapel, []);
-            byMapel.get(mapel).push({
-                nis, nama, jk, kelas: kls,
-                uhAvg: Math.round(uhAvg*10)/10,
-                pas: Math.round(pas*10)/10,
-                delta
-            });
-        });
-
-        const mapels = Array.from(byMapel.keys()).sort((a,b)=>a.localeCompare(b, 'id', { sensitivity:'base' }));
-        if (!mapels.length){
-            return `
-                <div class="bg-yellow-50 p-6 rounded-xl border border-yellow-200">
-                    <div class="font-extrabold text-yellow-900">ℹ️ Analisis delta UH vs PAS/PAT belum ada</div>
-                    <div class="text-sm text-yellow-900">Pastikan ada nilai UH (minimal 1 UH terisi) dan PAS/PAT untuk periode aktif.</div>
-                </div>
-            `;
-        }
-
-        const badge = (d)=>{
-            if (d >= 5) return `<span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-extrabold">▲ +${d}</span>`;
-            if (d <= -5) return `<span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-extrabold">▼ ${d}</span>`;
-            return `<span class="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs font-extrabold">${d > 0 ? '+'+d : d}</span>`;
-        };
-
-        const sections = mapels.map(mapel => {
-            const rows = (byMapel.get(mapel) || []).slice();
-            rows.sort((a,b)=> (b.delta - a.delta) || a.kelas.localeCompare(b.kelas) || a.nama.localeCompare(b.nama, 'id', { sensitivity:'base' }));
-
-            const body = rows.map((r,i)=>`
-                <tr class="border-b hover:bg-gray-50">
-                    <td class="p-2 text-center text-xs text-gray-500">${i+1}</td>
-                    <td class="p-2 text-center font-mono">${r.nis}</td>
-                    <td class="p-2 font-bold"><div class="single-line w-64" title="${r.nama}">${r.nama}</div></td>
-                    <td class="p-2 text-center">${r.jk}</td>
-                    <td class="p-2">${r.kelas}</td>
-                    <td class="p-2 text-center font-mono">${r.uhAvg}</td>
-                    <td class="p-2 text-center font-mono">${r.pas}</td>
-                    <td class="p-2 text-center">${badge(r.delta)}</td>
-                </tr>
-            `).join('\n');
-
-            return `
-                <details class="bg-white rounded-xl shadow border" open>
-                    <summary class="cursor-pointer select-none p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                        <div>
-                            <div class="text-lg font-extrabold text-gray-800">📉📈 Delta UH(avg) vs PAS/PAT • <span class="text-blue-700">${mapel}</span></div>
-                            <div class="text-xs text-gray-500">Urut dari delta terbesar → terkecil (hanya santri yang punya UH & PAS/PAT).</div>
-                        </div>
-                        <div class="text-xs text-gray-600">Data: <b>${rows.length}</b> santri • Periode <b>${tahun_ajar}</b> / S<b>${semester}</b></div>
-                    </summary>
-                    <div class="px-4 pb-4">
-                        <div class="overflow-auto max-h-[65vh]">
-                            <table class="min-w-[900px] w-full text-sm border std-table whitespace-nowrap">
-                                <thead class="bg-gray-800 text-white sticky top-0">
-                                    <tr>
-                                        <th class="p-2 w-12">#</th>
-                                        <th class="p-2 w-28">NIS</th>
-                                        <th class="p-2 text-left">Nama</th>
-                                        <th class="p-2 w-16">L/P</th>
-                                        <th class="p-2 text-left">Kelas</th>
-                                        <th class="p-2 w-24">UH avg</th>
-                                        <th class="p-2 w-24">PAS/PAT</th>
-                                        <th class="p-2 w-24">Δ</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${body || `<tr><td colspan="8" class="p-3 text-center text-gray-500">Belum ada data delta untuk mapel ini.</td></tr>`}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </details>
-            `;
-        }).join('\n');
-
-        return `<div class="space-y-4">${sections}</div>`;
-
-    } catch (e) {
-        console.warn('Gagal render Guru analytics', e);
-        return `
-            <div class="bg-yellow-50 p-5 rounded-xl border border-yellow-200">
-                <div class="font-extrabold text-yellow-900">ℹ️ Statistik guru belum bisa dihitung</div>
-                <div class="text-sm text-yellow-900">Terjadi error saat menghitung statistik. Coba refresh atau cek data nilai.</div>
-            </div>
-        `;
-    }
-}
-
-function renderAdminNilaiMonitor(mapel, kelas, guru){
-    const main = document.getElementById('main-content');
-    const { tahun_ajar, semester } = getActivePeriode();
-    const siswa = (students || []).filter(s => _normStr(s.kelas) === _normStr(kelas));
-    const scoreByNis = new Map();
-    (scores || []).forEach(sc => {
-        if (_normUpper(sc.mapel) !== _normUpper(mapel)) return;
-        if (_normStr(sc.kelas) !== _normStr(kelas)) return;
-        if (String(sc.tahun_ajar||'') !== String(tahun_ajar||'')) return;
-        if (Number(sc.semester||0) !== Number(semester||0)) return;
-        const nis = String(sc.nis||'').trim();
-        if (nis) scoreByNis.set(nis, sc);
-    });
-
-    const expected = siswa.length;
-    const filled = scoreByNis.size;
-    const missing = Math.max(0, expected - filled);
-
-    const rows = siswa.map((s,i)=>{
-        const has = scoreByNis.has(String(s.nis||'').trim());
-        return `
-        <tr class="border-b ${has ? 'hover:bg-gray-50' : 'bg-red-50 hover:bg-red-100'}">
-            <td class="p-2 text-center text-xs text-gray-500">${i+1}</td>
-            <td class="p-2 text-center font-mono">${s.nis||'-'}</td>
-            <td class="p-2 font-bold filter-target"><div class="single-line w-64" title="${s.name||''}">${s.name||'-'}</div></td>
-            <td class="p-2 text-center">${s.jk||s.lp||'-'}</td>
-            <td class="p-2 text-center">${has ? '✅' : '—'}</td>
-        </tr>`;
-    }).join('');
-
-    main.innerHTML = `
-    <div class="bg-white p-6 rounded shadow">
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-            <div>
-                <h2 class="text-2xl font-bold">🔎 Monitor Nilai: ${mapel} • ${kelas}</h2>
-                <div class="text-sm text-gray-600">Guru: <b>${guru||'-'}</b> • Periode: <b>${tahun_ajar}</b> / Semester <b>${semester}</b></div>
-            </div>
-            <div class="flex flex-wrap gap-2 justify-end">
-                <button onclick="renderAdminTodoPage()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded font-bold text-sm">Kembali</button>
-                <button onclick="openAdminLeggerForKelas(decodeURIComponent('${_encArg(kelas)}'))" class="bg-gray-700 text-white px-4 py-2 rounded font-bold text-sm shadow">Legger</button>
-            </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-            <div class="p-4 rounded-xl border bg-blue-50">
-                <div class="text-xs text-blue-900 font-bold mb-1">Target</div>
-                <div class="text-2xl font-extrabold text-blue-900">${expected}</div>
-            </div>
-            <div class="p-4 rounded-xl border bg-green-50">
-                <div class="text-xs text-green-900 font-bold mb-1">Terisi</div>
-                <div class="text-2xl font-extrabold text-green-900">${filled}</div>
-            </div>
-            <div class="p-4 rounded-xl border bg-red-50">
-                <div class="text-xs text-red-900 font-bold mb-1">Belum</div>
-                <div class="text-2xl font-extrabold text-red-900">${missing}</div>
-            </div>
-        </div>
-
-        <input type="text" onkeyup="filterTable('tbody-monitor-nilai')" placeholder="Cari santri..." class="w-full border p-2 mb-3 rounded">
-        <div class="overflow-auto max-h-[70vh]">
-            <table class="min-w-[700px] w-full text-sm border std-table whitespace-nowrap">
-                <thead class="bg-blue-600 text-white sticky top-0">
-                    <tr>
-                        <th class="p-2 w-12">No</th>
-                        <th class="p-2 w-24">NIS</th>
-                        <th class="p-2 text-left">Nama</th>
-                        <th class="p-2 w-16">JK</th>
-                        <th class="p-2 w-20">Status</th>
-                    </tr>
-                </thead>
-                <tbody id="tbody-monitor-nilai">${rows}</tbody>
-            </table>
-        </div>
-        <div class="text-xs text-gray-500 mt-3">Baris merah = santri belum punya record nilai mapel (periode aktif). Ini biasanya berarti guru belum menekan <b>Simpan</b> untuk santri tersebut.</div>
-    </div>`;
-}
-
-async function openAdminLeggerForKelas(kelas){
-    await renderAdminLegger();
-    const sel = document.getElementById('admin-legger-kelas');
-    if (sel){
-        sel.value = String(kelas||'');
-        sel.dispatchEvent(new Event('change'));
-    }
-}
-
 
     // --- ADMIN: GURU (FIX: 1 Baris Nama, JK) --- (FIX: 1 Baris Nama, JK) ---
         function renderAdminGuru() {
@@ -1371,6 +329,7 @@ async function openAdminLeggerForKelas(kelas){
                 </table>
             </div>
         </div>`;
+        enableArrowNavigation('table-musyrif');
     }
 
 
@@ -1424,10 +383,10 @@ async function openAdminLeggerForKelas(kelas){
             </div>
             <input type="text" onkeyup="filterTable('tbody-santri')" placeholder="Cari Santri..." class="w-full border p-2 mb-4 rounded">
             <div class="overflow-auto max-h-[70vh]">
-                <table class="min-w-[1700px] w-full text-xs sm:text-sm border std-table whitespace-nowrap">
+                <table class="min-w-[1700px] w-full text-xs border std-table whitespace-nowrap">
                     <thead class="bg-blue-600 text-white sticky top-0">
                         <tr>
-                            <th>No</th><th>NIS</th><th class="text-left">Nama</th><th>L/P</th><th>Kelas</th>
+                            <th>No</th><th>NIS</th><th class="text-left">Nama</th><th>JK</th><th>Kelas</th>
                             <th class="text-left">TTL</th><th class="text-left">Status Keluarga</th><th>Anak Ke</th><th class="text-left">Asal Sekolah</th>
                             <th>Tgl Diterima</th><th>Diterima Kelas</th>
                             <th class="text-left">Nama Ayah</th><th class="text-left">Nama Ibu</th>
@@ -1612,13 +571,6 @@ async function openAdminLeggerForKelas(kelas){
             setLoading(true, "Menyimpan Konversi Ideal...");
             await saveKonversiIdealGlobal(rows);
 
-            // refresh cache matrix agar legger/ranking langsung pakai nilai ideal terbaru
-            try {
-                window.konversiIdealMatrix = await fetchKonversiIdealMatrixGlobal();
-            } catch (e) {
-                console.warn('Gagal refresh matriks konversi ideal', e);
-            }
-
             showToast('Konversi ideal tersimpan', 'success');
         } catch (e) {
             console.error(e);
@@ -1642,14 +594,13 @@ async function openAdminLeggerForKelas(kelas){
                 <td class="p-2 text-center text-gray-500">${i+1}</td>
                 <td class="p-2 text-center text-sm font-mono">${s.nis||'-'}</td>
                 <td class="p-2 font-medium text-left filter-target"><div class="single-line" title="${s.name}" data-name="${s.name}">${s.name}</div></td>
-                <td class="p-2 text-center">${s.jk||s.lp||'-'}</td>
                 <td class="p-2"><input type="number" data-name="${s.name}" data-nis="${s.nis||''}" data-field="kehadiran" value="${sc.kehadiran||0}" class="nav-input"></td>
-                <td class="p-2"><input type="number" data-name="${s.name}" data-nis="${s.nis||''}" data-field="tugas" value="${sc.tugas||0}" class="bg-yellow-50 nav-input"></td>
                 <td class="p-2"><input type="number" data-name="${s.name}" data-nis="${s.nis||''}" data-field="uh1" value="${sc.uh1||0}" class="nav-input"></td>
                 <td class="p-2"><input type="number" data-name="${s.name}" data-nis="${s.nis||''}" data-field="uh2" value="${sc.uh2||0}" class="nav-input"></td>
                 <td class="p-2"><input type="number" data-name="${s.name}" data-nis="${s.nis||''}" data-field="uh3" value="${sc.uh3||0}" class="nav-input"></td>
                 <td class="p-2"><input type="number" data-name="${s.name}" data-nis="${s.nis||''}" data-field="uh4" value="${sc.uh4||0}" class="nav-input"></td>
                 <td class="p-2"><input type="number" data-name="${s.name}" data-nis="${s.nis||''}" data-field="uh5" value="${sc.uh5||0}" class="nav-input"></td>
+                <td class="p-2"><input type="number" data-name="${s.name}" data-nis="${s.nis||''}" data-field="tugas" value="${sc.tugas||0}" class="bg-yellow-50 nav-input"></td>
                 <td class="p-2"><input type="number" data-name="${s.name}" data-nis="${s.nis||''}" data-field="pas_pat" value="${sc.pas_pat||sc.pas||0}" class="bg-blue-50 nav-input"></td>
             </tr>`;
         }).join('');
@@ -1668,18 +619,16 @@ async function openAdminLeggerForKelas(kelas){
                 <table class="w-full text-sm border std-table" id="table-nilai">
                     <thead class="bg-blue-600 text-white">
                         <tr>
-                            <th class="p-2">No</th><th class="p-2">NIS</th><th class="p-2 text-left w-64">Nama</th><th class="p-2 w-14">L/P</th>
-                            <th class="p-2 w-14">Hadir</th><th class="p-2 w-14 bg-yellow-600 text-white">Tugas</th><th class="p-2 w-14">UH1</th><th class="p-2 w-14">UH2</th><th class="p-2 w-14">UH3</th><th class="p-2 w-14">UH4</th><th class="p-2 w-14">UH5</th><th class="p-2 w-20 bg-blue-800 text-white">PAS/PAT</th>
+                            <th class="p-2">No</th><th class="p-2">NIS</th><th class="p-2 text-left w-64">Nama</th>
+                            <th class="p-2 w-14">Hadir</th><th class="p-2 w-14">UH1</th><th class="p-2 w-14">UH2</th><th class="p-2 w-14">UH3</th><th class="p-2 w-14">UH4</th><th class="p-2 w-14">UH5</th>
+                            <th class="p-2 w-14 bg-yellow-600 text-white">Tugas</th><th class="p-2 w-20 bg-blue-800 text-white">PAS/PAT</th>
                         </tr>
                     </thead>
                     <tbody id="tbody-nilai">${rows}</tbody>
                 </table>
             </div>
         </div>`;
-        enableArrowNavigation('table-nilai');
-        attachInputIndicators('table-nilai', { max100: true, excludeFields: new Set([]) });
-    }
-
+        
     // --- GURU MAPEL: KONVERSI NILAI ---
     function _inferJenjangFromKelas(kelas) {
         const t = (kelas || '').trim().split(/\s+/)[0] || '';
@@ -1777,21 +726,16 @@ async function openAdminLeggerForKelas(kelas){
 
             // hitung konversi per santri
             const denom = (maxAsli - minAsli);
-            const applyKonversi = (valid.length > 0) && (meanAsli < meanIdeal) && (denom > 0);
-
             data.forEach(d => {
-                // jika rerata asli >= rerata ideal, konversi tidak berlaku (nilai konversi = nilai asli)
-                if (!applyKonversi) {
-                    const v = Number(d.nilai_rapor) || 0;
-                    d.nilai_konversi = Math.round(v * 100) / 100;
-                    return;
+                let conv = meanIdeal;
+                if (denom > 0) {
+                    conv = meanIdeal + (d.nilai_rapor - meanAsli) * (maxIdeal - minIdeal) / denom;
                 }
-
-                let conv = meanIdeal + (d.nilai_rapor - meanAsli) * (maxIdeal - minIdeal) / denom;
                 conv = _clamp(conv, minIdeal, maxIdeal);
                 d.nilai_konversi = Math.round(conv * 100) / 100;
             });
-window._lastKonversiRows = data;
+
+            window._lastKonversiRows = data;
 
             const rowsHtml = data.map((d, i) => `
               <tr class="hover:bg-gray-50 border-b">
@@ -1870,6 +814,10 @@ window._lastKonversiRows = data;
             showToast('Gagal export: ' + (e.message || e), 'error');
         }
     }
+
+enableArrowNavigation('table-nilai');
+    }
+
     async function saveNilaiMapel(mapel, kelas) {
         setLoading(true, "Menyimpan Nilai (Batch)...");
         try {
@@ -1912,8 +860,6 @@ window._lastKonversiRows = data;
 
             setLoadingProgress(0, 'Memuat ulang data...');
             await loadInitialData({ onProgress: (pct, label) => setLoadingProgress(pct, label) });
-            renderNilaiPage(mapel, kelas);
-            markTableSaved('table-nilai');
             showToast('Nilai Tersimpan!', 'success');
         } catch (e) {
             console.error(e);
@@ -1928,7 +874,7 @@ window._lastKonversiRows = data;
         const vRaw = (value === undefined || value === null) ? '' : String(value);
         const v = vRaw.trim().toUpperCase();
         const sel = (x) => (v === x ? 'selected' : '');
-        return `<select data-id="${id}" data-nis="${nis||''}" data-field="${field}" class="bg-blue-50 border rounded px-2 py-1 w-20 nav-input">
+        return `<select data-id="${id}" data-nis="${nis||''}" data-field="${field}" class="bg-blue-50 border rounded px-2 py-1 w-20">
             <option value=""></option>
             <option value="A" ${sel('A')}>A</option>
             <option value="B" ${sel('B')}>B</option>
@@ -1994,10 +940,10 @@ let content = '';
               <div class="bg-white rounded-xl shadow p-6">
                 <input type="text" onkeyup="filterTable('tbody-wali-data')" placeholder="Cari Santri..." class="w-full border p-2 mb-4 rounded">
                 <div class="overflow-auto max-h-[70vh]">
-                  <table class="min-w-[1700px] w-full text-xs sm:text-sm border std-table whitespace-nowrap">
+                  <table class="min-w-[1700px] w-full text-xs border std-table whitespace-nowrap">
                     <thead class="bg-blue-600 text-white sticky top-0">
                       <tr>
-                        <th>No</th><th>NIS</th><th class="text-left">Nama</th><th>L/P</th><th>Kelas</th>
+                        <th>No</th><th>NIS</th><th class="text-left">Nama</th><th>JK</th><th>Kelas</th>
                         <th class="text-left">TTL</th><th class="text-left">Status Keluarga</th><th>Anak Ke</th><th class="text-left">Asal Sekolah</th>
                         <th>Tgl Diterima</th><th>Diterima Kelas</th>
                         <th class="text-left">Nama Ayah</th><th class="text-left">Nama Ibu</th>
@@ -2020,19 +966,17 @@ let content = '';
                 return `
                 <tr class="hover:bg-gray-50 border-b tr-item">
                     <td class="p-2 text-center">${i+1}</td>
-                    <td class="p-2 text-center font-mono">${s.nis||'-'}</td>
                     <td class="p-2 font-medium text-left filter-target"><div class="single-line" title="${s.name}" data-name="${s.name}">${s.name}</div></td>
-                    <td class="p-2 text-center">${s.jk||s.lp||'-'}</td>
-                    <td class="p-2"><input type="number" data-id="${s.id}" data-nis="${s.nis||''}" data-field="hadir_s" value="${sc.hadir_s||0}" class="nav-input"></td>
-                    <td class="p-2"><input type="number" data-id="${s.id}" data-nis="${s.nis||''}" data-field="hadir_i" value="${sc.hadir_i||0}" class="nav-input"></td>
-                    <td class="p-2"><input type="number" data-id="${s.id}" data-nis="${s.nis||''}" data-field="hadir_a" value="${sc.hadir_a||0}" class="nav-input"></td>
+                    <td class="p-2"><input type="number" data-id="${s.id}" data-nis="${s.nis||''}" data-field="hadir_s" value="${sc.hadir_s||0}"></td>
+                    <td class="p-2"><input type="number" data-id="${s.id}" data-nis="${s.nis||''}" data-field="hadir_i" value="${sc.hadir_i||0}"></td>
+                    <td class="p-2"><input type="number" data-id="${s.id}" data-nis="${s.nis||''}" data-field="hadir_a" value="${sc.hadir_a||0}"></td>
                     <td class="p-2">${_sikapSelectHTML(s.id, s.nis||'', 'akhlak', sc.akhlak)}</td>
                     <td class="p-2">${_sikapSelectHTML(s.id, s.nis||'', 'kerajinan', sc.kerajinan)}</td>
                     <td class="p-2">${_sikapSelectHTML(s.id, s.nis||'', 'kebersihan', sc.kebersihan)}</td>
                     <td class="p-2">${_sikapSelectHTML(s.id, s.nis||'', 'kedisiplinan', sc.kedisiplinan)}</td>
                 </tr>`;
             }).join('');
-            content = `<table class="w-full text-sm border std-table" id="table-absen"><thead class="bg-blue-600 text-white"><tr><th rowspan="2">No</th><th rowspan="2">NIS</th><th rowspan="2" class="text-left w-64">Nama</th><th rowspan="2">L/P</th><th colspan="3">Absensi</th><th colspan="4">Sikap (A/B/C/D)</th></tr><tr><th>S</th><th>I</th><th>A</th><th>Akhlak</th><th>Kerajinan</th><th>Bersih</th><th>Disiplin</th></tr></thead><tbody id="tbody-wali">${rows}</tbody></table>`;
+            content = `<table class="w-full text-sm border std-table" id="table-absen"><thead class="bg-blue-600 text-white"><tr><th rowspan="2">No</th><th rowspan="2" class="text-left w-64">Nama</th><th colspan="3">Absensi</th><th colspan="4">Sikap (A/B/C/D)</th></tr><tr><th>S</th><th>I</th><th>A</th><th>Akhlak</th><th>Kerajinan</th><th>Bersih</th><th>Disiplin</th></tr></thead><tbody id="tbody-wali">${rows}</tbody></table>`;
         } 
         else if (mode === 'catatan') {
             const rows = siswa.map((s, i) => {
@@ -2041,16 +985,14 @@ let content = '';
                 return `
                 <tr class="hover:bg-gray-50 border-b tr-item">
                     <td class="p-2 text-center">${i+1}</td>
-                    <td class="p-2 text-center font-mono">${s.nis||'-'}</td>
                     <td class="p-2 font-medium text-left filter-target"><div class="single-line" title="${s.name}" data-name="${s.name}">${s.name}</div></td>
-                    <td class="p-2 text-center">${s.jk||s.lp||'-'}</td>
-                    <td class="p-2"><textarea data-id="${s.id}" data-nis="${s.nis||''}" data-field="catatan" class="h-16 nav-input">${sc.catatan||'-'}</textarea></td>
-                    <td class="p-2"><textarea data-id="${s.id}" data-nis="${s.nis||''}" data-field="prestasi1" class="h-16 nav-input">${sc.prestasi1||'-'}</textarea></td>
-                    <td class="p-2"><textarea data-id="${s.id}" data-nis="${s.nis||''}" data-field="prestasi2" class="h-16 nav-input">${sc.prestasi2||'-'}</textarea></td>
-                    <td class="p-2"><textarea data-id="${s.id}" data-nis="${s.nis||''}" data-field="prestasi3" class="h-16 nav-input">${sc.prestasi3||'-'}</textarea></td>
+                    <td class="p-2"><textarea data-id="${s.id}" data-nis="${s.nis||''}" data-field="catatan" class="h-16">${sc.catatan||'-'}</textarea></td>
+                    <td class="p-2"><textarea data-id="${s.id}" data-nis="${s.nis||''}" data-field="prestasi1" class="h-16">${sc.prestasi1||'-'}</textarea></td>
+                    <td class="p-2"><textarea data-id="${s.id}" data-nis="${s.nis||''}" data-field="prestasi2" class="h-16">${sc.prestasi2||'-'}</textarea></td>
+                    <td class="p-2"><textarea data-id="${s.id}" data-nis="${s.nis||''}" data-field="prestasi3" class="h-16">${sc.prestasi3||'-'}</textarea></td>
                 </tr>`;
             }).join('');
-            content = `<table class="w-full text-sm border std-table" id="table-catatan"><thead class="bg-blue-600 text-white"><tr><th>No</th><th>NIS</th><th class="text-left w-64">Nama</th><th>L/P</th><th>Catatan</th><th>Prestasi 1</th><th>Prestasi 2</th><th>Prestasi 3</th></tr></thead><tbody id="tbody-wali">${rows}</tbody></table>`;
+            content = `<table class="w-full text-sm border std-table" id="table-catatan"><thead class="bg-blue-600 text-white"><tr><th>No</th><th class="text-left w-64">Nama</th><th>Catatan</th><th>Prestasi 1</th><th>Prestasi 2</th><th>Prestasi 3</th></tr></thead><tbody id="tbody-wali">${rows}</tbody></table>`;
         }
         else if (mode === 'print') {
             content = `<div class="bg-white rounded-xl shadow p-6">
@@ -2061,13 +1003,13 @@ let content = '';
         main.innerHTML = `
         <div class="bg-white p-6 rounded shadow">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-2xl font-bold capitalize">${(() => { const m = String(mode||""); const kelasTitle = kelas; if(m==="data") return `${kelasTitle} | Data Santri`; if(m==="absen") return `${kelasTitle} | Absensi & Sikap`; if(m==="catatan") return `${kelasTitle} | Catatan & Prestasi`; if(m==="print") return `${kelasTitle} | Rapor dan Legger`; return `${kelasTitle}`; })()}</h2>
+                <h2 class="text-2xl font-bold capitalize">${(() => { const m = String(mode||""); const kelasTitle = kelas; if(m==="data") return `Wali Kelas ${kelasTitle}: Data`; if(m==="absen") return `Wali Kelas ${kelasTitle}: Absensi & Sikap`; if(m==="catatan") return `Wali Kelas ${kelasTitle}: Catatan & Prestasi`; if(m==="print") return `Wali Kelas ${kelasTitle}: Rapor dan Legger`; return `Wali Kelas ${kelasTitle}`; })()}</h2>
                 ${headerBtn}
             </div>
             ${content}
         </div>`;
-        if(mode==='absen') { enableArrowNavigation('table-absen'); attachInputIndicators('table-absen', { max100: true }); }
-        if(mode==='catatan') { enableArrowNavigation('table-catatan'); attachInputIndicators('table-catatan', { max100: false }); }
+        if(mode==='absen') enableArrowNavigation('table-absen');
+        if(mode==='catatan') enableArrowNavigation('table-catatan');
     }
 
     async function refreshWaliDataKelas() {
@@ -2208,48 +1150,36 @@ let content = '';
         const u = getCurrentUser();
         const kelas = u.musyrif || '';
         const main = document.getElementById('main-content');
-        if (!kelas) { 
-            main.innerHTML = `<div class=\"p-10 text-red-500 text-center font-bold\">Bukan Musyrif</div>`;
-            return; 
-        }
-
+        if (!kelas) { main.innerHTML = `<div class="p-10 text-red-500 text-center font-bold">Bukan Musyrif</div>`; return; }
+        
         const siswa = students.filter(s => s.kelas === kelas);
         const rows = siswa.map((s, i) => {
             const sc = musyrifScores.find(x => x.student_id === s.id) || {};
             return `
-            <tr class=\"hover:bg-gray-50 border-b\">
-                <td class=\"p-2 text-center\">${i+1}</td>
-                <td class=\"p-2 text-center font-mono\">${s.nis||'-'}</td>
-                <td class=\"p-2 text-left font-bold filter-target\"><div class=\"single-line\" title=\"${s.name}\" data-name=\"${s.name}\">${s.name}</div></td>
-                <td class=\"p-2 text-center\">${s.jk||s.lp||'-'}</td>
-                <td class=\"p-2\"><input type=\"number\" data-id=\"${s.id}\" data-nis=\"${s.nis||''}\" data-field=\"hafalan_wajib\" value=\"${sc.hafalan_wajib||0}\" class=\"nav-input\"></td>
-                <td class=\"p-2\"><input type=\"number\" data-id=\"${s.id}\" data-nis=\"${s.nis||''}\" data-field=\"hafalan_murojaah\" value=\"${sc.hafalan_murojaah||0}\" class=\"nav-input\"></td>
-                <td class=\"p-2\"><input type=\"number\" data-id=\"${s.id}\" data-nis=\"${s.nis||''}\" data-field=\"ziyadah\" value=\"${sc.ziyadah||0}\" class=\"nav-input\"></td>
-                <td class=\"p-2\"><input type=\"number\" data-id=\"${s.id}\" data-nis=\"${s.nis||''}\" data-field=\"fashohah\" value=\"${sc.fashohah||0}\" class=\"bg-blue-50 nav-input\"></td>
+            <tr class="hover:bg-gray-50 border-b">
+                <td class="p-2 text-center">${i+1}</td>
+                <td class="p-2 text-center font-mono">${s.nis||'-'}</td>
+                <td class="p-2 text-left font-bold filter-target"><div class="single-line" title="${s.name}" data-name="${s.name}">${s.name}</div></td>
+                <td class="p-2"><input type="number" data-id="${s.id}" data-nis="${s.nis||''}" data-field="hafalan_wajib" value="${sc.hafalan_wajib||0}" class="nav-input"></td>
+                <td class="p-2"><input type="number" data-id="${s.id}" data-nis="${s.nis||''}" data-field="hafalan_murojaah" value="${sc.hafalan_murojaah||0}" class="nav-input"></td>
+                <td class="p-2"><input type="number" data-id="${s.id}" data-nis="${s.nis||''}" data-field="ziyadah" value="${sc.ziyadah||0}" class="nav-input"></td>
+                <td class="p-2"><input type="number" data-id="${s.id}" data-nis="${s.nis||''}" data-field="fashohah" value="${sc.fashohah||0}" class="bg-blue-50 nav-input"></td>
             </tr>`;
         }).join('');
 
         main.innerHTML = `
-        <div class=\"bg-white p-6 rounded shadow\">
-            <div class=\"flex justify-between items-center mb-4\">
-                <h2 class=\"text-2xl font-bold\">Musyrif Kelas ${kelas}</h2>
-                <div class=\"flex gap-2\">
-                    <button onclick=\"triggerImport('musyrif', '${kelas}')\" class=\"bg-green-600 text-white px-4 py-2 rounded font-bold shadow text-sm\">Import</button>
-                    <button onclick=\"exportExcelMusyrif('${kelas}')\" class=\"bg-blue-600 text-white px-4 py-2 rounded font-bold shadow text-sm\">Export</button>
-                    <button onclick=\"saveMusyrifData()\" class=\"bg-purple-600 text-white px-4 py-2 rounded font-bold shadow text-sm\">Simpan</button>
+        <div class="bg-white p-6 rounded shadow">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold">Musyrif Kelas ${kelas}</h2>
+                <div class="flex gap-2">
+                    <button onclick="triggerImport('musyrif', '${kelas}')" class="bg-green-600 text-white px-4 py-2 rounded font-bold shadow text-sm">Import</button>
+                    <button onclick="exportExcelMusyrif('${kelas}')" class="bg-blue-600 text-white px-4 py-2 rounded font-bold shadow text-sm">Export</button>
+                    <button onclick="saveMusyrifData()" class="bg-purple-600 text-white px-4 py-2 rounded font-bold shadow text-sm">Simpan</button>
                 </div>
             </div>
-            <table class=\"w-full text-sm border std-table\" id=\"table-musyrif\">
-                <thead class=\"bg-purple-600 text-white\">
-                    <tr><th>No</th><th>NIS</th><th class=\"text-left w-64\">Nama</th><th>L/P</th><th>Wajib</th><th>Murojaah</th><th>Ziyadah</th><th>Fashohah</th></tr>
-                </thead>
-                <tbody id=\"tbody-musyrif\">${rows}</tbody>
-            </table>
+            <table class="w-full text-sm border std-table" id="table-musyrif"><thead class="bg-purple-600 text-white"><tr><th>No</th><th>NIS</th><th class="text-left w-64">Nama</th><th>Wajib</th><th>Murojaah</th><th>Ziyadah</th><th>Fashohah</th></tr></thead><tbody id="tbody-musyrif">${rows}</tbody></table>
         </div>`;
-        enableArrowNavigation('table-musyrif');
-        attachInputIndicators('table-musyrif', { max100: false });
     }
-
 
     async function saveMusyrifData() {
         setLoading(true, "Menyimpan Hafalan (Batch)...");
@@ -2294,8 +1224,6 @@ let content = '';
 
             setLoadingProgress(0, 'Memuat ulang data...');
             await loadInitialData({ onProgress: (pct, label) => setLoadingProgress(pct, label) });
-            renderMusyrifPage();
-            markTableSaved('table-musyrif');
             showToast('Tersimpan!', 'success');
         } catch (e) {
             console.error(e);
@@ -2358,100 +1286,55 @@ let content = '';
         return isFinite(val) ? val : 0;
     }
 
-    function _getIdealSync(jenjang, semester){
-        try {
-            const m = window.konversiIdealMatrix;
-            if (m && typeof m.get === 'function') return m.get(`${jenjang}|${semester}`) || null;
-        } catch {}
-        return null;
-    }
-
     function buildLeggerDataForKelas(kelas){
         const { tahun_ajar, semester } = getActivePeriode();
-        const mapels = getMapelListForKelas(kelas).map(_upper);
-        const kelasKey = String(kelas||'').trim();
-        const siswa = students.filter(s => String(s.kelas||'').trim() === kelasKey);
+        const mapels = getMapelListForKelas(kelas);
+        const siswa = students.filter(s => String(s.kelas||'').trim() === String(kelas||'').trim());
 
-        // index nilai_mapel agar tidak .find berulang (lebih cepat untuk data besar)
-        const idx = new Map();
-        (scores||[]).forEach(r => {
-            if (!r) return;
-            if (String(r.kelas||'').trim() !== kelasKey) return;
-            if (String(r.tahun_ajar||'') !== String(tahun_ajar||'')) return;
-            if (Number(r.semester||0) !== Number(semester||0)) return;
-            const key = `${String(r.nis||'')}|${_upper(r.mapel)}`;
-            idx.set(key, r);
-        });
+        const rows = siswa.map((s, idx) => {
+            const mvals = {};
+            let sum = 0;
 
-        // 1) hitung nilai rapor (raw) dulu untuk semua mapel & santri
-        const rowsRaw = siswa.map((s, idxNo) => {
-            const raw = {};
             mapels.forEach(m => {
-                const sc = idx.get(`${String(s.nis||'')}|${m}`);
+                const sc = (scores||[]).find(x =>
+                    String(x.nis||'') === String(s.nis||'') &&
+                    String(x.kelas||'').trim() === String(kelas||'').trim() &&
+                    String(x.tahun_ajar||'') === String(tahun_ajar||'') &&
+                    Number(x.semester||0) === Number(semester||0) &&
+                    _upper(x.mapel) === _upper(m)
+                );
+
                 const rap = calcNilaiRapor(sc);
-                raw[m] = rap > 0 ? Math.round(rap * 100) / 100 : 0;
+                const fixed = rap > 0 ? Math.round(rap * 100) / 100 : 0;
+                mvals[_upper(m)] = fixed;
+                sum += fixed;
             });
+
+            const rata = mapels.length ? (sum / mapels.length) : 0;
+
             return {
-                no: idxNo + 1,
+                no: idx + 1,
                 nis: String(s.nis||''),
                 nama: String(s.name||s.nama_santri||''),
                 jk: String(s.jk||s.lp||''),
-                mapel_raw: raw,
-                mapel: {},
-                jumlah: 0,
-                rata: 0,
+                jumlah: Math.round(sum * 100) / 100,
+                rata: Math.round(rata * 100) / 100,
                 ranking: 0,
+                mapel: mvals
             };
         });
 
-        // 2) konversi per mapel (katrol) jika ideal tersedia & meanAsli < meanIdeal
-        const jenjang = _inferJenjangFromKelas(kelasKey) || 'X';
-        const ideal = _getIdealSync(jenjang, semester);
-        const minIdeal = Number(ideal?.min_ideal ?? 0) || 0;
-        const maxIdeal = Number(ideal?.max_ideal ?? 100) || 100;
-        const meanIdeal = Number(ideal?.mean_ideal ?? 0) || 0;
-
-        let anyKonversi = false;
-
-        mapels.forEach(m => {
-            const vals = rowsRaw.map(r => Number(r.mapel_raw[m]||0)).filter(v => Number.isFinite(v) && v > 0);
-            const minAsli = vals.length ? Math.min(...vals) : 0;
-            const maxAsli = vals.length ? Math.max(...vals) : 0;
-            const meanAsli = vals.length ? (vals.reduce((a,b)=>a+b,0) / vals.length) : 0;
-            const denom = (maxAsli - minAsli);
-            const apply = !!ideal && vals.length > 0 && (meanAsli < meanIdeal) && (denom > 0);
-            if (apply) anyKonversi = true;
-
-            rowsRaw.forEach(r => {
-                const v = Number(r.mapel_raw[m]||0);
-                if (!v) { r.mapel[m] = 0; return; }
-                if (!apply) { r.mapel[m] = Math.round(v * 100) / 100; return; }
-                let conv = meanIdeal + (v - meanAsli) * (maxIdeal - minIdeal) / denom;
-                conv = _clamp(conv, minIdeal, maxIdeal);
-                r.mapel[m] = Math.round(conv * 100) / 100;
-            });
-        });
-
-        // 3) hitung jumlah & rata-rata (pakai nilai setelah konversi bila berlaku)
-        rowsRaw.forEach(r => {
-            let sum = 0;
-            mapels.forEach(m => { sum += Number(r.mapel[m]||0); });
-            const rata = mapels.length ? (sum / mapels.length) : 0;
-            r.jumlah = Math.round(sum * 100) / 100;
-            r.rata = Math.round(rata * 100) / 100;
-        });
-
         // ranking per kelas (rata-rata desc)
-        const sorted = [...rowsRaw].sort((a,b) => (b.rata||0) - (a.rata||0) || a.nama.localeCompare(b.nama));
+        const sorted = [...rows].sort((a,b) => (b.rata||0) - (a.rata||0) || a.nama.localeCompare(b.nama));
         sorted.forEach((r,i) => { r.ranking = i + 1; });
         const rankMap = new Map(sorted.map(r => [r.nis, r.ranking]));
-        rowsRaw.forEach(r => r.ranking = rankMap.get(r.nis) || 0);
+        rows.forEach(r => r.ranking = rankMap.get(r.nis) || 0);
 
-        return { mapels, rows: rowsRaw, tahun_ajar, semester, konversi_applied: anyKonversi, jenjang };
+        return { mapels: mapels.map(_upper), rows, tahun_ajar, semester };
     }
 
     function renderLeggerTableHTML(kelas, tableId, scopeLabel){
-        const { mapels, rows, tahun_ajar, semester, konversi_applied, jenjang } = buildLeggerDataForKelas(kelas);
+        const { mapels, rows, tahun_ajar, semester } = buildLeggerDataForKelas(kelas);
 
         const headMapel = mapels.map(m => `<th class="p-2 border">${m}</th>`).join('');
 
@@ -2466,40 +1349,37 @@ let content = '';
                 <td class="p-2 border text-center">${r.no}</td>
                 <td class="p-2 border text-center font-mono">${r.nis || '-'}</td>
                 <td class="p-2 border text-left font-bold"><div class="single-line w-64" title="${r.nama}">${r.nama||'-'}</div></td>
-                <td class="p-2 border text-center">${r.jk || '-'}</td>
-                <td class="p-2 border text-center">
-                    <button onclick="printRaporSantri('${r.nis}', '${kelas}')" class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 text-xs" title="Print per santri">🖨️</button>
-                </td>
-                ${tds}
                 <td class="p-2 border text-center font-bold">${r.jumlah || 0}</td>
                 <td class="p-2 border text-center font-bold">${r.rata || 0}</td>
                 <td class="p-2 border text-center font-bold">${r.ranking || '-'}</td>
+                <td class="p-2 border text-center">
+                    <button onclick="printLeggerSantri('${r.nis}', '${kelas}')" class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 text-xs" title="Print per santri">🖨️</button>
+                </td>
+                <td class="p-2 border text-center">${r.jk || '-'}</td>
+                ${tds}
             </tr>`;
         }).join('');
 
         const emptyNote = rows.length ? '' : `<div class="text-sm text-gray-500 mb-3">Belum ada santri di kelas ini, atau data belum termuat.</div>`;
 
-        const konvBadge = konversi_applied ? `<span class="ml-2 px-3 py-1 rounded-full bg-blue-50 text-blue-800 text-xs font-bold">Konversi aktif (${jenjang} • S${semester})</span>` : '';
-
         return `
             <div class="text-sm text-gray-600 mb-3">
                 <b>${scopeLabel}</b> • Tahun Ajar: <b>${tahun_ajar}</b> • Semester: <b>${semester}</b>
-                ${konvBadge}
             </div>
             ${emptyNote}
             <div class="overflow-auto max-h-[70vh]">
-                <table class="min-w-[1200px] w-full text-xs sm:text-sm border std-table whitespace-nowrap" id="${tableId}">
+                <table class="min-w-[1200px] w-full text-xs border std-table whitespace-nowrap" id="${tableId}">
                     <thead class="bg-blue-700 text-white sticky top-0">
                         <tr>
                             <th class="p-2 border">No</th>
                             <th class="p-2 border">NIS</th>
                             <th class="p-2 border text-left">NAMA</th>
-                            <th class="p-2 border">L/P</th>
-                            <th class="p-2 border">PRINT</th>
-                            ${headMapel}
                             <th class="p-2 border">JUMLAH</th>
                             <th class="p-2 border">RATA-RATA</th>
                             <th class="p-2 border">RANKING</th>
+                            <th class="p-2 border">PRINT</th>
+                            <th class="p-2 border">L/P</th>
+                            ${headMapel}
                         </tr>
                     </thead>
                     <tbody>${body}</tbody>
@@ -2514,18 +1394,16 @@ let content = '';
                 No: r.no,
                 NIS: r.nis,
                 NAMA: r.nama,
+                JUMLAH: r.jumlah,
+                'RATA-RATA': r.rata,
+                RANKING: r.ranking,
                 'L/P': r.jk,
-                PRINT: ''
             };
             mapels.forEach(m => { o[m] = (r.mapel[m] ? r.mapel[m] : ''); });
-            o['JUMLAH'] = r.jumlah;
-            o['RATA-RATA'] = r.rata;
-            o['RANKING'] = r.ranking;
             return o;
         });
         saveExcel(out, `LEGGER_${kelas}_${tahun_ajar}_S${semester}.xlsx`, [{wch:18}]);
     }
-
 
     function _printHTML(title, html){
         const w = window.open('', '_blank');
@@ -2535,7 +1413,6 @@ let content = '';
             <head>
                 <title>${title}</title>
                 <meta charset="utf-8"/>
-                <base href=\"${window.location.href.replace(/[^\/]*$/, '')}\"/>
                 <style>
                     body{ font-family: Arial, sans-serif; padding: 16px; }
                     h1{ font-size: 16px; margin: 0 0 10px; }
@@ -2560,19 +1437,12 @@ let content = '';
 
     function printLeggerKelas(kelas, asPDF){
         const { mapels, rows, tahun_ajar, semester } = buildLeggerDataForKelas(kelas);
-        const head = ['No','NIS','NAMA','L/P','PRINT', ...mapels, 'JUMLAH','RATA-RATA','RANKING'];
+        const head = ['No','NIS','NAMA','JUMLAH','RATA-RATA','RANKING','L/P', ...mapels];
         const thead = head.map(h=>`<th>${h}</th>`).join('');
         const tbody = rows.map(r=>{
             const cells = [
-                r.no,
-                r.nis,
-                r.nama,
-                r.jk,
-                '', // kolom PRINT tidak perlu isi saat cetak
-                ...mapels.map(m => r.mapel[m] ? r.mapel[m] : ''),
-                r.jumlah,
-                r.rata,
-                r.ranking
+                r.no, r.nis, r.nama, r.jumlah, r.rata, r.ranking, r.jk,
+                ...mapels.map(m => r.mapel[m] ? r.mapel[m] : '')
             ].map(v=>`<td>${v ?? ''}</td>`).join('');
             return `<tr>${cells}</tr>`;
         }).join('');
@@ -2586,219 +1456,30 @@ let content = '';
         _printHTML(`LEGGER_${kelas}`, html);
     }
 
+    function printLeggerSantri(nis, kelas){
+        const { mapels, rows, tahun_ajar, semester } = buildLeggerDataForKelas(kelas);
+        const r = rows.find(x => String(x.nis) === String(nis));
+        if(!r) { showToast('Data santri tidak ditemukan di legger.', 'error'); return; }
 
-    
-    // --- RAPOR PRINT (per santri) ---
-    function _normMapel(m){ return String(m||'').trim().replace(/\s+/g,' ').toUpperCase(); }
+        const tbody = mapels.map(m => {
+            const v = (r.mapel && r.mapel[m] !== undefined && r.mapel[m] !== null && r.mapel[m] !== '') ? r.mapel[m] : '-';
+            return '<tr><td>' + m + '</td><td class="center">' + v + '</td></tr>';
+        }).join('');
 
-    // Angka -> kata Arab sederhana (0-100). Cukup untuk “mirip format”.
-    function _numToArabicWords(n){
-        n = Math.round(Number(n)||0);
-        if(n <= 0) return 'صفر';
-        if(n === 100) return 'مائة';
-        const unitStandalone = {1:'واحد',2:'اثنان',3:'ثلاثة',4:'أربعة',5:'خمسة',6:'ستة',7:'سبعة',8:'ثمانية',9:'تسعة'};
-        const unitInCompound = {1:'واحد',2:'اثنان',3:'ثلاث',4:'أربع',5:'خمس',6:'ست',7:'سبع',8:'ثمان',9:'تسع'};
-        const teens = {10:'عشرة',11:'أحد عشر',12:'اثنا عشر',13:'ثلاثة عشر',14:'أربعة عشر',15:'خمسة عشر',16:'ستة عشر',17:'سبعة عشر',18:'ثمانية عشر',19:'تسعة عشر'};
-        const tens = {20:'عشرون',30:'ثلاثون',40:'أربعون',50:'خمسون',60:'ستون',70:'سبعون',80:'ثمانون',90:'تسعون'};
-        if(n < 10) return unitStandalone[n] || String(n);
-        if(n < 20) return teens[n] || String(n);
-        const t = Math.floor(n/10)*10;
-        const u = n%10;
-        if(u === 0) return tens[t] || String(n);
-        return (unitInCompound[u]||String(u)) + ' و' + (tens[t]||String(t));
-    }
+        const html = [
+            '<h1>PRINT PER SANTRI (FORMAT SEMENTARA)</h1>',
+            '<div class="meta">' +
+              'Nama: <b>' + (r.nama || '-') + '</b> • NIS: <b>' + (r.nis || '-') + '</b> • Kelas: <b>' + (kelas || '-') + '</b><br/>' +
+              'Tahun Ajar: <b>' + (tahun_ajar || '-') + '</b> • Semester: <b>' + (semester || '-') + '</b>' +
+            '</div>',
+            '<table>',
+              '<thead><tr><th>Mapel</th><th>Nilai</th></tr></thead>',
+              '<tbody>' + tbody + '</tbody>',
+            '</table>',
+            '<div class="meta">Catatan: format final “print rapor per-santri” menyusul sesuai instruksi berikutnya.</div>'
+        ].join(String.fromCharCode(10));
 
-    // Mapping mapel -> Arab (boleh bertambah nanti)
-    const _mapelAr = {
-        'FIKIH':'الفقه',
-        'BAHASA ARAB':'اللغة العربية',
-        'BAHASA INGGRIS':'اللغة الإنجليزية',
-        'PIDATO':'الخطابة',
-        'AKIDAH':'العقيدة',
-        'HADITS':'الحديث',
-        'TAFSIR':'التفسير',
-        'NAHWU':'النحو',
-        'SEJARAH KEBUDAYAAN ISLAM':'التاريخ الإسلامي',
-        'PENDIDIKAN KEWARGANEGARAAN':'التربية الوطنية',
-        'BAHASA INDONESIA':'اللغة الإندونيسية',
-        'MATEMATIKA':'الرياضيات',
-        'BIOLOGI':'البيولوجيا',
-        'FISIKA':'الفيزياء',
-        'KIMIA':'الكيمياء',
-        'GEOGRAFI':'الجغرافية',
-        'SOSIOLOGI':'علم الاجتماع',
-        'INFORMATIKA':'تقنية المعلومات'
-    };
-
-    // Hitung nilai rapor mapel dari record nilai_mapel (bobot + UH rata2)
-    function _calcNilaiRaporFromMapel(sc, bobot){
-        const b = bobot || {kehadiran:10, tugas:20, uh:40, pas_pat:30};
-        const kehadiran = Number(sc.kehadiran||0);
-        const tugas = Number(sc.tugas||0);
-        const uhVals = [sc.uh1,sc.uh2,sc.uh3,sc.uh4,sc.uh5].map(x=>Number(x||0)).filter(x=>x>0);
-        const uh = uhVals.length ? (uhVals.reduce((a,c)=>a+c,0)/uhVals.length) : 0;
-        const pas = Number(sc.pas_pat||sc.pas||0);
-        const n = (kehadiran*(b.kehadiran/100)) + (tugas*(b.tugas/100)) + (uh*(b.uh/100)) + (pas*(b.pas_pat/100));
-        return Math.round(n*100)/100;
-    }
-
-    function printRaporSantri(nis, kelas){
-        try{
-            const s = students.find(x => String(x.nis) === String(nis));
-            if(!s){ showToast('Santri tidak ditemukan', 'error'); return; }
-            const { tahun_ajar, semester } = getActivePeriode();
-
-            // ambil daftar mapel persis seperti legger (biar mapel kosong tetap tampil)
-            const leger = buildLeggerDataForKelas(kelas);
-            const mapels = (leger && leger.mapels) ? leger.mapels : [];
-
-            // bobot dari memori/config (fallback default)
-            const b = (window.bobotNilai && typeof window.bobotNilai === 'object') ? window.bobotNilai : {kehadiran:10, tugas:20, uh:40, pas_pat:30};
-
-            // helper ambil nilai mapel untuk santri
-            const getNilai = (mapel) => {
-                const rec = scores.find(x => String(x.nis)===String(nis) && _normMapel(x.mapel)===_normMapel(mapel) && String(x.tahun_ajar)===String(tahun_ajar) && Number(x.semester)===Number(semester)) || {};
-                const v = _calcNilaiRaporFromMapel(rec, b);
-                return v ? v : 0;
-            };
-
-            // rata-rata kelas per mapel
-            const avgKelas = (mapel) => {
-                const vals = students.filter(st=>st.kelas===kelas).map(st => {
-                    const rec = scores.find(x => String(x.nis)===String(st.nis) && _normMapel(x.mapel)===_normMapel(mapel) && String(x.tahun_ajar)===String(tahun_ajar) && Number(x.semester)===Number(semester)) || {};
-                    return _calcNilaiRaporFromMapel(rec, b);
-                }).filter(v=>Number(v)>0);
-                if(!vals.length) return 0;
-                return Math.round((vals.reduce((a,c)=>a+c,0)/vals.length)*100)/100;
-            };
-
-            const lisanSet = new Set(['FIKIH','BAHASA ARAB','BAHASA INGGRIS','PIDATO']);
-            const rows = mapels.map((m, idx) => {
-                const nm = _normMapel(m);
-                const nilai = getNilai(m);
-                const rata = avgKelas(m);
-                return {
-                    no: idx+1,
-                    mapel_id: m,
-                    mapel_ar: _mapelAr[nm] || '',
-                    nilai: nilai,
-                    nilai_ar: nilai ? _numToArabicWords(nilai) : '-',
-                    rata: rata || '-',
-                    group: lisanSet.has(nm) ? 'LISAN' : 'TULIS'
-                };
-            });
-
-            const lisan = rows.filter(r=>r.group==='LISAN');
-            const tulis = rows.filter(r=>r.group==='TULIS');
-
-            const nilaiList = rows.map(r=>Number(r.nilai)||0).filter(v=>v>0);
-            const jumlah = Math.round((nilaiList.reduce((a,c)=>a+c,0))*100)/100;
-            const rata2 = nilaiList.length ? Math.round((jumlah/nilaiList.length)*100)/100 : 0;
-
-            // ranking kelas berdasarkan rata2 mapel
-            const rankArr = students.filter(st=>st.kelas===kelas).map(st => {
-                const vals = mapels.map(m => {
-                    const rec = scores.find(x => String(x.nis)===String(st.nis) && _normMapel(x.mapel)===_normMapel(m) && String(x.tahun_ajar)===String(tahun_ajar) && Number(x.semester)===Number(semester)) || {};
-                    return _calcNilaiRaporFromMapel(rec, b);
-                }).filter(v=>Number(v)>0);
-                const sum = vals.reduce((a,c)=>a+c,0);
-                const avg = vals.length ? (sum/vals.length) : 0;
-                return { nis: st.nis, avg };
-            }).sort((a,b)=>b.avg-a.avg);
-            const ranking = Math.max(1, rankArr.findIndex(r=>String(r.nis)===String(nis))+1);
-
-            const css = `
-                @page { size: A4; margin: 12mm; }
-                body{ font-family: Arial, sans-serif; color:#111; }
-                .arab{ font-family: "Amiri","Scheherazade New",Arial,sans-serif; }
-                .hdr{ text-align:center; }
-                .row{ display:flex; justify-content:space-between; gap:10px; margin-top:8px; }
-                .box{ border:1px solid #000; padding:8px; }
-                table{ width:100%; border-collapse:collapse; margin-top:8px; }
-                th,td{ border:1px solid #000; padding:6px; font-size:12px; }
-                th{ background:#f2f2f2; }
-                .subttl{ margin-top:10px; font-weight:700; text-align:center; }
-                .sum td{ font-weight:700; }
-                .logo{ width:55px; height:auto; }
-                .small{ font-size:11px; }
-            `;
-
-            const makeTable = (titleAr, titleId, partRows) => {
-                const body = partRows.map((r,i)=>`
-                    <tr>
-                        <td style="text-align:center;">${i+1}</td>
-                        <td class="arab" style="text-align:right;">${r.mapel_ar||''}</td>
-                        <td>${r.mapel_id}</td>
-                        <td style="text-align:center;">${r.rata}</td>
-                        <td style="text-align:center;">${r.nilai? r.nilai : '-'}</td>
-                        <td class="arab" style="text-align:right;">${r.nilai? r.nilai_ar : '-'}</td>
-                    </tr>
-                `).join('');
-
-                return `
-                    <div class="subttl arab">${titleAr}</div>
-                    <div class="subttl">${titleId}</div>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th style="width:36px;">الرقم<br><span class="small">No</span></th>
-                                <th class="arab">المواد الدراسية<br><span class="small">(Arab)</span></th>
-                                <th>Mata Pelajaran</th>
-                                <th style="width:90px;">معدل الصف<br><span class="small">Rata-rata</span></th>
-                                <th style="width:70px;">رقما<br><span class="small">Angka</span></th>
-                                <th style="width:110px;">كتابة<br><span class="small">Terbilang</span></th>
-                            </tr>
-                        </thead>
-                        <tbody>${body}</tbody>
-                    </table>
-                `;
-            };
-
-            const html = `
-                <div class="hdr">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <div style="width:55px;"></div>
-                        <div class="arab" style="font-size:22px; font-weight:800;">معهد حسن الخاتمة الإسلامي</div>
-                        <img class="logo" src="logo.png" />
-                    </div>
-                    <div class="small"><b>Tahun Ajar:</b> ${tahun_ajar} • <b>Semester:</b> ${semester}</div>
-                </div>
-
-                <div class="row">
-                    <div class="box" style="flex:1;">
-                        <div><b>Nama:</b> ${s.name}</div>
-                        <div><b>NIS:</b> ${s.nis||'-'}</div>
-                    </div>
-                    <div class="box" style="width:260px;">
-                        <div><b>Kelas:</b> ${kelas}</div>
-                        <div><b>L/P:</b> ${s.jk||'-'}</div>
-                    </div>
-                </div>
-
-                ${makeTable('الامتحان الشفوي', 'Ujian Lisan', lisan)}
-                ${makeTable('الامتحان التحريري', 'Ujian Tulis', tulis)}
-
-                <table>
-                    <tbody class="sum">
-                        <tr><td colspan="5" style="text-align:right;">Jumlah</td><td style="text-align:center;">${jumlah || '-'}</td></tr>
-                        <tr><td colspan="5" style="text-align:right;">Rata-rata</td><td style="text-align:center;">${rata2 || '-'}</td></tr>
-                        <tr><td colspan="5" style="text-align:right;">Ranking</td><td style="text-align:center;">${ranking || '-'}</td></tr>
-                    </tbody>
-                </table>
-                <div class="small" style="margin-top:10px; color:#555;">Format rapor ini dibuat mirip contoh. Mapel yang kosong tetap ditampilkan.</div>
-            `;
-
-            _printHTML('RAPOR_' + kelas + '_' + s.nis, `<style>${css}</style>${html}`);
-        }catch(e){
-            console.error(e);
-            showToast('Gagal print rapor: ' + (e.message||e), 'error');
-        }
-    }
-
-    // Kompatibilitas: kalau ada kode lama yang memanggil printLeggerSantri
-    // kita arahkan ke print rapor.
-function printLeggerSantri(nis, kelas){
-        return printRaporSantri(nis, kelas);
+        _printHTML('LEGGER_' + kelas + '_' + r.nis, html);
     }
 
 
@@ -2835,241 +1516,6 @@ function printLeggerSantri(nis, kelas){
         render();
     }
 
-
-
-
-// --- ADMIN: RANKING / JUARA ---
-let _rankingCache = { key: '', rows: [], tahun_ajar: '', semester: 0 };
-
-function _inferParalelFromKelas(kelas) {
-    const raw = String(kelas || '').trim();
-    if (!raw) return '';
-    const parts = raw.split(/\s+/).filter(Boolean);
-    const jenjang = _inferJenjangFromKelas(raw) || (parts[0] || '').toUpperCase();
-
-    // ambil token jurusan (umumnya token ke-2: IPA/IPS/BAHASA/dll)
-    let jur = '';
-    if (parts.length >= 2) {
-        const cand = String(parts[1] || '').toUpperCase();
-        // tolak token yang terlalu "kelas" seperti A1/A2/A4, atau murni angka
-        const looksLikeKelasSuffix = /^[A-Z]\d+$/i.test(cand) || /^[A-Z]$/i.test(cand);
-        if (!looksLikeKelasSuffix && /[A-Z]/.test(cand) && !/^\d+$/.test(cand)) jur = cand;
-    }
-    return jur ? `${jenjang} ${jur}` : (jenjang || raw);
-}
-
-function _getAllLeggerRowsForRanking() {
-    const { tahun_ajar, semester } = getActivePeriode();
-    const key = `${tahun_ajar}|${semester}|${(bobotNilai && JSON.stringify(bobotNilai)) ? 'b' : 'nb'}`;
-    if (_rankingCache.key === key && Array.isArray(_rankingCache.rows)) {
-        return { rows: _rankingCache.rows, tahun_ajar: _rankingCache.tahun_ajar, semester: _rankingCache.semester };
-    }
-
-    const kelasList = Array.from(new Set((students || []).map(s => String(s.kelas || '').trim()).filter(Boolean)))
-        .sort((a, b) => a.localeCompare(b));
-
-    const all = [];
-    kelasList.forEach(kelas => {
-        try {
-            const d = buildLeggerDataForKelas(kelas);
-            (d.rows || []).forEach(r => {
-                all.push({
-                    nis: String(r.nis || ''),
-                    nama: String(r.nama || ''),
-                    jk: String(r.jk || ''),
-                    kelas: String(kelas || ''),
-                    jenjang: _inferJenjangFromKelas(kelas) || '',
-                    paralel: _inferParalelFromKelas(kelas) || '',
-                    rata: Number(r.rata || 0) || 0,
-                    jumlah: Number(r.jumlah || 0) || 0
-                });
-            });
-        } catch (e) {
-            console.warn('Gagal build legger untuk kelas', kelas, e);
-        }
-    });
-
-    _rankingCache = { key, rows: all, tahun_ajar, semester: Number(semester) || 0 };
-    return { rows: all, tahun_ajar, semester: Number(semester) || 0 };
-}
-
-function _sortRankingRows(rows) {
-    return [...(rows || [])].sort((a, b) => (b.rata || 0) - (a.rata || 0) || String(a.nama || '').localeCompare(String(b.nama || '')));
-}
-
-function exportRankingXLSX(scope, key) {
-    try {
-        const { rows, tahun_ajar, semester } = _getAllLeggerRowsForRanking();
-        let filtered = rows;
-
-        const _eq = (x, y) => String(x || '').trim() === String(y || '').trim();
-
-        if (scope === 'kelas') filtered = rows.filter(r => _eq(r.kelas, key));
-        if (scope === 'paralel') filtered = rows.filter(r => _eq(r.paralel, key));
-        if (scope === 'jenjang') filtered = rows.filter(r => _eq(r.jenjang, key));
-        if (scope === 'umum') filtered = rows;
-
-        const sorted = _sortRankingRows(filtered);
-        const out = sorted.map((r, i) => ({
-            Rank: i + 1,
-            NIS: r.nis,
-            Nama: r.nama,
-            Kelas: r.kelas,
-            JK: r.jk,
-            'Rata-rata': r.rata
-        }));
-
-        const tag = scope === 'umum' ? 'UMUM' : String(key || '').replace(/[^\w\- ]+/g, '').replace(/\s+/g, '_');
-        saveExcel(out, `RANKING_${tag}_${tahun_ajar}_S${semester}.xlsx`, [{ wch: 14 }, { wch: 28 }, { wch: 16 }]);
-        showToast('Export ranking berhasil.', 'success');
-    } catch (e) {
-        console.error(e);
-        showToast('Gagal export ranking: ' + (e.message || e), 'error');
-    }
-}
-
-function renderAdminRanking() {
-    const main = document.getElementById('main-content');
-    const { rows, tahun_ajar, semester } = _getAllLeggerRowsForRanking();
-
-    const kelasList = Array.from(new Set(rows.map(r => r.kelas).filter(Boolean))).sort((a, b) => a.localeCompare(b));
-    const paralelList = Array.from(new Set(rows.map(r => r.paralel).filter(Boolean))).sort((a, b) => a.localeCompare(b));
-    const jenjangList = Array.from(new Set(rows.map(r => r.jenjang).filter(Boolean))).sort((a, b) => a.localeCompare(b));
-
-    main.innerHTML = `
-        <div class="bg-white p-6 rounded shadow">
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-                <div>
-                    <h2 class="text-2xl font-bold">🏆 Ranking / Juara 3 Terbaik</h2>
-                    <div class="text-sm text-gray-600">Berdasarkan <b>Rata-rata</b> nilai rapor (mengikuti bobot nilai & data legger).</div>
-                    <div class="text-xs text-gray-500 mt-1">Periode aktif: <b>${tahun_ajar}</b> • Semester: <b>${semester}</b></div>
-                </div>
-                <div class="flex flex-wrap gap-2 items-center justify-end">
-                    <button onclick="renderAdminRanking()" class="bg-gray-700 text-white px-4 py-2 rounded font-bold shadow text-sm">↻ Refresh</button>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-                <div>
-                    <label class="text-xs font-bold text-gray-600">Tipe Ranking</label>
-                    <select id="rank-scope" class="w-full border rounded px-3 py-2 text-sm">
-                        <option value="kelas">Per Kelas</option>
-                        <option value="paralel">Per Jurusan/Paralel (mis. X IPA, XI IPS)</option>
-                        <option value="jenjang">Per Jenjang (X / XI / XII)</option>
-                        <option value="umum">Juara Umum (Semua Jenjang)</option>
-                    </select>
-                </div>
-
-                <div id="rank-key-wrap">
-                    <label id="rank-key-label" class="text-xs font-bold text-gray-600">Filter</label>
-                    <select id="rank-key" class="w-full border rounded px-3 py-2 text-sm"></select>
-                </div>
-
-                <div class="flex items-end">
-                    <button id="btn-export-ranking" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded font-bold shadow text-sm">Export XLSX</button>
-                </div>
-            </div>
-
-            <div id="rank-result" class="mt-2"></div>
-        </div>
-    `;
-
-    const scopeSel = document.getElementById('rank-scope');
-    const keyWrap = document.getElementById('rank-key-wrap');
-    const keySel = document.getElementById('rank-key');
-    const keyLabel = document.getElementById('rank-key-label');
-    const btnExport = document.getElementById('btn-export-ranking');
-
-    const setKeyOptions = () => {
-        const scope = scopeSel.value;
-        let opts = [];
-        if (scope === 'kelas') {
-            keyWrap.classList.remove('hidden');
-            keyLabel.innerText = 'Kelas';
-            opts = kelasList;
-        } else if (scope === 'paralel') {
-            keyWrap.classList.remove('hidden');
-            keyLabel.innerText = 'Paralel/Jurusan';
-            opts = paralelList;
-        } else if (scope === 'jenjang') {
-            keyWrap.classList.remove('hidden');
-            keyLabel.innerText = 'Jenjang';
-            opts = jenjangList;
-        } else {
-            keyWrap.classList.add('hidden');
-            opts = [];
-        }
-
-        keySel.innerHTML = opts.map(v => `<option value="${v}">${v}</option>`).join('');
-        if (opts.length === 0) keySel.value = '';
-    };
-
-    const renderTop3 = () => {
-        const scope = scopeSel.value;
-        const key = keySel.value;
-
-        const _eq = (x, y) => String(x || '').trim() === String(y || '').trim();
-        let filtered = rows;
-
-        if (scope === 'kelas') filtered = rows.filter(r => _eq(r.kelas, key));
-        if (scope === 'paralel') filtered = rows.filter(r => _eq(r.paralel, key));
-        if (scope === 'jenjang') filtered = rows.filter(r => _eq(r.jenjang, key));
-        if (scope === 'umum') filtered = rows;
-
-        const sorted = _sortRankingRows(filtered);
-        const top = sorted.slice(0, 3);
-
-        const title =
-            scope === 'kelas' ? `Kelas <b>${key || '-'}</b>` :
-            scope === 'paralel' ? `Paralel <b>${key || '-'}</b>` :
-            scope === 'jenjang' ? `Jenjang <b>${key || '-'}</b>` :
-            `Juara Umum`;
-
-        const empty = (!top.length)
-            ? `<div class="p-4 bg-yellow-50 border rounded text-sm text-gray-700">Data belum tersedia untuk scope ini (atau nilai belum masuk).</div>`
-            : '';
-
-        const rowsHtml = top.map((r, i) => `
-            <tr class="hover:bg-gray-50">
-                <td class="p-2 border text-center font-bold">${i + 1}</td>
-                <td class="p-2 border text-center font-mono">${r.nis || '-'}</td>
-                <td class="p-2 border text-left font-semibold"><div class="single-line w-72" title="${r.nama}">${r.nama || '-'}</div></td>
-                <td class="p-2 border text-center">${r.kelas || '-'}</td>
-                <td class="p-2 border text-center">${r.jk || '-'}</td>
-                <td class="p-2 border text-center font-bold">${(Number(r.rata || 0) ? (Math.round(Number(r.rata) * 100) / 100) : 0)}</td>
-            </tr>
-        `).join('');
-
-        document.getElementById('rank-result').innerHTML = `
-            <div class="text-sm text-gray-600 mb-2">Top 3 • ${title}</div>
-            ${empty}
-            ${top.length ? `
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm border std-table whitespace-nowrap">
-                    <thead class="bg-blue-700 text-white">
-                        <tr>
-                            <th class="p-2 border w-16">Rank</th>
-                            <th class="p-2 border w-28">NIS</th>
-                            <th class="p-2 border text-left">Nama</th>
-                            <th class="p-2 border w-28">Kelas</th>
-                            <th class="p-2 border w-16">JK</th>
-                            <th class="p-2 border w-24">Rata-rata</th>
-                        </tr>
-                    </thead>
-                    <tbody>${rowsHtml}</tbody>
-                </table>
-            </div>` : ''}
-        `;
-
-        btnExport.onclick = () => exportRankingXLSX(scope, (scope === 'umum' ? '' : key));
-    };
-
-    setKeyOptions();
-    renderTop3();
-
-    scopeSel.addEventListener('change', () => { setKeyOptions(); renderTop3(); });
-    keySel.addEventListener('change', renderTop3);
-}
 
 // --- IMPORT & EXPORT LOGIC ---
     let importContext = {};
@@ -3375,7 +1821,7 @@ function renderAdminRanking() {
         const data = siswa.map(s => {
             const { tahun_ajar, semester } = getActivePeriode();
             const sc = scores.find(x => String(x.nis) === String(s.nis) && x.mapel === mapel && String(x.tahun_ajar)===String(tahun_ajar) && Number(x.semester)===Number(semester)) || {};
-            return {NIS: s.nis, Nama: s.name, Kelas: kelas, Mapel: mapel, Hadir: sc.kehadiran||0, Tugas: sc.tugas||0, UH1: sc.uh1||0, UH2: sc.uh2||0, UH3: sc.uh3||0, UH4: sc.uh4||0, UH5: sc.uh5||0, "PAS/PAT": sc.pas_pat||sc.pas||0};
+            return {NIS: s.nis, Nama: s.name, Kelas: kelas, Mapel: mapel, Hadir: sc.kehadiran||0, UH1: sc.uh1||0, UH2: sc.uh2||0, UH3: sc.uh3||0, UH4: sc.uh4||0, UH5: sc.uh5||0, Tugas: sc.tugas||0, "PAS/PAT": sc.pas_pat||sc.pas||0};
         });
         saveExcel(data, `Nilai_${mapel}_${kelas}.xlsx`, [{wch:15}, {wch:30}]);
     }
@@ -3497,31 +1943,8 @@ function exportExcelMusyrif(kelas) {
         t.classList.remove('translate-y-20');
         setTimeout(() => t.classList.add('translate-y-20'), 3000);
     }
-    // Sidebar (mobile offcanvas)
-    function openSidebar() {
-        const sb = document.getElementById('sidebar');
-        const bd = document.getElementById('sidebar-backdrop');
-        if (sb) sb.classList.remove('-translate-x-full');
-        if (bd) bd.classList.remove('hidden');
-    }
-    function closeSidebar() {
-        const sb = document.getElementById('sidebar');
-        const bd = document.getElementById('sidebar-backdrop');
-        // Only force-close on mobile (desktop uses md:translate-x-0)
-        if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) {
-            if (sb) sb.classList.add('-translate-x-full');
-            if (bd) bd.classList.add('hidden');
-        } else {
-            if (bd) bd.classList.add('hidden');
-        }
-    }
-    function toggleSidebar() {
-        const sb = document.getElementById('sidebar');
-        if (!sb) return;
-        const isClosed = sb.classList.contains('-translate-x-full');
-        if (isClosed) openSidebar(); else closeSidebar();
-    }
-    function logout() { localStorage.removeItem('erapor_user'); window.location.href = 'index.html'; }
+    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('-translate-x-full'); }
+    function logout() { localStorage.removeItem('erapor_user'); window.location.href = 'login.html'; }
     function filterTable(tbodyId) {
         const filter = document.activeElement.value.toUpperCase();
         const tr = document.getElementById(tbodyId).getElementsByTagName('tr');
@@ -3609,79 +2032,6 @@ function exportExcelMusyrif(kelas) {
             }
         });
     }
-
-    // --- Indikator perubahan & validasi nilai (maks 100) ---
-    window._indicatorOptsByTable = window._indicatorOptsByTable || {};
-
-    function _updateOneIndicator(el, opts) {
-        if (!el) return;
-        const saved = (el.dataset.savedValue ?? '');
-        const cur = (el.value ?? '');
-
-        const isUnsaved = String(cur) !== String(saved);
-
-        // over-max (khusus input number tertentu)
-        const field = String(el.dataset.field || '');
-        const exclude = opts?.excludeFields || new Set();
-        const checkMax100 = !!opts?.max100 && el.tagName === 'INPUT' && String(el.type || '').toLowerCase() === 'number' && !exclude.has(field);
-
-        let isOver = false;
-        if (checkMax100) {
-            const n = (cur === '' ? NaN : Number(cur));
-            isOver = Number.isFinite(n) && n > 100;
-            // bantu UX: set atribut max supaya keyboard mobile aware (tapi tetap boleh lewat import)
-            try { el.max = '100'; } catch (_) {}
-        }
-
-        // reset classes
-        el.classList.remove('ring-2', 'ring-orange-300', 'ring-pink-400', 'bg-pink-200');
-
-        if (isOver) {
-            el.classList.add('bg-pink-200', 'ring-2', 'ring-pink-400');
-        } else if (isUnsaved) {
-            el.classList.add('ring-2', 'ring-orange-300');
-        }
-    }
-
-    function attachInputIndicators(tableId, opts = {}) {
-        const table = document.getElementById(tableId);
-        if (!table) return;
-
-        window._indicatorOptsByTable[tableId] = opts;
-
-        const els = table.querySelectorAll('input, textarea, select');
-        els.forEach(el => {
-            if (el.dataset.savedValue === undefined) el.dataset.savedValue = (el.value ?? '');
-
-            const handler = () => _updateOneIndicator(el, opts);
-            el.addEventListener('input', handler);
-            el.addEventListener('change', handler);
-            handler();
-        });
-    }
-
-    function refreshInputIndicators(tableId) {
-        const table = document.getElementById(tableId);
-        if (!table) return;
-        const opts = window._indicatorOptsByTable?.[tableId] || {};
-        const els = table.querySelectorAll('input, textarea, select');
-        els.forEach(el => {
-            if (el.dataset.savedValue === undefined) el.dataset.savedValue = (el.value ?? '');
-            _updateOneIndicator(el, opts);
-        });
-    }
-
-    function markTableSaved(tableId) {
-        const table = document.getElementById(tableId);
-        if (!table) return;
-        const opts = window._indicatorOptsByTable?.[tableId] || {};
-        const els = table.querySelectorAll('input, textarea, select');
-        els.forEach(el => {
-            el.dataset.savedValue = (el.value ?? '');
-            _updateOneIndicator(el, opts);
-        });
-    }
-
 
     function addMapelRow(n='', k=[]) {
         const div = document.createElement('div');
@@ -3827,56 +2177,4 @@ function exportExcelMusyrif(kelas) {
         } catch (e) { console.error(e); showToast('Gagal: ' + e.message, 'error'); }
         setLoading(false);
     }
-
-// ===============================
-// ===============================
-// ===============================
-// DASHBOARD: ANALYTICS (ADMIN & GURU)
-// ===============================
-
-function _fmt1(n){
-  const v = Number(n);
-  if (!isFinite(v)) return '-';
-  return (Math.round(v * 10) / 10).toFixed(1);
-}
-function _mean(arr){
-  const a = (arr||[]).map(Number).filter(v => isFinite(v));
-  if (!a.length) return 0;
-  return a.reduce((x,y)=>x+y,0) / a.length;
-}
-function _std(arr){
-  const a = (arr||[]).map(Number).filter(v => isFinite(v));
-  if (a.length < 2) return 0;
-  const m = _mean(a);
-  const v = a.reduce((s,x)=>s+Math.pow(x-m,2),0) / (a.length-1);
-  return Math.sqrt(v);
-}
-function _hslBgPct(pct){
-  const p = Math.max(0, Math.min(100, Number(pct)||0));
-  const hue = (p/100)*120; // red->green
-  return `hsl(${hue.toFixed(0)},70%,88%)`;
-}
-function _periodMatch(r, tahun_ajar, semester){
-  return String(r?.tahun_ajar||'')===String(tahun_ajar||'') && Number(r?.semester||0)===Number(semester||0);
-}
-function _scoreRowsFor(mapel, kelas, tahun_ajar, semester){
-  const m = String(mapel||'').toUpperCase().trim();
-  const k = String(kelas||'').trim();
-  return (scores||[]).filter(r => _periodMatch(r,tahun_ajar,semester) && String(r?.kelas||'').trim()===k && String(r?.mapel||'').toUpperCase().trim()===m);
-}
-function _raporValsFor(mapel, kelas, tahun_ajar, semester){
-  return _scoreRowsFor(mapel, kelas, tahun_ajar, semester)
-    .map(r => calcNilaiRapor(r))
-    .map(Number)
-    .filter(v => isFinite(v) && v>0);
-}
-function _comboStats(mapel, kelas, tahun_ajar, semester){
-  const vals = _raporValsFor(mapel, kelas, tahun_ajar, semester);
-  return {
-    count: vals.length,
-    mean: vals.length ? _mean(vals) : 0,
-    min: vals.length ? Math.min(...vals) : 0,
-    max: vals.length ? Math.max(...vals) : 0,
-  };
-}
-
+  
