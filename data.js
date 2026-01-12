@@ -365,6 +365,8 @@ function normalizeSantriPayload(raw) {
   const cleaned = {
     nis: _toNIS(p.nis),
     nama_santri: _cleanText(p.nama_santri),
+    // Nama Arab (manual diisi untuk kebutuhan print rapor)
+    nama_arab: _cleanText(p.nama_arab),
     jk: _cleanText(p.jk),
     kelas: _cleanText(p.kelas),
     ttl: _cleanText(p.ttl),
@@ -625,6 +627,7 @@ async function loadInitialData(opts = {}) {
   students = (result.santri || []).map(x => ({
     ...x,
     name: x.nama_santri,
+    name_arab: x.nama_arab || '',
     jk: x.jk || '',
     lp: x.jk || '', // alias legacy
   }));

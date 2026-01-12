@@ -1065,8 +1065,10 @@ function buildAdminOutlierHTML({ tahun_ajar, semester }){
                             </tr>
                         </thead>
                         <tbody>${body}</tbody>
+                    
                     </table>
-                </div>
+
+
                 <div class="text-xs text-gray-500 mt-2">Catatan: Z dihitung dari perbandingan <b>mean mapel</b> antar kelas. Kombinasi dengan data &lt; 5 santri terisi diabaikan agar tidak noise.</div>
             </div>
         `;
@@ -1562,8 +1564,10 @@ async function openAdminLeggerForKelas(kelas){
                         ${makeRow('Nilai Maksimum (Max Ideal)', 'max_ideal', maxDef)}
                         ${makeRow('Nilai Rata-rata (Rerata Ideal)', 'mean_ideal', meanDef)}
                     </tbody>
-                </table>
-                </div>
+                
+                    </table>
+
+
             </div>`;
         } catch (e) {
             console.error(e);
@@ -1824,8 +1828,10 @@ window._lastKonversiRows = data;
                             </tr>
                         </thead>
                         <tbody>${rowsHtml}</tbody>
+                    
                     </table>
-                </div>
+
+
             </div>`;
         } catch (e) {
             console.error(e);
@@ -1996,8 +2002,10 @@ let content = '';
                       </tr>
                     </thead>
                     <tbody id="tbody-wali-data">${rows}</tbody>
-                  </table>
-                </div>
+                  
+                    </table>
+
+
               </div>`;
         } 
 
@@ -2648,11 +2656,25 @@ let content = '';
         const { mapels, rows, tahun_ajar, semester } = buildLeggerDataForKelas(kelas);
         const head = ['No','NIS','NAMA','L/P','PRINT', ...mapels, 'JUMLAH','RATA-RATA','RANKING'];
         const thead = head.map(h=>`<th>${h}</th>`).join('');
+        const namaMap = new Map();
+        (students||[]).filter(s => String(s.kelas||'').trim() === String(kelas||'').trim()).forEach(s => {
+            const ar = (s.nama_arab && String(s.nama_arab).trim()!=='')
+                ? String(s.nama_arab).trim()
+                : (s.name_arab && String(s.name_arab).trim()!=='')
+                    ? String(s.name_arab).trim()
+                    : '';
+            const latin = String(s.name||s.nama_santri||'').trim();
+            namaMap.set(String(s.nis||''), { ar, latin });
+        });
+
         const tbody = rows.map(r=>{
+            const nm = namaMap.get(String(r.nis||'')) || { ar:'', latin: (r.nama||'') };
+            const namaCell = nm.ar ? `<div class="arab">${nm.ar}</div><div class="latin small">${nm.latin}</div>` : (nm.latin || '-');
+
             const cells = [
                 r.no,
                 r.nis,
-                r.nama,
+                namaCell,
                 r.jk,
                 '', // kolom PRINT tidak perlu isi saat cetak
                 ...mapels.map(m => r.mapel[m] ? r.mapel[m] : ''),
@@ -2664,6 +2686,12 @@ let content = '';
         }).join('');
         const hint = asPDF ? `<div class="meta"><b>Catatan:</b> pilih <i>Save as PDF</i> di dialog print untuk export PDF.</div>` : '';
         const html = `
+            <style>
+              @import url('https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;700&display=swap');
+              .arab{ font-family: "Noto Naskh Arabic","Amiri","Traditional Arabic",serif; direction: rtl; unicode-bidi: isolate; font-weight:700; }
+              .latin{ font-family: Arial, sans-serif; }
+              .small{ font-size: 10px; font-weight: normal; }
+            </style>
             <h1>LEGGER KELAS ${kelas}</h1>
             <div class="meta">Tahun Ajar: <b>${tahun_ajar}</b> • Semester: <b>${semester}</b></div>
             ${hint}
@@ -2852,6 +2880,11 @@ let content = '';
             const jumlah = Math.round((nilaiList.reduce((a,c)=>a+c,0))*100)/100;
             const rata2 = nilaiList.length ? Math.round((jumlah/nilaiList.length)*100)/100 : 0;
 
+            // jumlah & rata-rata untuk kolom "معدل الصف" (rata-rata kelas)
+            const rataKelasList = rows.map(r => Number(r.rata)).filter(v => Number.isFinite(v) && v > 0);
+            const jumlahRataKelas = Math.round((rataKelasList.reduce((a,c)=>a+c,0))*100)/100;
+            const rata2RataKelas = rataKelasList.length ? Math.round((jumlahRataKelas/rataKelasList.length)*100)/100 : 0;
+
             // ranking kelas berdasarkan rata2 mapel
             const rankArr = students.filter(st=>st.kelas===kelas).map(st => {
                 const vals = mapels.map(m => {
@@ -2872,43 +2905,54 @@ let content = '';
             const jenjang = _inferJenjangFromKelas(kelas);
             const css = `
                 @page { size: A4; margin: 10mm; }
+                @import url('https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;700&display=swap');
                 body{ font-family: Arial, sans-serif; color:#000; }
-                .arab{ font-family: "Amiri","Scheherazade New",Arial,sans-serif; }
-                .wrap{ width: 100%; }
+                .arab{ font-family: "Noto Naskh Arabic","Amiri","Traditional Arabic","Scheherazade New","Tahoma",Arial,sans-serif; font-size:17px; }
+                .ltr{ direction:ltr; text-align:left; }
+                .wrap{ width: 100%; direction: rtl; }
                 .head{ text-align:center; position: relative; }
                 .logo{ position:absolute; right:0; top:0; width:72px; height:auto; }
-                .title-ar{ font-size:22px; font-weight:800; }
-                .subtitle-ar{ font-size:12px; margin-top:2px; }
+                .title-ar{ font-size:28px; font-weight:800; }
+                .subtitle-ar{ font-size:14px; margin-top:2px; }
                 .meta{ border:2px solid #000; margin-top:8px; }
-                .meta td{ border:1px solid #000; padding:6px 8px; font-size:12px; }
+                .meta td{ border:1px solid #000; padding:7px 9px; font-size:15px; }
                 .meta .lbl{ width:160px; font-weight:700; }
                 .meta .lbl.arab{ font-weight:800; }
                 .section{ margin-top:10px; }
                 .section-title{ text-align:center; font-weight:800; margin:6px 0 2px; }
-                .score{ width:100%; border-collapse:collapse; }
-                .score th, .score td{ border:2px solid #000; padding:6px 6px; font-size:12px; }
-                .score thead th{ background:#f3f4f6; }
+                .score{ width:100%; border-collapse:collapse; direction: rtl; table-layout: fixed; }
+                .score th, .score td{ border:2px solid #000; padding:7px 7px; font-size:14px; }
+                .score th:first-child, .score td:first-child{ padding:7px 4px; }
+                .score .arab{ font-size:22px; }
+                .score .ltr{ font-size:14px; }
+                .score .subject-ar{ white-space:nowrap !important; overflow:hidden; text-overflow:ellipsis; }
+                .score .subject-id{ white-space:nowrap !important; overflow:hidden; text-overflow:ellipsis; }
+                .score thead th{ background:#f3f4f6; } .score td{ white-space:normal; }
                 .score .thin{ border-width:1px; }
                 .score .c{ text-align:center; }
                 .score .r{ text-align:right; }
                 .sum{ width:100%; border-collapse:collapse; margin-top:10px; }
-                .sum td{ border:2px solid #000; padding:6px; font-size:12px; font-weight:800; }
+                .sum td{ border:2px solid #000; padding:7px; font-size:15px; font-weight:800; }
+                .meta-bottom{ display:flex; justify-content:space-between; gap:10mm; margin-top:10px; font-size:14px; font-weight:800; }
+                .meta-bottom > div{ white-space:nowrap; }
                 .small{ font-size:11px; }
+                .num{ font-weight:900; }
             `;
 
             const makeTable = (titleAr, titleId, partRows) => {
                 const body = partRows.map((r,i)=>{
                     const no = _toArabicIndic(i+1);
-                    const angka = r.nilai ? r.nilai : '-';
+                    const angka = r.nilai ? _toArabicIndic(String(r.nilai)) : '-';
                     const terbilang = r.nilai ? r.nilai_ar : '-';
+                    const rataAr = (r.rata && r.rata !== '-') ? _toArabicIndic(String(r.rata)) : '-';
                     return `
                         <tr>
-                            <td class="arab c" style="width:44px;">${no}</td>
-                            <td class="arab r" style="width:220px;">${r.mapel_ar||''}</td>
-                            <td class="r">${r.mapel_id}</td>
-                            <td class="c" style="width:90px;">${r.rata || '-'}</td>
-                            <td class="c" style="width:70px;">${angka}</td>
-                            <td class="arab r" style="width:170px;">${terbilang}</td>
+                            <td class="arab c num">${no}</td>
+                            <td class="arab r subject-ar">${r.mapel_ar||''}</td>
+                            <td class="ltr subject-id">${r.mapel_id}</td>
+                            <td class="arab c num">${rataAr}</td>
+                            <td class="arab c num">${angka}</td>
+                            <td class="arab r">${terbilang}</td>
                         </tr>
                     `;
                 }).join('');
@@ -2918,17 +2962,25 @@ let content = '';
                         <div class="section-title arab">${titleAr}</div>
                         <div class="section-title">${titleId}</div>
                         <table class="score">
+                            <colgroup>
+                                <col style="width:7%">
+                                <col style="width:20%">
+                                <col style="width:20%">
+                                <col style="width:10%">
+                                <col style="width:10%">
+                                <col style="width:33%">
+                            </colgroup>
                             <thead>
                                 <tr>
-                                    <th rowspan="2" class="arab c" style="width:44px;">الرقم</th>
+                                    <th rowspan="2" class="arab c">رقم</th>
                                     <th rowspan="2" class="arab c">المواد الدراسية</th>
-                                    <th rowspan="2" class="c">Mata Pelajaran</th>
-                                    <th rowspan="2" class="arab c" style="width:90px;">معدل الصف</th>
-                                    <th colspan="2" class="arab c" style="width:240px;">الدرجة المكتسبة</th>
+                                    <th rowspan="2" class="c ltr">Mata Pelajaran</th>
+                                    <th rowspan="2" class="arab c">معدل الصف</th>
+                                    <th colspan="2" class="arab c">الدرجة المكتسبة</th>
                                 </tr>
                                 <tr>
-                                    <th class="arab c" style="width:70px;">رقما</th>
-                                    <th class="arab c" style="width:170px;">كتابة</th>
+                                    <th class="arab c">رقما</th>
+                                    <th class="arab c">كتابة</th>
                                 </tr>
                             </thead>
                             <tbody>${body}</tbody>
@@ -2936,6 +2988,50 @@ let content = '';
                     </div>
                 `;
             };
+
+            
+            // absensi & sikap wali kelas
+            const scWali = (waliScores || []).find(x => String(x.nis)===String(nis) && String(x.tahun_ajar)===String(tahun_ajar) && Number(x.semester)===Number(semester)) || {};
+            const hadirS = Number(scWali.hadir_s || 0) || 0;
+            const hadirI = Number(scWali.hadir_i || 0) || 0;
+            const hadirA = Number(scWali.hadir_a || 0) || 0;
+            const hadirSAr = _toArabicIndic(String(hadirS));
+            const hadirIAr = _toArabicIndic(String(hadirI));
+            const hadirAAr = _toArabicIndic(String(hadirA));
+            const _sikapToArab = (v)=>{
+                const x = String(v||'').trim().toUpperCase();
+                if(x==='A') return 'ممتاز';
+                if(x==='B') return 'جيد جدا';
+                if(x==='C') return 'جيد';
+                if(x==='D') return 'مقبول';
+                return '-';
+            };
+            const sikapAkhlak = _sikapToArab(scWali.akhlak);
+            const sikapRajin = _sikapToArab(scWali.kerajinan);
+            const sikapBersih = _sikapToArab(scWali.kebersihan);
+            const sikapDisiplin = _sikapToArab(scWali.kedisiplinan);
+
+            // Nama Arab diambil dari DB (kolom santri.nama_arab). Jika kosong, fallback ke nama latin (tanpa transliterasi otomatis).
+            const namaArab = (s.nama_arab && String(s.nama_arab).trim()!=='')
+              ? String(s.nama_arab).trim()
+              : (s.name_arab && String(s.name_arab).trim()!=='')
+                ? String(s.name_arab).trim()
+                : String(s.name||s.nama_santri||'').trim() || '-';
+            const nisArab = (s.nis!=null && String(s.nis).trim()!=='') ? _toArabicIndic(String(s.nis)) : '-';
+
+            const jumlahAr = jumlah ? _toArabicIndic(String(jumlah)) : '-';
+            const rata2Ar = rata2 ? _toArabicIndic(String(rata2)) : '-';
+            const jumlahRataKelasAr = jumlahRataKelas ? _toArabicIndic(String(jumlahRataKelas)) : '-';
+            const rata2RataKelasAr = rata2RataKelas ? _toArabicIndic(String(rata2RataKelas)) : '-';
+
+            const totalSiswa = rankArr.length || 0;
+            const rankingAr = ranking ? _toArabicIndic(String(ranking)) : '-';
+            const totalSiswaAr = totalSiswa ? _toArabicIndic(String(totalSiswa)) : '-';
+
+            const now = new Date();
+            const tanggalCetakNum = now.toLocaleDateString('en-GB'); // dd/mm/yyyy
+            const tanggalCetakAr = _toArabicIndic(tanggalCetakNum);
+            const tanggalCetakId = now.toLocaleDateString('id-ID', { day:'2-digit', month:'long', year:'numeric' });
 
             const namaLabel = (String(s.jk||'').toUpperCase()==='P') ? 'اسم الطالبة' : 'اسم الطالب';
             const html = `
@@ -2949,7 +3045,7 @@ let content = '';
                         <div class="arab" style="margin-top:2px; font-size:13px; font-weight:800;">الفصل ${_semesterToArab(semester)}</div>
                     </div>
 
-                    <table class="meta" style="width:100%; border-collapse:collapse;">
+                    <table class="meta arab" dir="rtl" style="width:100%; border-collapse:collapse;">
                         <tbody>
                             <tr>
                                 <td class="arab lbl">المستوى</td>
@@ -2959,9 +3055,9 @@ let content = '';
                             </tr>
                             <tr>
                                 <td class="arab lbl">${namaLabel}</td>
-                                <td>${s.name}</td>
+                                <td><div class="arab" style="font-weight:800;">${namaArab}</div><div class="ltr small">${s.name}</div></td>
                                 <td class="arab lbl">رقم القيد</td>
-                                <td>${s.nis||'-'}</td>
+                                <td class="arab" style="font-weight:900;">${nisArab}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -2971,12 +3067,72 @@ let content = '';
 
                     <table class="sum">
                         <tbody>
-                            <tr><td class="arab" style="text-align:right;">المجموع</td><td class="c" style="width:140px;">${jumlah || '-'}</td></tr>
-                            <tr><td class="arab" style="text-align:right;">المعدل</td><td class="c">${rata2 || '-'}</td></tr>
-                            <tr><td class="arab" style="text-align:right;">الترتيب</td><td class="c">${ranking || '-'}</td></tr>
+                            <tr>
+                                <td class="arab" style="text-align:center;">المجموع</td>
+                                <td class="arab" style="text-align:center;">معدل الصف : <span class="arab num">${jumlahRataKelasAr}</span></td>
+                                <td class="arab" style="text-align:center;">الدرجة : <span class="arab num">${jumlahAr}</span></td>
+                            </tr>
+                            <tr>
+                                <td class="arab" style="text-align:center;">المعدل</td>
+                                <td class="arab" style="text-align:center;">معدل الصف : <span class="arab num">${rata2RataKelasAr}</span></td>
+                                <td class="arab" style="text-align:center;">الدرجة : <span class="arab num">${rata2Ar}</span></td>
+                            </tr>
                         </tbody>
                     </table>
+
+                    <div style="margin-top:12px;">
+                        <table class="score" style="margin-top:0;">
+                            <thead>
+                                <tr>
+                                    <th class="arab c" colspan="3">الحضور</th>
+                                    <th class="arab c" colspan="4">السلوك</th>
+                                </tr>
+                                <tr>
+                                    <th class="arab c">مرض</th><th class="arab c">إذن</th><th class="arab c">غياب</th>
+                                    <th class="arab c">الأخلاق</th><th class="arab c">الاجتهاد</th><th class="arab c">النظافة</th><th class="arab c">الانضباط</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="arab c num">${hadirSAr}</td>
+                                    <td class="arab c num">${hadirIAr}</td>
+                                    <td class="arab c num">${hadirAAr}</td>
+                                    <td class="arab c">${sikapAkhlak}</td>
+                                    <td class="arab c">${sikapRajin}</td>
+                                    <td class="arab c">${sikapBersih}</td>
+                                    <td class="arab c">${sikapDisiplin}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <div class="meta-bottom">
+                            <div class="arab">الفصل : ${_semesterToArab(semester)}</div>
+                            <div class="arab">التاريخ : ${tanggalCetakAr} <span class="ltr small">(${tanggalCetakId})</span></div>
+                            <div class="arab">الترتيب : ${rankingAr} / ${totalSiswaAr}</div>
+                        </div>
+
+                        <table style="width:100%; margin-top:16px; border-collapse:collapse;">
+                            <tr>
+                                <td style="width:33%; text-align:center; font-size:14px;">
+                                    <div class="arab" style="font-weight:800;">وليّ الفصل</div>
+                                    <div style="height:64px;"></div>
+                                    <div style="border-top:2px solid #000; width:70%; margin:0 auto;"></div>
+                                </td>
+                                <td style="width:34%; text-align:center; font-size:14px;">
+                                    <div class="arab" style="font-weight:800;">مدير المعهد</div>
+                                    <div style="height:64px;"></div>
+                                    <div style="border-top:2px solid #000; width:70%; margin:0 auto;"></div>
+                                </td>
+                                <td style="width:33%; text-align:center; font-size:14px;">
+                                    <div class="arab" style="font-weight:800;">وليّ الأمر</div>
+                                    <div style="height:64px;"></div>
+                                    <div style="border-top:2px solid #000; width:70%; margin:0 auto;"></div>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
                 </div>
+
             `;
 
             _printHTML('RAPOR_' + kelas + '_' + s.nis, `<style>${css}</style>${html}`);
@@ -3321,6 +3477,7 @@ function renderAdminRanking() {
                 id: null,
                 nis: (typeof _toNIS === 'function' ? _toNIS(row.NIS) : row.NIS),
                 name: (row.Nama_Santri ?? row.Nama ?? row.NamaSantri ?? row.NAMA ?? row.NAMA_SANTRI),
+                nama_arab: (row.Nama_Arab ?? row.NamaArab ?? row.NAMA_ARAB ?? row.nama_arab ?? row.namaArab),
                 kelas: row.Kelas,
                 jk: (row.JK ?? row.LP),
 
@@ -3933,6 +4090,7 @@ function exportExcelMusyrif(kelas) {
         openModal('santri');
         document.getElementById('edit-id').value = s.id;
         document.getElementById('inp-nama').value = s.name || s.nama_santri || '';
+        if (document.getElementById('inp-nama-arab')) document.getElementById('inp-nama-arab').value = s.nama_arab || s.name_arab || '';
         document.getElementById('inp-nis').value = s.nis || '';
         document.getElementById('inp-kelas').value = s.kelas || '';
         if (document.getElementById('inp-jk-santri')) document.getElementById('inp-jk-santri').value = s.jk || s.lp || '';
@@ -3963,6 +4121,7 @@ function exportExcelMusyrif(kelas) {
             if (isSantri) {
                 const data = {
                     name: document.getElementById('inp-nama').value,
+                    nama_arab: (document.getElementById('inp-nama-arab') ? document.getElementById('inp-nama-arab').value : ''),
                     nis: document.getElementById('inp-nis').value,
                     kelas: document.getElementById('inp-kelas').value,
                     jk: document.getElementById('inp-jk-santri').value,
