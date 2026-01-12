@@ -196,7 +196,10 @@ ${_adminAnalyticsHtml}
 
         const _comboProgress = computeGuruComboProgress(u, combos);
         const _guruQuickHtml = renderGuruQuickContinueHTML(_comboProgress);
-        const _guruAnalyticsHtml = renderGuruAnalyticsHTML(u, combos);
+        const _guruAnalyticsRaw = renderGuruAnalyticsHTML(u, combos);
+        const _guruParts = String(_guruAnalyticsRaw || '').split('<!--GURU_ANALYTICS_SPLIT-->');
+        const _guruProgressCard = _guruParts[0] || '';
+        const _guruUhCard = _guruParts[1] || '';
 
         document.getElementById('main-content').innerHTML = `
         <div class="max-w-6xl mx-auto space-y-6">
@@ -231,16 +234,19 @@ ${_adminAnalyticsHtml}
                 <div class="bg-white p-5 rounded-xl shadow border">
                     <div class="text-sm text-gray-500 font-bold mb-1">Input Nilai (Tersimpan)</div>
                     <div class="text-3xl font-extrabold text-gray-800">${pct}%</div>
-                    <div class="mt-2 h-2 bg-gray-200 rounded">
+                    <div class="mt-2 h-2 bg-gray-200 rounded w-full">
                         <div class="h-2 bg-blue-600 rounded" style="width:${pct}%"></div>
                     </div>
                     <div class="text-xs text-gray-500 mt-1">${filled} / ${expected} baris</div>
                 </div>
             </div>
 
-            ${_guruQuickHtml}
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                ${_guruQuickHtml}
+                ${_guruProgressCard}
+            </div>
 
-            ${_guruAnalyticsHtml}
+            ${_guruUhCard}
 
             <div class="bg-green-50 p-6 rounded-xl border border-green-200">
                 <h3 class="text-lg font-extrabold text-green-900 mb-2">Panduan Singkat Guru</h3>
@@ -442,15 +448,15 @@ function renderGuruQuickContinueHTML(items){
     }
     const top = items.slice(0, 8);
     const rows = top.map(it => `
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 p-3 rounded-lg border hover:bg-gray-50">
-            <div class="min-w-0">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 p-3 rounded-lg border hover:bg-gray-50 w-full">
+            <div class="min-w-0 flex-1 w-full">
                 <div class="font-extrabold text-gray-800 truncate" title="${it.mapel} • ${it.kelas}">${it.mapel} <span class="text-gray-400 font-black">•</span> ${it.kelas}</div>
                 <div class="text-xs text-gray-600">${it.filled}/${it.expected} terisi • sisa <b>${it.missing}</b></div>
-                <div class="mt-2 h-2 bg-gray-200 rounded">
+                <div class="mt-2 h-2 bg-gray-200 rounded w-full">
                     <div class="h-2 bg-blue-600 rounded" style="width:${it.pct}%"></div>
                 </div>
             </div>
-            <div class="flex gap-2">
+            <div class="flex gap-2 shrink-0">
                 <button class="px-4 py-2 rounded bg-blue-600 text-white text-sm font-bold shadow"
                     onclick="renderNilaiPage(decodeURIComponent('${_encArg(it.mapel)}'), decodeURIComponent('${_encArg(it.kelas)}'))">Lanjut</button>
             </div>
@@ -1052,11 +1058,210 @@ function buildAdminOutlierHTML({ tahun_ajar, semester }){
     }
 }
 
-// Guru analytics: belum diaktifkan pada tahap ini (biar tidak crash)
-function renderGuruAnalyticsHTML(){
-    return '';
-}
+// Guru analytics: Progress per kelas + ringkas UH vs PAS/PAT
+function renderGuruAnalyticsHTML(u, combos){
+    try {
+        const { tahun_ajar, semester } = getActivePeriode();
 
+        const comboList = (combos || []).map(c => ({
+            mapel: String(c.mapel||'').trim(),
+            kelas: String(c.kelas||'').trim()
+        })).filter(c => c.mapel && c.kelas);
+
+        if (!comboList.length){
+            return '';
+        }
+
+        // -------------------------
+        // (A) PROGRESS INPUT PER KELAS
+        // -------------------------
+        const kelasMapel = new Map(); // kelas -> Set(mapel)
+        comboList.forEach(c => {
+            const k = _normStr(c.kelas);
+            if (!kelasMapel.has(k)) kelasMapel.set(k, new Set());
+            kelasMapel.get(k).add(_normUpper(c.mapel));
+        });
+
+        const kelasProgress = [];
+        kelasMapel.forEach((mapelSet, kelas) => {
+            const siswa = (students || []).filter(s => _normStr(s.kelas) === _normStr(kelas));
+            const nSiswa = siswa.length;
+            const mapelArr = Array.from(mapelSet.values());
+
+            const expectedTotal = nSiswa * mapelArr.length;
+            let filledTotal = 0;
+
+            const mapelMissing = [];
+            mapelArr.forEach(m => {
+                const filled = _countDistinctScoresFor(m, kelas, tahun_ajar, semester);
+                filledTotal += filled;
+                const missing = Math.max(0, nSiswa - filled);
+                mapelMissing.push({ mapel: m, missing, filled, expected: nSiswa });
+            });
+
+            const missingTotal = Math.max(0, expectedTotal - filledTotal);
+            const pct = expectedTotal ? Math.min(100, Math.round((filledTotal/expectedTotal)*100)) : 0;
+
+            mapelMissing.sort((a,b)=> (b.missing-a.missing) || a.mapel.localeCompare(b.mapel));
+            const topMiss = mapelMissing.slice(0, 2);
+
+            kelasProgress.push({
+                kelas, nSiswa, mapelCount: mapelArr.length,
+                expectedTotal, filledTotal, missingTotal, pct,
+                topMiss,
+                actionMapel: (topMiss[0] && topMiss[0].mapel) ? topMiss[0].mapel : (mapelArr[0]||'')
+            });
+        });
+
+        // prioritas: yang paling belum lengkap
+        kelasProgress.sort((a,b)=> (a.pct-b.pct) || (b.missingTotal-a.missingTotal) || a.kelas.localeCompare(b.kelas));
+
+        const kelasRows = kelasProgress.slice(0, 12).map(kp => `
+            <div class="p-3 rounded-lg border hover:bg-gray-50 w-full">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                    <div class="min-w-0 flex-1 w-full">
+                        <div class="font-extrabold text-gray-800 truncate" title="${kp.kelas}">${kp.kelas}</div>
+                        <div class="text-xs text-gray-600">${kp.nSiswa} santri • ${kp.mapelCount} mapel • <span class="font-mono">${kp.filledTotal}/${kp.expectedTotal}</span></div>
+                        <div class="mt-2 h-2 bg-gray-200 rounded w-full">
+                            <div class="h-2 bg-blue-600 rounded" style="width:${kp.pct}%"></div>
+                        </div>
+                        <div class="mt-2 text-xs text-gray-600">
+                            ${kp.topMiss.map(x => `<span class="inline-flex items-center gap-1 mr-2 mb-1 bg-red-50 text-red-800 px-2 py-1 rounded-full font-bold">${x.mapel}: ${x.missing}</span>`).join('')}
+                        </div>
+                    </div>
+                    <div class="flex gap-2 shrink-0">
+                        <button class="px-3 py-2 rounded bg-blue-600 text-white text-xs font-extrabold shadow"
+                            onclick="renderNilaiPage(decodeURIComponent('${_encArg(kp.actionMapel)}'), decodeURIComponent('${_encArg(kp.kelas)}'))">Lanjut</button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        const progressCard = `
+            <div class="bg-white p-6 rounded-xl shadow border">
+                <div class="flex items-center justify-between gap-3 mb-3">
+                    <h3 class="text-lg font-extrabold text-gray-800">📌 Progress Input per Kelas</h3>
+                    <div class="text-xs text-gray-500">Periode: <b>${tahun_ajar}</b> / Semester <b>${semester}</b></div>
+                </div>
+                <div class="text-xs text-gray-500 mb-3">Menampilkan 12 kelas teratas yang paling belum lengkap (berdasarkan sisa input).</div>
+                <div class="space-y-2">${kelasRows || `<div class="text-sm text-gray-600">Tidak ada data kelas.</div>`}</div>
+            </div>
+        `;
+
+        // -------------------------
+        // (B) RINGKAS UH vs PAS/PAT
+        // -------------------------
+        function _mean(arr){
+            const a = (arr || []).filter(x => Number.isFinite(x));
+            if (!a.length) return 0;
+            return a.reduce((s,v)=>s+v,0) / a.length;
+        }
+
+        const rowsUH = [];
+        comboList.forEach(c => {
+            const mapel = _normUpper(c.mapel);
+            const kelas = _normStr(c.kelas);
+
+            const scList = (scores || []).filter(sc =>
+                _normUpper(sc.mapel) === mapel &&
+                _normStr(sc.kelas) === kelas &&
+                String(sc.tahun_ajar||'') === String(tahun_ajar||'') &&
+                Number(sc.semester||0) === Number(semester||0)
+            );
+
+            const uhVals = [];
+            const pasVals = [];
+            scList.forEach(sc => {
+                const uh = Number(_avgUH(sc) || 0);
+                const pas = Number(sc.pas ?? sc.pas_pat ?? 0);
+                if (uh > 0) uhVals.push(uh);
+                if (pas > 0) pasVals.push(pas);
+            });
+
+            // hanya tampilkan kalau ada data minimal
+            const nUH = uhVals.length;
+            const nPAS = pasVals.length;
+            if (nUH < 3 && nPAS < 3) return;
+
+            const meanUH = _mean(uhVals);
+            const meanPAS = _mean(pasVals);
+            const delta = (meanPAS - meanUH);
+
+            rowsUH.push({
+                mapel, kelas,
+                nUH, nPAS,
+                meanUH: Math.round(meanUH*10)/10,
+                meanPAS: Math.round(meanPAS*10)/10,
+                delta: Math.round(delta*10)/10
+            });
+        });
+
+        rowsUH.sort((a,b)=> Math.abs(b.delta) - Math.abs(a.delta));
+
+        const badgeDelta = (d)=>{
+            if (d >= 5) return `<span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-extrabold">Ngangkat +${d}</span>`;
+            if (d <= -5) return `<span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-extrabold">Anjlok ${d}</span>`;
+            return `<span class="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs font-extrabold">${d > 0 ? '+'+d : d}</span>`;
+        };
+
+        const tableRows = rowsUH.slice(0, 15).map((r,i)=>`
+            <tr class="border-b hover:bg-gray-50">
+                <td class="p-2 text-center text-xs text-gray-500">${i+1}</td>
+                <td class="p-2 font-bold">${r.mapel}</td>
+                <td class="p-2">${r.kelas}</td>
+                <td class="p-2 text-center font-mono text-sm">${r.meanUH}</td>
+                <td class="p-2 text-center font-mono text-sm">${r.meanPAS}</td>
+                <td class="p-2 text-center">${badgeDelta(r.delta)}</td>
+                <td class="p-2 text-center text-xs text-gray-500">${r.nUH}/${r.nPAS}</td>
+                <td class="p-2 text-center">
+                    <button class="px-3 py-1 rounded bg-blue-600 text-white text-xs font-extrabold shadow"
+                        onclick="renderNilaiPage(decodeURIComponent('${_encArg(r.mapel)}'), decodeURIComponent('${_encArg(r.kelas)}'))">Buka</button>
+                </td>
+            </tr>
+        `).join('');
+
+        const ringkasCard = `
+            <div class="bg-white p-6 rounded-xl shadow border">
+                <div class="flex items-center justify-between gap-3 mb-3">
+                    <h3 class="text-lg font-extrabold text-gray-800">📈 Ringkas Kualitas Nilai (UH vs PAS/PAT)</h3>
+                    <div class="text-xs text-gray-500">Urut berdasarkan perubahan terbesar</div>
+                </div>
+                <div class="text-xs text-gray-500 mb-3">Delta = rata-rata PAS/PAT − rata-rata UH (rata-rata UH dihitung dari UH1–UH5 yang terisi).</div>
+                <div class="overflow-auto">
+                    <table class="min-w-[900px] w-full text-sm border std-table whitespace-nowrap">
+                        <thead class="bg-gray-100 sticky top-0">
+                            <tr>
+                                <th class="p-2 text-center">#</th>
+                                <th class="p-2">Mapel</th>
+                                <th class="p-2">Kelas</th>
+                                <th class="p-2 text-center">Mean UH</th>
+                                <th class="p-2 text-center">Mean PAS/PAT</th>
+                                <th class="p-2 text-center">Delta</th>
+                                <th class="p-2 text-center">N(UH/PAS)</th>
+                                <th class="p-2 text-center">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows || `<tr><td colspan="8" class="p-3 text-center text-gray-500">Belum ada data cukup untuk dibandingkan.</td></tr>`}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+
+        // Split marker used by dashboard layout to place cards side-by-side on desktop
+        return `${progressCard}<!--GURU_ANALYTICS_SPLIT-->${ringkasCard}`;
+
+    } catch (e) {
+        console.warn('Gagal render Guru analytics', e);
+        return `
+            <div class="bg-yellow-50 p-5 rounded-xl border border-yellow-200">
+                <div class="font-extrabold text-yellow-900">ℹ️ Statistik guru belum bisa dihitung</div>
+                <div class="text-sm text-yellow-900">Terjadi error saat menghitung statistik. Coba refresh atau cek data nilai.</div>
+            </div>
+        `;
+    }
+}
 function renderAdminNilaiMonitor(mapel, kelas, guru){
     const main = document.getElementById('main-content');
     const { tahun_ajar, semester } = getActivePeriode();
