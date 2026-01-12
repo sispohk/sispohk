@@ -384,7 +384,7 @@ function renderAdminTodoDashboardHTML(todos){
 
     const topKelas = _aggTop(todos, 'kelas').slice(0, 8);
     const topMapel = _aggTop(todos, 'mapel').slice(0, 8);
-    const topDetail = todos.slice(0, 15);
+    const topDetail = todos; // show all rows (not only top 15)
 
     const smallList = (items, label) => `
         <div class="bg-white p-4 rounded-xl border shadow-sm">
@@ -430,15 +430,8 @@ function renderAdminTodoDashboardHTML(todos){
             <button class="bg-blue-700 text-white px-4 py-2 rounded font-bold text-sm shadow"
                 onclick="renderAdminTodoPage()">Lihat Semua</button>
         </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-            ${smallList(topKelas, 'Top Kelas (paling banyak tertunda)')}
-            ${smallList(topMapel, 'Top Mapel (paling banyak tertunda)')}
-        </div>
-
         <div class="bg-white p-4 rounded-xl border shadow-sm">
-            <div class="font-extrabold text-gray-800 mb-3">Detail Mapel × Kelas (Top 15)</div>
-            <div class="overflow-auto">
+                        <div class="overflow-auto">
                 <table class="min-w-[900px] w-full text-sm border std-table">
                     <thead class="bg-blue-600 text-white">
                         <tr>
@@ -1941,7 +1934,7 @@ window._lastKonversiRows = data;
         const main = document.getElementById('main-content');
         
         const headerBtn = `<div class="flex gap-2 flex-wrap justify-end">
-            ${mode!=='print' && mode!=='data' ? `<button onclick="triggerImport('${mode}', '${kelas}')" class="bg-green-600 text-white px-3 py-1 rounded shadow text-sm font-bold">Import</button>` : ''}
+            ${mode!=='print' && mode!=='data' && mode!=='rekap' ? `<button onclick="triggerImport('${mode}', '${kelas}')" class="bg-green-600 text-white px-3 py-1 rounded shadow text-sm font-bold">Import</button>` : ''}
             ${(mode!=='print' && mode!=='rekap') ? `<button onclick="exportExcelWali('${mode}', '${kelas}')" class="bg-indigo-600 text-white px-3 py-1 rounded shadow text-sm font-bold">Export</button>` : ''}
             ${(mode==='absen' || mode==='catatan') ? `<button onclick="saveWaliDataLocal('${mode}')" class="bg-blue-800 text-white px-4 py-1 rounded shadow text-sm font-bold">Simpan</button>` : ''}
             ${mode==='data' ? `<button onclick="refreshWaliDataKelas()" class="bg-blue-800 text-white px-4 py-1 rounded shadow text-sm font-bold">Simpan</button>` : ''}
