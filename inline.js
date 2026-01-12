@@ -136,7 +136,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                 </div>
 
-                <div class="bg-white p-6 rounded-xl shadow border">
+                
+                <div class="bg-blue-50 p-6 rounded-xl border border-blue-200">
+                    <h3 class="text-lg font-extrabold text-blue-900 mb-2">Panduan Singkat Admin</h3>
+                    <ol class="list-decimal pl-6 text-sm text-blue-900 space-y-1">
+                        <li>Cek <b>Periode Aktif</b> (Tahun Ajar & Semester) di bagian atas.</li>
+                        <li>Isi/cek <b>Database</b>: Guru, Santri, Legger (import/export tersedia).</li>
+                        <li>Atur <b>Bobot</b> & <b>Konversi</b> sebelum input nilai berjalan jauh.</li>
+                        <li>Pantau <b>Status Nilai</b> dan gunakan menu <b>Ranking</b> untuk Top 3.</li>
+                        <li>Bangun/cetak <b>Rapor & Legger</b> setelah nilai mapel lengkap.</li>
+                    </ol>
+                    <div class="text-xs text-blue-800 mt-3">Tip: Kalau ada menu yang hilang, biasanya karena kolom <b>wali</b> / <b>musyrif</b> pada data guru belum terisi.</div>
+                </div>
+
+<div class="bg-white p-6 rounded-xl shadow border">
                     <h3 class="text-lg font-bold text-gray-800 mb-2">Catatan Singkat</h3>
                     <ul class="list-disc pl-6 text-sm text-gray-700 space-y-1">
                         <li>Role akun hanya: <b>admin</b> dan <b>guru</b>. Peran wali kelas/musyrif otomatis aktif kalau kolom <b>wali</b> / <b>musyrif</b> terisi.</li>
@@ -213,7 +226,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </div>
             </div>
 
-            <div class="bg-white p-6 rounded-xl shadow border">
+            
+            <div class="bg-green-50 p-6 rounded-xl border border-green-200">
+                <h3 class="text-lg font-extrabold text-green-900 mb-2">Panduan Singkat Guru</h3>
+                <ol class="list-decimal pl-6 text-sm text-green-900 space-y-1">
+                    <li>Pilih <b>Mapel → Kelas</b> dari sidebar.</li>
+                    <li>Isi nilai, lalu klik <b>Simpan</b> (disimpan batch agar aman untuk data banyak).</li>
+                    <li>Cek <b>Status Nilai</b> (jika tersedia) untuk memastikan mapel sudah terkirim.</li>
+                    <li>Kalau Anda juga <b>Wali Kelas</b> atau <b>Musyrif</b>, menu tambahan akan muncul otomatis.</li>
+                </ol>
+                <div class="text-xs text-green-800 mt-3">Tip: Pastikan periode aktif sudah benar: <b>${tahun_ajar}</b> / Semester <b>${semester}</b>.</div>
+            </div>
+
+<div class="bg-white p-6 rounded-xl shadow border">
                 <h3 class="text-lg font-bold text-gray-800 mb-2">Catatan</h3>
                 <ul class="list-disc pl-6 text-sm text-gray-700 space-y-1">
                     <li>Input nilai disimpan <b>batch</b> agar tidak terpotong saat data banyak.</li>
