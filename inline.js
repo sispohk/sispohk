@@ -267,6 +267,10 @@ ${_adminTodoHtml}
 function _normUpper(s){ return String(s||'').toUpperCase().trim(); }
 function _normStr(s){ return String(s||'').trim(); }
 
+
+
+// Safe encode for inline onclick attributes
+function _encArg(v){ return encodeURIComponent(String(v ?? '')); }
 function _countDistinctScoresFor(mapel, kelas, tahun_ajar, semester){
     const set = new Set();
     (scores || []).forEach(sc => {
@@ -348,7 +352,7 @@ function renderAdminTodoDashboardHTML(todos){
 
     const detailRows = topDetail.map((t, i) => `
         <tr class="hover:bg-gray-50 border-b cursor-pointer"
-            onclick="renderAdminNilaiMonitor(${JSON.stringify(t.mapel)}, ${JSON.stringify(t.kelas)}, ${JSON.stringify(t.guru)})">
+            onclick="renderAdminNilaiMonitor(decodeURIComponent('${_encArg(t.mapel)}'), decodeURIComponent('${_encArg(t.kelas)}'), decodeURIComponent('${_encArg(t.guru)}'))">
             <td class="p-2 text-center text-xs text-gray-500">${i+1}</td>
             <td class="p-2 font-bold">${t.kelas}</td>
             <td class="p-2">${t.mapel}</td>
@@ -359,9 +363,9 @@ function renderAdminTodoDashboardHTML(todos){
             </td>
             <td class="p-2 text-center">
                 <button class="px-3 py-1 rounded bg-indigo-600 text-white text-xs font-bold shadow"
-                    onclick="event.stopPropagation(); renderAdminNilaiMonitor(${JSON.stringify(t.mapel)}, ${JSON.stringify(t.kelas)}, ${JSON.stringify(t.guru)})">Detail</button>
+                    onclick="event.stopPropagation(); renderAdminNilaiMonitor(decodeURIComponent('${_encArg(t.mapel)}'), decodeURIComponent('${_encArg(t.kelas)}'), decodeURIComponent('${_encArg(t.guru)}'))">Detail</button>
                 <button class="px-3 py-1 rounded bg-gray-700 text-white text-xs font-bold shadow ml-1"
-                    onclick="event.stopPropagation(); openAdminLeggerForKelas(${JSON.stringify(t.kelas)})">Legger</button>
+                    onclick="event.stopPropagation(); openAdminLeggerForKelas(decodeURIComponent('${_encArg(t.kelas)}'))">Legger</button>
             </td>
         </tr>
     `).join('');
@@ -442,7 +446,7 @@ function renderGuruQuickContinueHTML(items){
             </div>
             <div class="flex gap-2">
                 <button class="px-4 py-2 rounded bg-blue-600 text-white text-sm font-bold shadow"
-                    onclick="renderNilaiPage(${JSON.stringify(it.mapel)}, ${JSON.stringify(it.kelas)})">Lanjut</button>
+                    onclick="renderNilaiPage(decodeURIComponent('${_encArg(it.mapel)}'), decodeURIComponent('${_encArg(it.kelas)}'))">Lanjut</button>
             </div>
         </div>
     `).join('');
@@ -464,7 +468,7 @@ function renderAdminTodoPage(){
 
     const rows = (todos || []).map((t,i)=>`
         <tr class="hover:bg-gray-50 border-b cursor-pointer"
-            onclick="renderAdminNilaiMonitor(${JSON.stringify(t.mapel)}, ${JSON.stringify(t.kelas)}, ${JSON.stringify(t.guru)})">
+            onclick="renderAdminNilaiMonitor(decodeURIComponent('${_encArg(t.mapel)}'), decodeURIComponent('${_encArg(t.kelas)}'), decodeURIComponent('${_encArg(t.guru)}'))">
             <td class="p-2 text-center text-xs text-gray-500">${i+1}</td>
             <td class="p-2 font-bold">${t.kelas}</td>
             <td class="p-2">${t.mapel}</td>
@@ -473,9 +477,9 @@ function renderAdminTodoPage(){
             <td class="p-2 text-center"><span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-extrabold">${t.missing}</span></td>
             <td class="p-2 text-center">
                 <button class="px-3 py-1 rounded bg-indigo-600 text-white text-xs font-bold shadow"
-                    onclick="event.stopPropagation(); renderAdminNilaiMonitor(${JSON.stringify(t.mapel)}, ${JSON.stringify(t.kelas)}, ${JSON.stringify(t.guru)})">Detail</button>
+                    onclick="event.stopPropagation(); renderAdminNilaiMonitor(decodeURIComponent('${_encArg(t.mapel)}'), decodeURIComponent('${_encArg(t.kelas)}'), decodeURIComponent('${_encArg(t.guru)}'))">Detail</button>
                 <button class="px-3 py-1 rounded bg-gray-700 text-white text-xs font-bold shadow ml-1"
-                    onclick="event.stopPropagation(); openAdminLeggerForKelas(${JSON.stringify(t.kelas)})">Legger</button>
+                    onclick="event.stopPropagation(); openAdminLeggerForKelas(decodeURIComponent('${_encArg(t.kelas)}'))">Legger</button>
             </td>
         </tr>
     `).join('');
@@ -550,7 +554,7 @@ function renderAdminNilaiMonitor(mapel, kelas, guru){
             </div>
             <div class="flex flex-wrap gap-2 justify-end">
                 <button onclick="renderAdminTodoPage()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded font-bold text-sm">Kembali</button>
-                <button onclick="openAdminLeggerForKelas(${JSON.stringify(kelas)})" class="bg-gray-700 text-white px-4 py-2 rounded font-bold text-sm shadow">Legger</button>
+                <button onclick="openAdminLeggerForKelas(decodeURIComponent('${_encArg(kelas)}'))" class="bg-gray-700 text-white px-4 py-2 rounded font-bold text-sm shadow">Legger</button>
             </div>
         </div>
 
@@ -889,6 +893,13 @@ async function openAdminLeggerForKelas(kelas){
 
             setLoading(true, "Menyimpan Konversi Ideal...");
             await saveKonversiIdealGlobal(rows);
+
+            // refresh cache matrix agar legger/ranking langsung pakai nilai ideal terbaru
+            try {
+                window.konversiIdealMatrix = await fetchKonversiIdealMatrixGlobal();
+            } catch (e) {
+                console.warn('Gagal refresh matriks konversi ideal', e);
+            }
 
             showToast('Konversi ideal tersimpan', 'success');
         } catch (e) {
@@ -1629,55 +1640,100 @@ let content = '';
         return isFinite(val) ? val : 0;
     }
 
+    function _getIdealSync(jenjang, semester){
+        try {
+            const m = window.konversiIdealMatrix;
+            if (m && typeof m.get === 'function') return m.get(`${jenjang}|${semester}`) || null;
+        } catch {}
+        return null;
+    }
+
     function buildLeggerDataForKelas(kelas){
         const { tahun_ajar, semester } = getActivePeriode();
-        const mapels = getMapelListForKelas(kelas);
-        const siswa = students.filter(s => String(s.kelas||'').trim() === String(kelas||'').trim());
+        const mapels = getMapelListForKelas(kelas).map(_upper);
+        const kelasKey = String(kelas||'').trim();
+        const siswa = students.filter(s => String(s.kelas||'').trim() === kelasKey);
 
-        const rows = siswa.map((s, idx) => {
-            const mvals = {};
-            let sum = 0;
+        // index nilai_mapel agar tidak .find berulang (lebih cepat untuk data besar)
+        const idx = new Map();
+        (scores||[]).forEach(r => {
+            if (!r) return;
+            if (String(r.kelas||'').trim() !== kelasKey) return;
+            if (String(r.tahun_ajar||'') !== String(tahun_ajar||'')) return;
+            if (Number(r.semester||0) !== Number(semester||0)) return;
+            const key = `${String(r.nis||'')}|${_upper(r.mapel)}`;
+            idx.set(key, r);
+        });
 
+        // 1) hitung nilai rapor (raw) dulu untuk semua mapel & santri
+        const rowsRaw = siswa.map((s, idxNo) => {
+            const raw = {};
             mapels.forEach(m => {
-                const sc = (scores||[]).find(x =>
-                    String(x.nis||'') === String(s.nis||'') &&
-                    String(x.kelas||'').trim() === String(kelas||'').trim() &&
-                    String(x.tahun_ajar||'') === String(tahun_ajar||'') &&
-                    Number(x.semester||0) === Number(semester||0) &&
-                    _upper(x.mapel) === _upper(m)
-                );
-
+                const sc = idx.get(`${String(s.nis||'')}|${m}`);
                 const rap = calcNilaiRapor(sc);
-                const fixed = rap > 0 ? Math.round(rap * 100) / 100 : 0;
-                mvals[_upper(m)] = fixed;
-                sum += fixed;
+                raw[m] = rap > 0 ? Math.round(rap * 100) / 100 : 0;
             });
-
-            const rata = mapels.length ? (sum / mapels.length) : 0;
-
             return {
-                no: idx + 1,
+                no: idxNo + 1,
                 nis: String(s.nis||''),
                 nama: String(s.name||s.nama_santri||''),
                 jk: String(s.jk||s.lp||''),
-                jumlah: Math.round(sum * 100) / 100,
-                rata: Math.round(rata * 100) / 100,
+                mapel_raw: raw,
+                mapel: {},
+                jumlah: 0,
+                rata: 0,
                 ranking: 0,
-                mapel: mvals
             };
         });
 
+        // 2) konversi per mapel (katrol) jika ideal tersedia & meanAsli < meanIdeal
+        const jenjang = _inferJenjangFromKelas(kelasKey) || 'X';
+        const ideal = _getIdealSync(jenjang, semester);
+        const minIdeal = Number(ideal?.min_ideal ?? 0) || 0;
+        const maxIdeal = Number(ideal?.max_ideal ?? 100) || 100;
+        const meanIdeal = Number(ideal?.mean_ideal ?? 0) || 0;
+
+        let anyKonversi = false;
+
+        mapels.forEach(m => {
+            const vals = rowsRaw.map(r => Number(r.mapel_raw[m]||0)).filter(v => Number.isFinite(v) && v > 0);
+            const minAsli = vals.length ? Math.min(...vals) : 0;
+            const maxAsli = vals.length ? Math.max(...vals) : 0;
+            const meanAsli = vals.length ? (vals.reduce((a,b)=>a+b,0) / vals.length) : 0;
+            const denom = (maxAsli - minAsli);
+            const apply = !!ideal && vals.length > 0 && (meanAsli < meanIdeal) && (denom > 0);
+            if (apply) anyKonversi = true;
+
+            rowsRaw.forEach(r => {
+                const v = Number(r.mapel_raw[m]||0);
+                if (!v) { r.mapel[m] = 0; return; }
+                if (!apply) { r.mapel[m] = Math.round(v * 100) / 100; return; }
+                let conv = meanIdeal + (v - meanAsli) * (maxIdeal - minIdeal) / denom;
+                conv = _clamp(conv, minIdeal, maxIdeal);
+                r.mapel[m] = Math.round(conv * 100) / 100;
+            });
+        });
+
+        // 3) hitung jumlah & rata-rata (pakai nilai setelah konversi bila berlaku)
+        rowsRaw.forEach(r => {
+            let sum = 0;
+            mapels.forEach(m => { sum += Number(r.mapel[m]||0); });
+            const rata = mapels.length ? (sum / mapels.length) : 0;
+            r.jumlah = Math.round(sum * 100) / 100;
+            r.rata = Math.round(rata * 100) / 100;
+        });
+
         // ranking per kelas (rata-rata desc)
-        const sorted = [...rows].sort((a,b) => (b.rata||0) - (a.rata||0) || a.nama.localeCompare(b.nama));
+        const sorted = [...rowsRaw].sort((a,b) => (b.rata||0) - (a.rata||0) || a.nama.localeCompare(b.nama));
         sorted.forEach((r,i) => { r.ranking = i + 1; });
         const rankMap = new Map(sorted.map(r => [r.nis, r.ranking]));
-        rows.forEach(r => r.ranking = rankMap.get(r.nis) || 0);
+        rowsRaw.forEach(r => r.ranking = rankMap.get(r.nis) || 0);
 
-        return { mapels: mapels.map(_upper), rows, tahun_ajar, semester };
+        return { mapels, rows: rowsRaw, tahun_ajar, semester, konversi_applied: anyKonversi, jenjang };
     }
 
     function renderLeggerTableHTML(kelas, tableId, scopeLabel){
-        const { mapels, rows, tahun_ajar, semester } = buildLeggerDataForKelas(kelas);
+        const { mapels, rows, tahun_ajar, semester, konversi_applied, jenjang } = buildLeggerDataForKelas(kelas);
 
         const headMapel = mapels.map(m => `<th class="p-2 border">${m}</th>`).join('');
 
@@ -1705,9 +1761,12 @@ let content = '';
 
         const emptyNote = rows.length ? '' : `<div class="text-sm text-gray-500 mb-3">Belum ada santri di kelas ini, atau data belum termuat.</div>`;
 
+        const konvBadge = konversi_applied ? `<span class="ml-2 px-3 py-1 rounded-full bg-blue-50 text-blue-800 text-xs font-bold">Konversi aktif (${jenjang} • S${semester})</span>` : '';
+
         return `
             <div class="text-sm text-gray-600 mb-3">
                 <b>${scopeLabel}</b> • Tahun Ajar: <b>${tahun_ajar}</b> • Semester: <b>${semester}</b>
+                ${konvBadge}
             </div>
             ${emptyNote}
             <div class="overflow-auto max-h-[70vh]">

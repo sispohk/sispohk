@@ -35,6 +35,8 @@ let currentUser = null;
 let appConfig = { tahun_ajar_aktif: '2025/2026', semester_aktif: 1 };
 let bobotNilai = null; // { bobot_kehadiran, bobot_tugas, bobot_uh, bobot_paspat }
 const konversiIdealCache = new Map(); // key: `${tahunAjar||'GLOBAL'}|${jenjang}|${semester}`
+// Cache matrix ideal global (tahun_ajar = null) agar bisa dipakai sinkron di dashboard/legger
+let konversiIdealMatrix = null; // Map: `${jenjang}|${semester}` -> row
 
 function getActivePeriode() {
   return { tahun_ajar: appConfig.tahun_ajar_aktif, semester: appConfig.semester_aktif };
@@ -567,6 +569,16 @@ async function loadInitialData(opts = {}) {
   // 0) Ambil periode aktif (tahun ajar & semester) terlebih dahulu
   try { await fetchAppConfig(); } catch (e) { console.warn('Gagal fetch app_config, pakai default.', e); }
   try { await fetchBobotNilaiGlobal(); } catch (e) { console.warn('Gagal fetch bobot_nilai, pakai fallback.', e); }
+  // 0B) Ambil matriks konversi ideal global (untuk dipakai sinkron oleh legger/ranking)
+  try {
+    konversiIdealMatrix = await fetchKonversiIdealMatrixGlobal();
+    // expose agar bisa dipakai di inline.js (sinkron)
+    window.konversiIdealMatrix = konversiIdealMatrix;
+  } catch (e) {
+    console.warn('Gagal fetch konversi_nilai_ideal, konversi akan nonaktif.', e);
+    konversiIdealMatrix = null;
+    window.konversiIdealMatrix = null;
+  }
   const { tahun_ajar, semester } = getActivePeriode();
 
   const tasks = [
