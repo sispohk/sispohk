@@ -745,12 +745,311 @@ function renderAdminAnalyticsHTML({ tahun_ajar, semester }){
         </div>
     `;
 
+    // Tahap 2: Distribusi nilai & outlier detector
+    const distHtml = buildAdminDistribusiHTML({ tahun_ajar, semester });
+    const outlierHtml = buildAdminOutlierHTML({ tahun_ajar, semester });
+
     return `
         <div class="space-y-4">
             ${rawanHtml}
             ${heatmapHtml}
+            ${distHtml}
+            ${outlierHtml}
         </div>
     `;
+}
+
+// ===============================
+// ADMIN DASHBOARD — Tahap 2
+// - Distribusi nilai per Jenjang & Paralel (berdasarkan rata-rata legger)
+// - Outlier detector mapel×kelas (berdasarkan nilai rapor per mapel)
+// ===============================
+
+function _statMean(arr){
+    const a = (arr||[]).filter(v => Number.isFinite(v));
+    if (!a.length) return 0;
+    return a.reduce((x,y)=>x+y,0)/a.length;
+}
+function _statStd(arr){
+    const a = (arr||[]).filter(v => Number.isFinite(v));
+    if (a.length < 2) return 0;
+    const m = _statMean(a);
+    const v = a.reduce((s,x)=>s+Math.pow(x-m,2),0)/(a.length-1);
+    return Math.sqrt(v);
+}
+function _fmtNum(n, d=2){
+    const v = Number(n);
+    if (!Number.isFinite(v)) return '-';
+    return (Math.round(v*Math.pow(10,d))/Math.pow(10,d)).toFixed(d);
+}
+function _histBins(vals, bins=10){
+    const out = new Array(bins).fill(0);
+    const a = (vals||[]).filter(v => Number.isFinite(v) && v >= 0);
+    if (!a.length) return out;
+    const min = 0, max = 100;
+    const step = (max-min)/bins;
+    a.forEach(v=>{
+        let idx = Math.floor((v-min)/step);
+        if (idx < 0) idx = 0;
+        if (idx >= bins) idx = bins-1;
+        out[idx] += 1;
+    });
+    return out;
+}
+function _sparkHist(vals){
+    const bins = _histBins(vals, 10);
+    const maxC = Math.max(1, ...bins);
+    const bars = bins.map(c=>{
+        const h = 6 + Math.round((c/maxC) * 18); // 6..24px
+        const op = 0.25 + (c/maxC)*0.75;
+        return `<div class="w-[8px] rounded-sm" style="height:${h}px;background:rgba(17,24,39,${op})" title="${c}"></div>`;
+    }).join('');
+    return `<div class="flex items-end gap-[2px] h-[26px]">${bars}</div>`;
+}
+
+function buildAdminDistribusiHTML({ tahun_ajar, semester }){
+    try {
+        const rank = (typeof _getAllLeggerRowsForRanking === 'function') ? _getAllLeggerRowsForRanking() : { rows: [] };
+        const base = (rank.rows || []).filter(r => Number(r.rata||0) > 0);
+
+        const byJenjang = new Map();
+        const byParalel = new Map();
+        base.forEach(r=>{
+            const j = String(r.jenjang||'').trim() || 'NA';
+            const p = String(r.paralel||'').trim() || 'NA';
+            if (!byJenjang.has(j)) byJenjang.set(j, []);
+            if (!byParalel.has(p)) byParalel.set(p, []);
+            byJenjang.get(j).push(Number(r.rata||0));
+            byParalel.get(p).push(Number(r.rata||0));
+        });
+
+        const _rowsFor = (mp) => Array.from(mp.entries()).map(([k, vals])=>{
+            const a = (vals||[]).filter(v=>Number.isFinite(v) && v>0);
+            const mn = a.length ? Math.min(...a) : 0;
+            const mx = a.length ? Math.max(...a) : 0;
+            const me = a.length ? _statMean(a) : 0;
+            return { key:k, n:a.length, min:mn, mean:me, max:mx, vals:a };
+        }).sort((a,b)=> (b.mean-a.mean) || (b.n-a.n) || String(a.key).localeCompare(String(b.key), 'id', { sensitivity:'base' }));
+
+        const jenRows = _rowsFor(byJenjang);
+        const parRows = _rowsFor(byParalel).filter(x=>x.key!=='NA');
+
+        const _tbl = (title, rows) => {
+            if (!rows.length) return `
+                <div class="bg-yellow-50 p-5 rounded-xl border border-yellow-200">
+                    <div class="font-extrabold text-yellow-900">ℹ️ ${title}</div>
+                    <div class="text-sm text-yellow-900">Belum ada data nilai rapor yang bisa dihitung (pastikan legger bisa dibangun).</div>
+                </div>`;
+
+            const body = rows.map((r,i)=>`
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="p-2 text-center text-xs text-gray-500">${i+1}</td>
+                    <td class="p-2 font-extrabold">${r.key}</td>
+                    <td class="p-2 text-center font-mono">${r.n}</td>
+                    <td class="p-2 text-center font-mono">${_fmtNum(r.min,2)}</td>
+                    <td class="p-2 text-center font-extrabold">${_fmtNum(r.mean,2)}</td>
+                    <td class="p-2 text-center font-mono">${_fmtNum(r.max,2)}</td>
+                    <td class="p-2">${_sparkHist(r.vals)}</td>
+                </tr>
+            `).join('');
+
+            return `
+                <div class="bg-white p-6 rounded-xl shadow border">
+                    <div class="mb-2">
+                        <h3 class="text-lg font-extrabold text-gray-800">📊 ${title}</h3>
+                        <div class="text-xs text-gray-500">Ringkasan min/mean/max dari <b>rata-rata rapor per santri</b> (mengikuti bobot & konversi jika aktif).</div>
+                    </div>
+                    <div class="overflow-auto">
+                        <table class="min-w-[900px] w-full text-sm border std-table">
+                            <thead class="bg-gray-800 text-white">
+                                <tr>
+                                    <th class="p-2 w-12">No</th>
+                                    <th class="p-2 text-left">Grup</th>
+                                    <th class="p-2 w-20">N</th>
+                                    <th class="p-2 w-24">Min</th>
+                                    <th class="p-2 w-24">Mean</th>
+                                    <th class="p-2 w-24">Max</th>
+                                    <th class="p-2 text-left">Histogram</th>
+                                </tr>
+                            </thead>
+                            <tbody>${body}</tbody>
+                        </table>
+                    </div>
+                </div>`;
+        };
+
+        return `
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                ${_tbl('Distribusi Nilai per Jenjang', jenRows)}
+                ${_tbl('Distribusi Nilai per Paralel/Jurusan', parRows)}
+            </div>
+        `;
+    } catch (e) {
+        console.warn('Gagal membangun distribusi nilai', e);
+        return `
+            <div class="bg-yellow-50 p-5 rounded-xl border border-yellow-200">
+                <div class="font-extrabold text-yellow-900">ℹ️ Distribusi nilai belum bisa dihitung</div>
+                <div class="text-sm text-yellow-900">Terjadi error saat menghitung distribusi. Coba refresh atau cek data legger.</div>
+            </div>
+        `;
+    }
+}
+
+function buildAdminOutlierHTML({ tahun_ajar, semester }){
+    try {
+        const { tahun_ajar: ta, semester: sem } = getActivePeriode();
+
+        // kumpulkan nilai rapor (raw) per mapel×kelas
+        const mk = new Map(); // key -> { mapel, kelas, valsRaw:[] }
+        (scores || []).forEach(sc=>{
+            if (!sc) return;
+            if (String(sc.tahun_ajar||'') !== String(ta||'')) return;
+            if (Number(sc.semester||0) !== Number(sem||0)) return;
+            const kelas = _normStr(sc.kelas);
+            const mapel = _normUpper(sc.mapel);
+            if (!kelas || !mapel) return;
+            const v = Number(_calcNilaiRapor(sc, bobotNilai || null) || 0);
+            if (!Number.isFinite(v) || v <= 0) return;
+            const key = `${mapel}||${kelas}`;
+            let o = mk.get(key);
+            if (!o){ o = { mapel, kelas, valsRaw: [] }; mk.set(key, o); }
+            o.valsRaw.push(v);
+        });
+
+        // ambil ideal sync agar konsisten dengan legger
+        const getIdeal = (kelas) => {
+            try {
+                const jenjang = _inferJenjangFromKelas(kelas) || 'X';
+                const m = window.konversiIdealMatrix;
+                return m && typeof m.get === 'function' ? (m.get(`${jenjang}|${sem}`) || null) : null;
+            } catch { return null; }
+        };
+
+        const combos = [];
+        mk.forEach(o=>{
+            const raw = (o.valsRaw||[]).filter(v=>Number.isFinite(v) && v>0);
+            if (raw.length < 5) return; // minimal biar tidak noise
+            const minAsli = Math.min(...raw);
+            const maxAsli = Math.max(...raw);
+            const meanAsli = _statMean(raw);
+            const denom = (maxAsli - minAsli);
+
+            const ideal = getIdeal(o.kelas);
+            const minIdeal = Number(ideal?.min_ideal ?? 0) || 0;
+            const maxIdeal = Number(ideal?.max_ideal ?? 100) || 100;
+            const meanIdeal = Number(ideal?.mean_ideal ?? 0) || 0;
+            const apply = !!ideal && (meanAsli < meanIdeal) && denom > 0;
+
+            const vals = apply ? raw.map(v=>{
+                let conv = meanIdeal + (v - meanAsli) * (maxIdeal - minIdeal) / denom;
+                conv = _clamp(conv, minIdeal, maxIdeal);
+                return Math.round(conv*100)/100;
+            }) : raw.map(v=>Math.round(v*100)/100);
+
+            combos.push({
+                mapel:o.mapel, kelas:o.kelas, n:vals.length,
+                min:Math.min(...vals), mean:_statMean(vals), max:Math.max(...vals),
+                applyKonversi: apply
+            });
+        });
+
+        // global per mapel (mean of class-means)
+        const perMapel = new Map();
+        combos.forEach(c=>{
+            if (!perMapel.has(c.mapel)) perMapel.set(c.mapel, []);
+            perMapel.get(c.mapel).push(c.mean);
+        });
+        const mapelStats = new Map();
+        perMapel.forEach((means, mapel)=>{
+            mapelStats.set(mapel, { gMean: _statMean(means), gStd: _statStd(means) });
+        });
+
+        const outliers = [];
+        combos.forEach(c=>{
+            const gs = mapelStats.get(c.mapel) || { gMean: 0, gStd: 0 };
+            const gStd = Number(gs.gStd||0);
+            const z = gStd > 0 ? ((c.mean - gs.gMean)/gStd) : 0;
+            const absz = Math.abs(z);
+            const flags = [];
+            if (gStd > 0 && absz >= 2.0) flags.push(z < 0 ? 'Mean terlalu rendah' : 'Mean terlalu tinggi');
+            if (gStd > 0 && c.min < (gs.gMean - 2.5*gStd)) flags.push('Min sangat rendah');
+            if (gStd > 0 && c.max > (gs.gMean + 2.5*gStd)) flags.push('Max sangat tinggi');
+            if ((c.max - c.min) >= 45) flags.push('Rentang terlalu lebar');
+            if (flags.length) outliers.push({ ...c, z, absz, flags });
+        });
+
+        const top = outliers
+            .sort((a,b)=> (b.absz-a.absz) || ((b.max-b.min)-(a.max-a.min)) || b.n-a.n)
+            .slice(0, 25);
+
+        if (!top.length){
+            return `
+                <div class="bg-green-50 p-5 rounded-xl border border-green-200">
+                    <div class="font-extrabold text-green-900">✅ Outlier tidak terdeteksi</div>
+                    <div class="text-sm text-green-900">Belum ada kombinasi mapel×kelas yang terlihat terlalu ekstrem dibanding kelas lain (dengan data minimal 5 santri terisi).</div>
+                </div>
+            `;
+        }
+
+        const body = top.map((o,i)=>{
+            const badge = o.applyKonversi ? `<span class="ml-2 px-2 py-0.5 rounded-full bg-blue-50 text-blue-800 text-[10px] font-extrabold">Konversi</span>` : '';
+            const flagHtml = o.flags.map(f=>`<span class="inline-flex items-center bg-red-100 text-red-800 px-2 py-1 rounded-full text-[10px] font-extrabold">${f}</span>`).join(' ');
+            return `
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="p-2 text-center text-xs text-gray-500">${i+1}</td>
+                    <td class="p-2 font-extrabold">${o.mapel}${badge}</td>
+                    <td class="p-2 font-extrabold">${o.kelas}</td>
+                    <td class="p-2 text-center font-mono">${o.n}</td>
+                    <td class="p-2 text-center font-mono">${_fmtNum(o.min,2)}</td>
+                    <td class="p-2 text-center font-extrabold">${_fmtNum(o.mean,2)}</td>
+                    <td class="p-2 text-center font-mono">${_fmtNum(o.max,2)}</td>
+                    <td class="p-2 text-center font-mono">${_fmtNum(o.z,2)}</td>
+                    <td class="p-2">${flagHtml}</td>
+                    <td class="p-2 text-center">
+                        <button class="px-3 py-1 rounded bg-gray-700 text-white text-xs font-bold shadow"
+                            onclick="openAdminLeggerForKelas(decodeURIComponent('${_encArg(o.kelas)}'))">Legger</button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        return `
+            <div class="bg-white p-6 rounded-xl shadow border">
+                <div class="mb-2">
+                    <h3 class="text-lg font-extrabold text-gray-800">🧪 Outlier Detector (Mapel × Kelas)</h3>
+                    <div class="text-xs text-gray-500">Mendeteksi kombinasi mapel×kelas yang terlalu ekstrem dibanding kelas lain (berdasarkan <b>mean</b> antar kelas, z-score, serta min/max).</div>
+                </div>
+                <div class="overflow-auto">
+                    <table class="min-w-[1100px] w-full text-sm border std-table">
+                        <thead class="bg-gray-800 text-white">
+                            <tr>
+                                <th class="p-2 w-12">No</th>
+                                <th class="p-2 text-left">Mapel</th>
+                                <th class="p-2 text-left">Kelas</th>
+                                <th class="p-2 w-16">N</th>
+                                <th class="p-2 w-20">Min</th>
+                                <th class="p-2 w-20">Mean</th>
+                                <th class="p-2 w-20">Max</th>
+                                <th class="p-2 w-20">Z</th>
+                                <th class="p-2 text-left">Indikasi</th>
+                                <th class="p-2 w-24">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>${body}</tbody>
+                    </table>
+                </div>
+                <div class="text-xs text-gray-500 mt-2">Catatan: Z dihitung dari perbandingan <b>mean mapel</b> antar kelas. Kombinasi dengan data &lt; 5 santri terisi diabaikan agar tidak noise.</div>
+            </div>
+        `;
+    } catch (e) {
+        console.warn('Gagal membangun outlier detector', e);
+        return `
+            <div class="bg-yellow-50 p-5 rounded-xl border border-yellow-200">
+                <div class="font-extrabold text-yellow-900">ℹ️ Outlier detector belum bisa dihitung</div>
+                <div class="text-sm text-yellow-900">Terjadi error saat menghitung outlier. Coba refresh atau cek data nilai_mapel.</div>
+            </div>
+        `;
+    }
 }
 
 // Guru analytics: belum diaktifkan pada tahap ini (biar tidak crash)
