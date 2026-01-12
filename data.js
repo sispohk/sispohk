@@ -341,10 +341,8 @@ function normalizeGuruPayload(raw, { isInsert = false } = {}) {
   // password default saat insert kalau kosong
   if (isInsert && !cleaned.password) cleaned.password = '123456';
 
-  // Saat update: jangan kirim password null (akan melanggar NOT NULL dan/atau mengosongkan password)
-  if (!isInsert && (cleaned.password === null || cleaned.password === undefined)) {
-    delete cleaned.password;
-  }
+  // saat update: kalau password kosong, jangan kirim (biar tidak jadi NULL)
+  if (!isInsert && cleaned.password === null) delete cleaned.password;
 
   // hapus key null yang tidak wajib? tetap kirim null boleh, tapi lebih bersih:
   Object.keys(cleaned).forEach(k => {
