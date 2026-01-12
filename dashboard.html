@@ -26,11 +26,31 @@
     
     /* FIX: Nama 1 Baris */
     .single-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px; display: block; }
+
+    /* =====================
+       Mobile friendliness
+       ===================== */
+    /* Make wide tables scroll horizontally on small screens */
+    @media (max-width: 768px) {
+      .std-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; }
+      .std-table thead, .std-table tbody { width: max-content; }
+      .std-table th { padding: 8px; font-size: 0.8rem; }
+      .std-table td { padding: 6px; }
+      .std-table input, .std-table textarea { font-size: 0.875rem; min-height: 40px; }
+      .single-line { max-width: 180px; }
+    }
+
+    /* Overlay backdrop for offcanvas sidebar */
+    #sidebar-backdrop { background: rgba(0,0,0,0.45); }
   </style>
 </head>
 <body class="bg-gray-100 flex h-screen overflow-hidden">
 
-  <aside class="w-64 sidebar-bg text-white flex flex-col shadow-xl flex-shrink-0 transition-all duration-300 relative z-20" id="sidebar">
+  <!-- Backdrop (mobile sidebar) -->
+  <div id="sidebar-backdrop" class="fixed inset-0 hidden z-10 md:hidden" onclick="closeSidebar()"></div>
+
+  <!-- Sidebar: offcanvas on mobile, static on desktop -->
+  <aside class="w-64 sidebar-bg text-white flex flex-col shadow-xl flex-shrink-0 transition-transform duration-300 fixed md:relative inset-y-0 left-0 z-20 transform -translate-x-full md:translate-x-0" id="sidebar">
     <div class="p-6 border-b border-blue-800 flex items-center gap-3">
       <img src="logo_putih.png" alt="Logo" class="w-10 h-10" />
       <div class="leading-tight">
@@ -50,7 +70,7 @@
     </div>
   </aside>
 
-  <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
+  <main class="flex-1 flex flex-col h-screen overflow-hidden relative min-w-0">
     <header class="bg-white shadow p-4 flex justify-between items-center md:hidden z-10">
         <div class="flex items-center gap-2">
             <img src="logo.png" alt="Logo" class="w-8 h-8"/>
@@ -58,7 +78,7 @@
         </div>
         <button onclick="toggleSidebar()" class="text-blue-600 font-bold">☰ Menu</button>
     </header>
-    <div id="main-content" class="flex-1 overflow-auto p-6 relative">
+    <div id="main-content" class="flex-1 overflow-auto p-3 md:p-6 relative">
         <div class="flex items-center justify-center h-full"><p class="text-gray-500 animate-pulse">Memuat data...</p></div>
     </div>
     <div id="loading-overlay" class="absolute inset-0 hidden flex flex-col items-center justify-center z-50">

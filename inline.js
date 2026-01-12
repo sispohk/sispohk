@@ -8,8 +8,34 @@ document.addEventListener('DOMContentLoaded', async () => {
             await loadInitialData({ onProgress: (pct, label) => setLoadingProgress(pct, label) });
         setLoading(false);
         renderSidebar();
+        bindMobileSidebarAutoClose();
+        // Ensure sidebar starts closed on small screens
+        closeSidebar();
         renderDashboardContent();
     });
+
+    function bindMobileSidebarAutoClose() {
+        const menu = document.getElementById('sidebar-menu');
+        if (!menu) return;
+        if (menu.dataset.boundMobileClose === '1') return;
+        menu.dataset.boundMobileClose = '1';
+
+        menu.addEventListener('click', (e) => {
+            // Close only when a link is clicked (not when expanding collapsible headers)
+            const a = e.target && e.target.closest && e.target.closest('a');
+            if (!a) return;
+            if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) {
+                closeSidebar();
+            }
+        });
+
+        // If user rotates / resizes to desktop, ensure backdrop disappears
+        window.addEventListener('resize', () => {
+            if (window.matchMedia && !window.matchMedia('(max-width: 768px)').matches) {
+                closeSidebar();
+            }
+        });
+    }
     const isGuru = u => (u?.role || '').toLowerCase().includes('guru') || (u?.mapel && parseMapelData(u.mapel).length > 0);
     // isAdmin, isWali, getWaliKelas sudah didefinisikan di data.js (hindari duplicate declaration)
 
@@ -3526,7 +3552,30 @@ function exportExcelMusyrif(kelas) {
         t.classList.remove('translate-y-20');
         setTimeout(() => t.classList.add('translate-y-20'), 3000);
     }
-    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('-translate-x-full'); }
+    // Sidebar (mobile offcanvas)
+    function openSidebar() {
+        const sb = document.getElementById('sidebar');
+        const bd = document.getElementById('sidebar-backdrop');
+        if (sb) sb.classList.remove('-translate-x-full');
+        if (bd) bd.classList.remove('hidden');
+    }
+    function closeSidebar() {
+        const sb = document.getElementById('sidebar');
+        const bd = document.getElementById('sidebar-backdrop');
+        // Only force-close on mobile (desktop uses md:translate-x-0)
+        if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) {
+            if (sb) sb.classList.add('-translate-x-full');
+            if (bd) bd.classList.add('hidden');
+        } else {
+            if (bd) bd.classList.add('hidden');
+        }
+    }
+    function toggleSidebar() {
+        const sb = document.getElementById('sidebar');
+        if (!sb) return;
+        const isClosed = sb.classList.contains('-translate-x-full');
+        if (isClosed) openSidebar(); else closeSidebar();
+    }
     function logout() { localStorage.removeItem('erapor_user'); window.location.href = 'index.html'; }
     function filterTable(tbodyId) {
         const filter = document.activeElement.value.toUpperCase();
