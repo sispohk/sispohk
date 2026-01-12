@@ -108,6 +108,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <li><a href="#" onclick="renderWaliPage('data')" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">📋 Data Kelas</a></li>
             <li><a href="#" onclick="renderWaliPage('absen')" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">📅 Absensi & Sikap</a></li>
             <li><a href="#" onclick="renderWaliPage('catatan')" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">📝 Catatan & Prestasi</a></li>
+            <li><a href="#" onclick="renderWaliPage('rekap')" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">📌 Rekap Nilai Mapel</a></li>
             <li><a href="#" onclick="renderWaliPage('print')" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">🖨️ Rapor & Legger</a></li>`;
         }
     }
@@ -246,19 +247,19 @@ ${_adminTodoHtml}
                     <div class="text-3xl font-extrabold text-gray-800">${santriSet.size}</div>
                 </div>
                 <div class="bg-white p-5 rounded-xl shadow border">
-                    <div class="text-sm text-gray-500 font-bold mb-1">Peran Tambahan</div>
-                    <div class="text-base font-extrabold text-gray-800">
-                        ${isWaliRole ? '✅ Wali Kelas' : '—'}<br>
-                        ${isMusyrifRole ? '✅ Musyrif' : '—'}
-                    </div>
-                </div>
-                <div class="bg-white p-5 rounded-xl shadow border">
                     <div class="text-sm text-gray-500 font-bold mb-1">Input Nilai (Terisi)</div>
                     <div class="text-3xl font-extrabold text-gray-800">${pct}%</div>
                     <div class="mt-2 h-2 bg-gray-200 rounded w-full">
                         <div class="h-2 bg-blue-600 rounded" style="width:${pct}%"></div>
                     </div>
                     <div class="text-xs text-gray-500 mt-1">${filled} / ${expected} baris</div>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow border">
+                    <div class="text-sm text-gray-500 font-bold mb-1">Peran Tambahan</div>
+                    <div class="text-base font-extrabold text-gray-800">
+                        ${isWaliRole ? '✅ Wali Kelas' : '❎ Wali Kelas'}<br>
+                        ${isMusyrifRole ? '✅ Musyrif' : '❎ Musyrif'}
+                    </div>
                 </div>
             </div>
 
@@ -794,7 +795,6 @@ function renderAdminAnalyticsHTML({ tahun_ajar, semester }){
     return `
         <div class="space-y-4">
             ${heatmapHtml}
-            ${rawanHtml}
             ${outlierHtml}
         </div>
     `;
@@ -1024,12 +1024,7 @@ function buildAdminOutlierHTML({ tahun_ajar, semester }){
             .slice(0, 25);
 
         if (!top.length){
-            return `
-                <div class="bg-green-50 p-5 rounded-xl border border-green-200">
-                    <div class="font-extrabold text-green-900">✅ Outlier tidak terdeteksi</div>
-                    <div class="text-sm text-green-900">Belum ada kombinasi mapel×kelas yang terlihat terlalu ekstrem dibanding kelas lain (dengan data minimal 5 santri terisi).</div>
-                </div>
-            `;
+            return ``;
         }
 
         const body = top.map((o,i)=>{
@@ -1947,7 +1942,7 @@ window._lastKonversiRows = data;
         
         const headerBtn = `<div class="flex gap-2 flex-wrap justify-end">
             ${mode!=='print' && mode!=='data' ? `<button onclick="triggerImport('${mode}', '${kelas}')" class="bg-green-600 text-white px-3 py-1 rounded shadow text-sm font-bold">Import</button>` : ''}
-            ${mode!=='print' ? `<button onclick="exportExcelWali('${mode}', '${kelas}')" class="bg-indigo-600 text-white px-3 py-1 rounded shadow text-sm font-bold">Export</button>` : ''}
+            ${(mode!=='print' && mode!=='rekap') ? `<button onclick="exportExcelWali('${mode}', '${kelas}')" class="bg-indigo-600 text-white px-3 py-1 rounded shadow text-sm font-bold">Export</button>` : ''}
             ${(mode==='absen' || mode==='catatan') ? `<button onclick="saveWaliDataLocal('${mode}')" class="bg-blue-800 text-white px-4 py-1 rounded shadow text-sm font-bold">Simpan</button>` : ''}
             ${mode==='data' ? `<button onclick="refreshWaliDataKelas()" class="bg-blue-800 text-white px-4 py-1 rounded shadow text-sm font-bold">Simpan</button>` : ''}
             ${mode==='print' ? `
@@ -2052,6 +2047,104 @@ let content = '';
             }).join('');
             content = `<table class="w-full text-sm border std-table" id="table-catatan"><thead class="bg-blue-600 text-white"><tr><th>No</th><th>NIS</th><th class="text-left w-64">Nama</th><th>L/P</th><th>Catatan</th><th>Prestasi 1</th><th>Prestasi 2</th><th>Prestasi 3</th></tr></thead><tbody id="tbody-wali">${rows}</tbody></table>`;
         }
+        else if (mode === 'rekap') {
+            const { tahun_ajar, semester } = getActivePeriode();
+            const expected = siswa.length;
+
+            // Build expected combos from guru assignments (mapel × guru) for this class
+            const combos = [];
+            (users || []).forEach(g => {
+                const arr = parseMapelData(g.mapel);
+                (arr || []).forEach(m => {
+                    const mapel = String(m?.nama || '').trim();
+                    if (!mapel) return;
+                    (m.kelas || []).forEach(k => {
+                        if (_normStr(k) !== _normStr(kelas)) return;
+                        combos.push({
+                            mapel: _normUpper(mapel),
+                            mapelRaw: mapel,
+                            guru: String(g.name || g.nama_guru || g.username || '-').trim()
+                        });
+                    });
+                });
+            });
+
+            // Unique by mapel+guru
+            const seen = new Set();
+            const list = combos.filter(c => {
+                const key = `${c.mapel}||${c.guru}`;
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            }).sort((a,b)=> a.mapel.localeCompare(b.mapel, 'id', { sensitivity:'base' }) || a.guru.localeCompare(b.guru, 'id', { sensitivity:'base' }));
+
+            const rows = list.map((c, i) => {
+                const filled = _countDistinctScoresFor(c.mapelRaw, kelas, tahun_ajar, semester);
+                const missing = Math.max(0, expected - filled);
+                const pct = expected ? Math.round((filled/expected)*100) : 0;
+
+                const statusBadge = (filled === 0)
+                    ? `<span class="px-2 py-1 rounded-full bg-red-100 text-red-800 text-xs font-extrabold">Belum Masuk</span>`
+                    : (missing === 0
+                        ? `<span class="px-2 py-1 rounded-full bg-green-100 text-green-800 text-xs font-extrabold">Lengkap</span>`
+                        : `<span class="px-2 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs font-extrabold">Sebagian</span>`
+                      );
+
+                const barBg = _heatBgFromPct(pct);
+                return `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-2 text-center text-xs text-gray-500">${i+1}</td>
+                        <td class="p-2 font-extrabold">${c.mapel}</td>
+                        <td class="p-2">${c.guru || '-'}</td>
+                        <td class="p-2 text-center">${statusBadge}</td>
+                        <td class="p-2 text-center font-mono">${filled}/${expected}</td>
+                        <td class="p-2">
+                            <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden border">
+                                <div class="h-3" style="width:${pct}%;background:${barBg}"></div>
+                            </div>
+                        </td>
+                        <td class="p-2 text-center">
+                            <span class="bg-gray-100 px-2 py-1 rounded-full text-xs font-extrabold">${missing}</span>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            const empty = (!list.length) ? `
+                <div class="bg-yellow-50 p-5 rounded-xl border border-yellow-200">
+                    <div class="font-extrabold text-yellow-900">ℹ️ Belum ada data mapel untuk kelas ini</div>
+                    <div class="text-sm text-yellow-900">Pastikan data <b>Guru → Mapel yang diampu</b> sudah diisi untuk kelas <b>${kelas}</b>.</div>
+                </div>
+            ` : `
+                <div class="bg-white rounded-xl shadow p-6">
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
+                        <div>
+                            <h3 class="text-lg font-extrabold text-gray-800">📌 Rekap Nilai Mapel (Sudah Masuk / Belum)</h3>
+                            <div class="text-xs text-gray-500">Periode <b>${tahun_ajar}</b> / Semester <b>${semester}</b> • Kelas <b>${kelas}</b></div>
+                        </div>
+                    </div>
+                    <div class="overflow-auto">
+                        <table class="min-w-[900px] w-full text-sm border std-table">
+                            <thead class="bg-gray-800 text-white">
+                                <tr>
+                                    <th class="p-2 w-12">No</th>
+                                    <th class="p-2 text-left">Mapel</th>
+                                    <th class="p-2 text-left">Guru Mapel</th>
+                                    <th class="p-2 w-28">Status</th>
+                                    <th class="p-2 w-28">Terisi</th>
+                                    <th class="p-2 text-left">Progress</th>
+                                    <th class="p-2 w-20">Sisa</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            content = empty;
+        }
+
         else if (mode === 'print') {
             content = `<div class="bg-white rounded-xl shadow p-6">
                 ${renderLeggerTableHTML(kelas, 'table-legger-wali', 'Wali Kelas • ' + kelas)}
@@ -2061,7 +2154,7 @@ let content = '';
         main.innerHTML = `
         <div class="bg-white p-6 rounded shadow">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-2xl font-bold capitalize">${(() => { const m = String(mode||""); const kelasTitle = kelas; if(m==="data") return `${kelasTitle} | Data Santri`; if(m==="absen") return `${kelasTitle} | Absensi & Sikap`; if(m==="catatan") return `${kelasTitle} | Catatan & Prestasi`; if(m==="print") return `${kelasTitle} | Rapor dan Legger`; return `${kelasTitle}`; })()}</h2>
+                <h2 class="text-2xl font-bold capitalize">${(() => { const m = String(mode||""); const kelasTitle = kelas; if(m==="data") return `${kelasTitle} | Data Santri`; if(m==="absen") return `${kelasTitle} | Absensi & Sikap`; if(m==="catatan") return `${kelasTitle} | Catatan & Prestasi`; if(m==="rekap") return `${kelasTitle} | Rekap Nilai Mapel`; if(m==="print") return `${kelasTitle} | Rapor dan Legger`; return `${kelasTitle}`; })()}</h2>
                 ${headerBtn}
             </div>
             ${content}
