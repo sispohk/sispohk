@@ -98,6 +98,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // hitung mapel unik
             const mapelSet = new Set();
+            const { tahun_ajar, semester } = getActivePeriode();
+            const _todosNilai = computeNilaiTodoEntries({ tahun_ajar, semester });
+            const _adminTodoHtml = renderAdminTodoDashboardHTML(_todosNilai);
             users.forEach(g => {
                 const m = parseMapelData(g.mapel);
                 m.forEach(x => { if (x?.nama) mapelSet.add(String(x.nama).toUpperCase().trim()); });
@@ -149,6 +152,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <div class="text-xs text-blue-800 mt-3">Tip: Kalau ada menu yang hilang, biasanya karena kolom <b>wali</b> / <b>musyrif</b> pada data guru belum terisi.</div>
                 </div>
 
+${_adminTodoHtml}
+
 <div class="bg-white p-6 rounded-xl shadow border">
                     <h3 class="text-lg font-bold text-gray-800 mb-2">Catatan Singkat</h3>
                     <ul class="list-disc pl-6 text-sm text-gray-700 space-y-1">
@@ -185,6 +190,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const pct = expected ? Math.min(100, Math.round((filled/expected)*100)) : 0;
         const isWaliRole = isWali(u);
         const isMusyrifRole = !!(u.musyrif && String(u.musyrif).trim());
+
+        const _comboProgress = computeGuruComboProgress(u, combos);
+        const _guruQuickHtml = renderGuruQuickContinueHTML(_comboProgress);
 
         document.getElementById('main-content').innerHTML = `
         <div class="max-w-6xl mx-auto space-y-6">
@@ -226,7 +234,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </div>
             </div>
 
-            
+            ${_guruQuickHtml}
+
             <div class="bg-green-50 p-6 rounded-xl border border-green-200">
                 <h3 class="text-lg font-extrabold text-green-900 mb-2">Panduan Singkat Guru</h3>
                 <ol class="list-decimal pl-6 text-sm text-green-900 space-y-1">
@@ -249,6 +258,345 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         </div>`;
     }
+
+
+// ===============================
+// DASHBOARD: TO-DO NILAI (ADMIN) & QUICK CONTINUE (GURU)
+// ===============================
+
+function _normUpper(s){ return String(s||'').toUpperCase().trim(); }
+function _normStr(s){ return String(s||'').trim(); }
+
+function _countDistinctScoresFor(mapel, kelas, tahun_ajar, semester){
+    const set = new Set();
+    (scores || []).forEach(sc => {
+        if (_normUpper(sc.mapel) !== _normUpper(mapel)) return;
+        if (_normStr(sc.kelas) !== _normStr(kelas)) return;
+        if (String(sc.tahun_ajar||'') !== String(tahun_ajar||'')) return;
+        if (Number(sc.semester||0) !== Number(semester||0)) return;
+        const nis = sc.nis ?? sc.nis_santri ?? sc.student_id ?? '';
+        if (nis !== null && nis !== undefined && String(nis).trim() !== '') set.add(String(nis).trim());
+    });
+    return set.size;
+}
+
+function computeNilaiTodoEntries({ tahun_ajar, semester }){
+    const todos = [];
+    (users || []).forEach(g => {
+        const mapelArr = parseMapelData(g.mapel);
+        mapelArr.forEach(m => {
+            const mapel = m?.nama;
+            (m.kelas || []).forEach(kelas => {
+                const siswa = (students || []).filter(s => _normStr(s.kelas) === _normStr(kelas));
+                const expected = siswa.length;
+                if (!expected) return;
+                const filled = _countDistinctScoresFor(mapel, kelas, tahun_ajar, semester);
+                const missing = Math.max(0, expected - filled);
+                if (missing > 0) {
+                    todos.push({
+                        kelas: _normStr(kelas),
+                        mapel: String(mapel || '').trim(),
+                        guru: String(g.name || g.nama_guru || g.username || '-').trim(),
+                        expected, filled, missing
+                    });
+                }
+            });
+        });
+    });
+    // sort: paling banyak yang belum masuk dulu
+    todos.sort((a,b)=> (b.missing-a.missing) || a.kelas.localeCompare(b.kelas) || a.mapel.localeCompare(b.mapel));
+    return todos;
+}
+
+function _aggTop(todos, key){
+    const m = new Map();
+    (todos || []).forEach(t => {
+        const k = String(t[key] || '').trim();
+        if (!k) return;
+        m.set(k, (m.get(k)||0) + Number(t.missing||0));
+    });
+    return Array.from(m.entries()).sort((a,b)=>b[1]-a[1]);
+}
+
+function renderAdminTodoDashboardHTML(todos){
+    const { tahun_ajar, semester } = getActivePeriode();
+    if (!todos || todos.length === 0){
+        return `
+        <div class="bg-green-50 p-6 rounded-xl border border-green-200">
+            <h3 class="text-lg font-extrabold text-green-900 mb-1">✅ To-do Otomatis: Nilai Mapel</h3>
+            <div class="text-sm text-green-900">Periode <b>${tahun_ajar}</b> / Semester <b>${semester}</b> sudah lengkap. Tidak ada mapel-kelas yang tertinggal.</div>
+        </div>`;
+    }
+
+    const topKelas = _aggTop(todos, 'kelas').slice(0, 8);
+    const topMapel = _aggTop(todos, 'mapel').slice(0, 8);
+    const topDetail = todos.slice(0, 15);
+
+    const smallList = (items, label) => `
+        <div class="bg-white p-4 rounded-xl border shadow-sm">
+            <div class="font-extrabold text-gray-800 mb-2">${label}</div>
+            <div class="space-y-2">
+                ${items.map(([k,v]) => `
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="text-sm font-bold text-gray-800 truncate" title="${k}">${k}</div>
+                        <div class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full font-extrabold">${v}</div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+
+    const detailRows = topDetail.map((t, i) => `
+        <tr class="hover:bg-gray-50 border-b cursor-pointer"
+            onclick="renderAdminNilaiMonitor(${JSON.stringify(t.mapel)}, ${JSON.stringify(t.kelas)}, ${JSON.stringify(t.guru)})">
+            <td class="p-2 text-center text-xs text-gray-500">${i+1}</td>
+            <td class="p-2 font-bold">${t.kelas}</td>
+            <td class="p-2">${t.mapel}</td>
+            <td class="p-2">${t.guru}</td>
+            <td class="p-2 text-center text-sm font-mono">${t.filled}/${t.expected}</td>
+            <td class="p-2 text-center">
+                <span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-extrabold">${t.missing}</span>
+            </td>
+            <td class="p-2 text-center">
+                <button class="px-3 py-1 rounded bg-indigo-600 text-white text-xs font-bold shadow"
+                    onclick="event.stopPropagation(); renderAdminNilaiMonitor(${JSON.stringify(t.mapel)}, ${JSON.stringify(t.kelas)}, ${JSON.stringify(t.guru)})">Detail</button>
+                <button class="px-3 py-1 rounded bg-gray-700 text-white text-xs font-bold shadow ml-1"
+                    onclick="event.stopPropagation(); openAdminLeggerForKelas(${JSON.stringify(t.kelas)})">Legger</button>
+            </td>
+        </tr>
+    `).join('');
+
+    return `
+    <div class="bg-blue-50 p-6 rounded-xl border border-blue-200">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-4">
+            <div>
+                <h3 class="text-lg font-extrabold text-blue-900">🧭 To-do Otomatis: Nilai Mapel yang Belum Masuk</h3>
+                <div class="text-xs text-blue-900">Periode <b>${tahun_ajar}</b> / Semester <b>${semester}</b> • Klik baris untuk lihat detail.</div>
+            </div>
+            <button class="bg-blue-700 text-white px-4 py-2 rounded font-bold text-sm shadow"
+                onclick="renderAdminTodoPage()">Lihat Semua</button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+            ${smallList(topKelas, 'Top Kelas (paling banyak tertunda)')}
+            ${smallList(topMapel, 'Top Mapel (paling banyak tertunda)')}
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border shadow-sm">
+            <div class="font-extrabold text-gray-800 mb-3">Detail Mapel × Kelas (Top 15)</div>
+            <div class="overflow-auto">
+                <table class="min-w-[900px] w-full text-sm border std-table">
+                    <thead class="bg-blue-600 text-white">
+                        <tr>
+                            <th class="p-2 w-12">No</th>
+                            <th class="p-2 text-left">Kelas</th>
+                            <th class="p-2 text-left">Mapel</th>
+                            <th class="p-2 text-left">Guru</th>
+                            <th class="p-2 w-24">Terisi</th>
+                            <th class="p-2 w-20">Sisa</th>
+                            <th class="p-2 w-44">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>${detailRows}</tbody>
+                </table>
+            </div>
+        </div>
+        <div class="text-xs text-blue-800 mt-3">Catatan: “Terisi” dihitung dari jumlah santri yang sudah punya record nilai di tabel <b>nilai_mapel</b> (periode aktif).</div>
+    </div>`;
+}
+
+function computeGuruComboProgress(u, combos){
+    const { tahun_ajar, semester } = getActivePeriode();
+    const list = [];
+    (combos || []).forEach(c => {
+        const mapel = c.mapel;
+        const kelas = c.kelas;
+        const siswa = (students || []).filter(s => _normStr(s.kelas) === _normStr(kelas));
+        const expected = siswa.length;
+        if (!expected) return;
+        const filled = _countDistinctScoresFor(mapel, kelas, tahun_ajar, semester);
+        const pct = expected ? Math.min(100, Math.round((filled/expected)*100)) : 0;
+        list.push({ mapel, kelas, expected, filled, missing: Math.max(0, expected-filled), pct });
+    });
+    list.sort((a,b)=> (a.pct-b.pct) || (b.missing-a.missing) || a.mapel.localeCompare(b.mapel) || a.kelas.localeCompare(b.kelas));
+    return list;
+}
+
+function renderGuruQuickContinueHTML(items){
+    if (!items || items.length === 0){
+        return `
+        <div class="bg-yellow-50 p-6 rounded-xl border border-yellow-200">
+            <h3 class="text-lg font-extrabold text-yellow-900 mb-1">🚀 Lanjut Input Nilai</h3>
+            <div class="text-sm text-yellow-900">Belum ada mapel-kelas yang terdeteksi untuk akun ini.</div>
+        </div>`;
+    }
+    const top = items.slice(0, 8);
+    const rows = top.map(it => `
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 p-3 rounded-lg border hover:bg-gray-50">
+            <div class="min-w-0">
+                <div class="font-extrabold text-gray-800 truncate" title="${it.mapel} • ${it.kelas}">${it.mapel} <span class="text-gray-400 font-black">•</span> ${it.kelas}</div>
+                <div class="text-xs text-gray-600">${it.filled}/${it.expected} terisi • sisa <b>${it.missing}</b></div>
+                <div class="mt-2 h-2 bg-gray-200 rounded">
+                    <div class="h-2 bg-blue-600 rounded" style="width:${it.pct}%"></div>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button class="px-4 py-2 rounded bg-blue-600 text-white text-sm font-bold shadow"
+                    onclick="renderNilaiPage(${JSON.stringify(it.mapel)}, ${JSON.stringify(it.kelas)})">Lanjut</button>
+            </div>
+        </div>
+    `).join('');
+
+    return `
+    <div class="bg-white p-6 rounded-xl shadow border">
+        <div class="flex items-center justify-between gap-3 mb-3">
+            <h3 class="text-lg font-extrabold text-gray-800">🚀 Lanjut Input Nilai</h3>
+            <div class="text-xs text-gray-500">Diprioritaskan yang paling belum lengkap</div>
+        </div>
+        <div class="space-y-2">${rows}</div>
+    </div>`;
+}
+
+function renderAdminTodoPage(){
+    const main = document.getElementById('main-content');
+    const { tahun_ajar, semester } = getActivePeriode();
+    const todos = computeNilaiTodoEntries({ tahun_ajar, semester });
+
+    const rows = (todos || []).map((t,i)=>`
+        <tr class="hover:bg-gray-50 border-b cursor-pointer"
+            onclick="renderAdminNilaiMonitor(${JSON.stringify(t.mapel)}, ${JSON.stringify(t.kelas)}, ${JSON.stringify(t.guru)})">
+            <td class="p-2 text-center text-xs text-gray-500">${i+1}</td>
+            <td class="p-2 font-bold">${t.kelas}</td>
+            <td class="p-2">${t.mapel}</td>
+            <td class="p-2">${t.guru}</td>
+            <td class="p-2 text-center font-mono text-sm">${t.filled}/${t.expected}</td>
+            <td class="p-2 text-center"><span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-extrabold">${t.missing}</span></td>
+            <td class="p-2 text-center">
+                <button class="px-3 py-1 rounded bg-indigo-600 text-white text-xs font-bold shadow"
+                    onclick="event.stopPropagation(); renderAdminNilaiMonitor(${JSON.stringify(t.mapel)}, ${JSON.stringify(t.kelas)}, ${JSON.stringify(t.guru)})">Detail</button>
+                <button class="px-3 py-1 rounded bg-gray-700 text-white text-xs font-bold shadow ml-1"
+                    onclick="event.stopPropagation(); openAdminLeggerForKelas(${JSON.stringify(t.kelas)})">Legger</button>
+            </td>
+        </tr>
+    `).join('');
+
+    main.innerHTML = `
+    <div class="bg-white p-6 rounded shadow">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+            <div>
+                <h2 class="text-2xl font-bold">🧭 To-do Nilai Mapel</h2>
+                <div class="text-sm text-gray-600">Periode: <b>${tahun_ajar}</b> / Semester <b>${semester}</b> • klik baris untuk detail.</div>
+            </div>
+            <div class="flex gap-2 justify-end">
+                <button onclick="renderDashboardContent()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded font-bold text-sm">Kembali</button>
+            </div>
+        </div>
+        <input type="text" onkeyup="filterTable('tbody-todo-nilai')" placeholder="Cari (kelas/mapel/guru)..." class="w-full border p-2 mb-4 rounded">
+        <div class="overflow-auto">
+            <table class="min-w-[900px] w-full text-sm border std-table">
+                <thead class="bg-blue-600 text-white sticky top-0">
+                    <tr>
+                        <th class="p-2 w-12">No</th>
+                        <th class="p-2 text-left">Kelas</th>
+                        <th class="p-2 text-left">Mapel</th>
+                        <th class="p-2 text-left">Guru</th>
+                        <th class="p-2 w-24">Terisi</th>
+                        <th class="p-2 w-20">Sisa</th>
+                        <th class="p-2 w-44">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-todo-nilai">${rows}</tbody>
+            </table>
+        </div>
+    </div>`;
+}
+
+function renderAdminNilaiMonitor(mapel, kelas, guru){
+    const main = document.getElementById('main-content');
+    const { tahun_ajar, semester } = getActivePeriode();
+    const siswa = (students || []).filter(s => _normStr(s.kelas) === _normStr(kelas));
+    const scoreByNis = new Map();
+    (scores || []).forEach(sc => {
+        if (_normUpper(sc.mapel) !== _normUpper(mapel)) return;
+        if (_normStr(sc.kelas) !== _normStr(kelas)) return;
+        if (String(sc.tahun_ajar||'') !== String(tahun_ajar||'')) return;
+        if (Number(sc.semester||0) !== Number(semester||0)) return;
+        const nis = String(sc.nis||'').trim();
+        if (nis) scoreByNis.set(nis, sc);
+    });
+
+    const expected = siswa.length;
+    const filled = scoreByNis.size;
+    const missing = Math.max(0, expected - filled);
+
+    const rows = siswa.map((s,i)=>{
+        const has = scoreByNis.has(String(s.nis||'').trim());
+        return `
+        <tr class="border-b ${has ? 'hover:bg-gray-50' : 'bg-red-50 hover:bg-red-100'}">
+            <td class="p-2 text-center text-xs text-gray-500">${i+1}</td>
+            <td class="p-2 text-center font-mono">${s.nis||'-'}</td>
+            <td class="p-2 font-bold filter-target"><div class="single-line w-64" title="${s.name||''}">${s.name||'-'}</div></td>
+            <td class="p-2 text-center">${s.jk||s.lp||'-'}</td>
+            <td class="p-2 text-center">${has ? '✅' : '—'}</td>
+        </tr>`;
+    }).join('');
+
+    main.innerHTML = `
+    <div class="bg-white p-6 rounded shadow">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+            <div>
+                <h2 class="text-2xl font-bold">🔎 Monitor Nilai: ${mapel} • ${kelas}</h2>
+                <div class="text-sm text-gray-600">Guru: <b>${guru||'-'}</b> • Periode: <b>${tahun_ajar}</b> / Semester <b>${semester}</b></div>
+            </div>
+            <div class="flex flex-wrap gap-2 justify-end">
+                <button onclick="renderAdminTodoPage()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded font-bold text-sm">Kembali</button>
+                <button onclick="openAdminLeggerForKelas(${JSON.stringify(kelas)})" class="bg-gray-700 text-white px-4 py-2 rounded font-bold text-sm shadow">Legger</button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+            <div class="p-4 rounded-xl border bg-blue-50">
+                <div class="text-xs text-blue-900 font-bold mb-1">Target</div>
+                <div class="text-2xl font-extrabold text-blue-900">${expected}</div>
+            </div>
+            <div class="p-4 rounded-xl border bg-green-50">
+                <div class="text-xs text-green-900 font-bold mb-1">Terisi</div>
+                <div class="text-2xl font-extrabold text-green-900">${filled}</div>
+            </div>
+            <div class="p-4 rounded-xl border bg-red-50">
+                <div class="text-xs text-red-900 font-bold mb-1">Belum</div>
+                <div class="text-2xl font-extrabold text-red-900">${missing}</div>
+            </div>
+        </div>
+
+        <input type="text" onkeyup="filterTable('tbody-monitor-nilai')" placeholder="Cari santri..." class="w-full border p-2 mb-3 rounded">
+        <div class="overflow-auto max-h-[70vh]">
+            <table class="min-w-[700px] w-full text-sm border std-table whitespace-nowrap">
+                <thead class="bg-blue-600 text-white sticky top-0">
+                    <tr>
+                        <th class="p-2 w-12">No</th>
+                        <th class="p-2 w-24">NIS</th>
+                        <th class="p-2 text-left">Nama</th>
+                        <th class="p-2 w-16">JK</th>
+                        <th class="p-2 w-20">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-monitor-nilai">${rows}</tbody>
+            </table>
+        </div>
+        <div class="text-xs text-gray-500 mt-3">Baris merah = santri belum punya record nilai mapel (periode aktif). Ini biasanya berarti guru belum menekan <b>Simpan</b> untuk santri tersebut.</div>
+    </div>`;
+}
+
+async function openAdminLeggerForKelas(kelas){
+    await renderAdminLegger();
+    const sel = document.getElementById('admin-legger-kelas');
+    if (sel){
+        sel.value = String(kelas||'');
+        sel.dispatchEvent(new Event('change'));
+    }
+}
+
 
     // --- ADMIN: GURU (FIX: 1 Baris Nama, JK) --- (FIX: 1 Baris Nama, JK) ---
         function renderAdminGuru() {
