@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>E-Rapor • Yayasan Husnul Khotimah</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="data.js"></script>
+</head>
+<body class="bg-gray-100 bg-gradient-to-br from-blue-50 via-white to-emerald-50 flex items-center justify-center min-h-screen">
+  <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm border-t-4 border-blue-600">
+    <img src="logo.png" alt="Logo" class="w-24 h-24 mx-auto mb-4" />
+    <h2 class="text-2xl font-extrabold text-center text-blue-700">Login E-Rapor</h2>
+    <p class="text-center text-xs text-gray-500 mt-1 mb-6">Yayasan Husnul Khotimah • Kuningan</p>
+
+    <div class="space-y-4">
+      <div>
+        <label class="block text-gray-700 font-bold mb-1">Username</label>
+        <input type="text" id="username" class="w-full p-2 border border-gray-300 rounded" placeholder="admin" />
+      </div>
+      <div>
+        <label class="block text-gray-700 font-bold mb-1">Password</label>
+        <input type="password" id="password" class="w-full p-2 border border-gray-300 rounded" placeholder="••••••" />
+      </div>
+      <button onclick="handleLogin()" id="btn-login" class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 font-bold mt-4 shadow">Masuk</button>
+      <p id="error-msg" class="text-red-500 text-sm text-center hidden mt-2"></p>
+    </div>
+  </div>
+
+  <script>
+    async function handleLogin() {
+      const u = document.getElementById('username').value;
+      const p = document.getElementById('password').value;
+      const btn = document.getElementById('btn-login');
+      const err = document.getElementById('error-msg');
+
+      btn.innerText = 'Loading...';
+      btn.disabled = true;
+      err.classList.add('hidden');
+
+      const success = await login(u, p);
+      if (success) {
+        window.location.href = 'dashboard.html';
+      } else {
+        err.innerText = 'Username/Password Salah!';
+        err.classList.remove('hidden');
+        btn.innerText = 'Masuk';
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>
