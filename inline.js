@@ -25,7 +25,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             <li><a href="#" onclick="renderAdminSantri()" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">🎓 Data Santri</a></li>
             <li><a href="#" onclick="renderAdminLegger()" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">📊 Legger Santri</a></li>
 
-            <li class="px-3 mt-6 mb-2 text-xs text-blue-300 uppercase font-bold tracking-wider">Pengaturan</li>
+            <li><a href="#" onclick="renderAdminRanking()" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">🏆 Ranking / Juara</a></li>
+<li class="px-3 mt-6 mb-2 text-xs text-blue-300 uppercase font-bold tracking-wider">Pengaturan</li>
             <li><a href="#" onclick="renderBobotNilai()" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">⚖️ Bobot Nilai</a></li>
             <li><a href="#" onclick="renderKonversiNilai()" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">🔄 Konversi Nilai</a></li>
 `;
@@ -541,12 +542,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td class="p-2 font-medium text-left filter-target"><div class="single-line" title="${s.name}" data-name="${s.name}">${s.name}</div></td>
                 <td class="p-2 text-center">${s.jk||s.lp||'-'}</td>
                 <td class="p-2"><input type="number" data-name="${s.name}" data-nis="${s.nis||''}" data-field="kehadiran" value="${sc.kehadiran||0}" class="nav-input"></td>
+                <td class="p-2"><input type="number" data-name="${s.name}" data-nis="${s.nis||''}" data-field="tugas" value="${sc.tugas||0}" class="bg-yellow-50 nav-input"></td>
                 <td class="p-2"><input type="number" data-name="${s.name}" data-nis="${s.nis||''}" data-field="uh1" value="${sc.uh1||0}" class="nav-input"></td>
                 <td class="p-2"><input type="number" data-name="${s.name}" data-nis="${s.nis||''}" data-field="uh2" value="${sc.uh2||0}" class="nav-input"></td>
                 <td class="p-2"><input type="number" data-name="${s.name}" data-nis="${s.nis||''}" data-field="uh3" value="${sc.uh3||0}" class="nav-input"></td>
                 <td class="p-2"><input type="number" data-name="${s.name}" data-nis="${s.nis||''}" data-field="uh4" value="${sc.uh4||0}" class="nav-input"></td>
                 <td class="p-2"><input type="number" data-name="${s.name}" data-nis="${s.nis||''}" data-field="uh5" value="${sc.uh5||0}" class="nav-input"></td>
-                <td class="p-2"><input type="number" data-name="${s.name}" data-nis="${s.nis||''}" data-field="tugas" value="${sc.tugas||0}" class="bg-yellow-50 nav-input"></td>
                 <td class="p-2"><input type="number" data-name="${s.name}" data-nis="${s.nis||''}" data-field="pas_pat" value="${sc.pas_pat||sc.pas||0}" class="bg-blue-50 nav-input"></td>
             </tr>`;
         }).join('');
@@ -566,15 +567,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <thead class="bg-blue-600 text-white">
                         <tr>
                             <th class="p-2">No</th><th class="p-2">NIS</th><th class="p-2 text-left w-64">Nama</th><th class="p-2 w-14">L/P</th>
-                            <th class="p-2 w-14">Hadir</th><th class="p-2 w-14">UH1</th><th class="p-2 w-14">UH2</th><th class="p-2 w-14">UH3</th><th class="p-2 w-14">UH4</th><th class="p-2 w-14">UH5</th>
-                            <th class="p-2 w-14 bg-yellow-600 text-white">Tugas</th><th class="p-2 w-20 bg-blue-800 text-white">PAS/PAT</th>
+                            <th class="p-2 w-14">Hadir</th><th class="p-2 w-14 bg-yellow-600 text-white">Tugas</th><th class="p-2 w-14">UH1</th><th class="p-2 w-14">UH2</th><th class="p-2 w-14">UH3</th><th class="p-2 w-14">UH4</th><th class="p-2 w-14">UH5</th><th class="p-2 w-20 bg-blue-800 text-white">PAS/PAT</th>
                         </tr>
                     </thead>
                     <tbody id="tbody-nilai">${rows}</tbody>
                 </table>
             </div>
         </div>`;
-        
+        enableArrowNavigation('table-nilai');
+        attachInputIndicators('table-nilai', { max100: true, excludeFields: new Set([]) });
+    }
+
     // --- GURU MAPEL: KONVERSI NILAI ---
     function _inferJenjangFromKelas(kelas) {
         const t = (kelas || '').trim().split(/\s+/)[0] || '';
@@ -765,11 +768,6 @@ window._lastKonversiRows = data;
             showToast('Gagal export: ' + (e.message || e), 'error');
         }
     }
-
-enableArrowNavigation('table-nilai');
-attachInputIndicators('table-nilai', { max100: true, excludeFields: new Set([]) });
-    }
-
     async function saveNilaiMapel(mapel, kelas) {
         setLoading(true, "Menyimpan Nilai (Batch)...");
         try {
@@ -1688,6 +1686,241 @@ function printLeggerSantri(nis, kelas){
     }
 
 
+
+
+// --- ADMIN: RANKING / JUARA ---
+let _rankingCache = { key: '', rows: [], tahun_ajar: '', semester: 0 };
+
+function _inferParalelFromKelas(kelas) {
+    const raw = String(kelas || '').trim();
+    if (!raw) return '';
+    const parts = raw.split(/\s+/).filter(Boolean);
+    const jenjang = _inferJenjangFromKelas(raw) || (parts[0] || '').toUpperCase();
+
+    // ambil token jurusan (umumnya token ke-2: IPA/IPS/BAHASA/dll)
+    let jur = '';
+    if (parts.length >= 2) {
+        const cand = String(parts[1] || '').toUpperCase();
+        // tolak token yang terlalu "kelas" seperti A1/A2/A4, atau murni angka
+        const looksLikeKelasSuffix = /^[A-Z]\d+$/i.test(cand) || /^[A-Z]$/i.test(cand);
+        if (!looksLikeKelasSuffix && /[A-Z]/.test(cand) && !/^\d+$/.test(cand)) jur = cand;
+    }
+    return jur ? `${jenjang} ${jur}` : (jenjang || raw);
+}
+
+function _getAllLeggerRowsForRanking() {
+    const { tahun_ajar, semester } = getActivePeriode();
+    const key = `${tahun_ajar}|${semester}|${(bobotNilai && JSON.stringify(bobotNilai)) ? 'b' : 'nb'}`;
+    if (_rankingCache.key === key && Array.isArray(_rankingCache.rows)) {
+        return { rows: _rankingCache.rows, tahun_ajar: _rankingCache.tahun_ajar, semester: _rankingCache.semester };
+    }
+
+    const kelasList = Array.from(new Set((students || []).map(s => String(s.kelas || '').trim()).filter(Boolean)))
+        .sort((a, b) => a.localeCompare(b));
+
+    const all = [];
+    kelasList.forEach(kelas => {
+        try {
+            const d = buildLeggerDataForKelas(kelas);
+            (d.rows || []).forEach(r => {
+                all.push({
+                    nis: String(r.nis || ''),
+                    nama: String(r.nama || ''),
+                    jk: String(r.jk || ''),
+                    kelas: String(kelas || ''),
+                    jenjang: _inferJenjangFromKelas(kelas) || '',
+                    paralel: _inferParalelFromKelas(kelas) || '',
+                    rata: Number(r.rata || 0) || 0,
+                    jumlah: Number(r.jumlah || 0) || 0
+                });
+            });
+        } catch (e) {
+            console.warn('Gagal build legger untuk kelas', kelas, e);
+        }
+    });
+
+    _rankingCache = { key, rows: all, tahun_ajar, semester: Number(semester) || 0 };
+    return { rows: all, tahun_ajar, semester: Number(semester) || 0 };
+}
+
+function _sortRankingRows(rows) {
+    return [...(rows || [])].sort((a, b) => (b.rata || 0) - (a.rata || 0) || String(a.nama || '').localeCompare(String(b.nama || '')));
+}
+
+function exportRankingXLSX(scope, key) {
+    try {
+        const { rows, tahun_ajar, semester } = _getAllLeggerRowsForRanking();
+        let filtered = rows;
+
+        const _eq = (x, y) => String(x || '').trim() === String(y || '').trim();
+
+        if (scope === 'kelas') filtered = rows.filter(r => _eq(r.kelas, key));
+        if (scope === 'paralel') filtered = rows.filter(r => _eq(r.paralel, key));
+        if (scope === 'jenjang') filtered = rows.filter(r => _eq(r.jenjang, key));
+        if (scope === 'umum') filtered = rows;
+
+        const sorted = _sortRankingRows(filtered);
+        const out = sorted.map((r, i) => ({
+            Rank: i + 1,
+            NIS: r.nis,
+            Nama: r.nama,
+            Kelas: r.kelas,
+            JK: r.jk,
+            'Rata-rata': r.rata
+        }));
+
+        const tag = scope === 'umum' ? 'UMUM' : String(key || '').replace(/[^\w\- ]+/g, '').replace(/\s+/g, '_');
+        saveExcel(out, `RANKING_${tag}_${tahun_ajar}_S${semester}.xlsx`, [{ wch: 14 }, { wch: 28 }, { wch: 16 }]);
+        showToast('Export ranking berhasil.', 'success');
+    } catch (e) {
+        console.error(e);
+        showToast('Gagal export ranking: ' + (e.message || e), 'error');
+    }
+}
+
+function renderAdminRanking() {
+    const main = document.getElementById('main-content');
+    const { rows, tahun_ajar, semester } = _getAllLeggerRowsForRanking();
+
+    const kelasList = Array.from(new Set(rows.map(r => r.kelas).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+    const paralelList = Array.from(new Set(rows.map(r => r.paralel).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+    const jenjangList = Array.from(new Set(rows.map(r => r.jenjang).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+
+    main.innerHTML = `
+        <div class="bg-white p-6 rounded shadow">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+                <div>
+                    <h2 class="text-2xl font-bold">🏆 Ranking / Juara 3 Terbaik</h2>
+                    <div class="text-sm text-gray-600">Berdasarkan <b>Rata-rata</b> nilai rapor (mengikuti bobot nilai & data legger).</div>
+                    <div class="text-xs text-gray-500 mt-1">Periode aktif: <b>${tahun_ajar}</b> • Semester: <b>${semester}</b></div>
+                </div>
+                <div class="flex flex-wrap gap-2 items-center justify-end">
+                    <button onclick="renderAdminRanking()" class="bg-gray-700 text-white px-4 py-2 rounded font-bold shadow text-sm">↻ Refresh</button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                <div>
+                    <label class="text-xs font-bold text-gray-600">Tipe Ranking</label>
+                    <select id="rank-scope" class="w-full border rounded px-3 py-2 text-sm">
+                        <option value="kelas">Per Kelas</option>
+                        <option value="paralel">Per Jurusan/Paralel (mis. X IPA, XI IPS)</option>
+                        <option value="jenjang">Per Jenjang (X / XI / XII)</option>
+                        <option value="umum">Juara Umum (Semua Jenjang)</option>
+                    </select>
+                </div>
+
+                <div id="rank-key-wrap">
+                    <label id="rank-key-label" class="text-xs font-bold text-gray-600">Filter</label>
+                    <select id="rank-key" class="w-full border rounded px-3 py-2 text-sm"></select>
+                </div>
+
+                <div class="flex items-end">
+                    <button id="btn-export-ranking" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded font-bold shadow text-sm">Export XLSX</button>
+                </div>
+            </div>
+
+            <div id="rank-result" class="mt-2"></div>
+        </div>
+    `;
+
+    const scopeSel = document.getElementById('rank-scope');
+    const keyWrap = document.getElementById('rank-key-wrap');
+    const keySel = document.getElementById('rank-key');
+    const keyLabel = document.getElementById('rank-key-label');
+    const btnExport = document.getElementById('btn-export-ranking');
+
+    const setKeyOptions = () => {
+        const scope = scopeSel.value;
+        let opts = [];
+        if (scope === 'kelas') {
+            keyWrap.classList.remove('hidden');
+            keyLabel.innerText = 'Kelas';
+            opts = kelasList;
+        } else if (scope === 'paralel') {
+            keyWrap.classList.remove('hidden');
+            keyLabel.innerText = 'Paralel/Jurusan';
+            opts = paralelList;
+        } else if (scope === 'jenjang') {
+            keyWrap.classList.remove('hidden');
+            keyLabel.innerText = 'Jenjang';
+            opts = jenjangList;
+        } else {
+            keyWrap.classList.add('hidden');
+            opts = [];
+        }
+
+        keySel.innerHTML = opts.map(v => `<option value="${v}">${v}</option>`).join('');
+        if (opts.length === 0) keySel.value = '';
+    };
+
+    const renderTop3 = () => {
+        const scope = scopeSel.value;
+        const key = keySel.value;
+
+        const _eq = (x, y) => String(x || '').trim() === String(y || '').trim();
+        let filtered = rows;
+
+        if (scope === 'kelas') filtered = rows.filter(r => _eq(r.kelas, key));
+        if (scope === 'paralel') filtered = rows.filter(r => _eq(r.paralel, key));
+        if (scope === 'jenjang') filtered = rows.filter(r => _eq(r.jenjang, key));
+        if (scope === 'umum') filtered = rows;
+
+        const sorted = _sortRankingRows(filtered);
+        const top = sorted.slice(0, 3);
+
+        const title =
+            scope === 'kelas' ? `Kelas <b>${key || '-'}</b>` :
+            scope === 'paralel' ? `Paralel <b>${key || '-'}</b>` :
+            scope === 'jenjang' ? `Jenjang <b>${key || '-'}</b>` :
+            `Juara Umum`;
+
+        const empty = (!top.length)
+            ? `<div class="p-4 bg-yellow-50 border rounded text-sm text-gray-700">Data belum tersedia untuk scope ini (atau nilai belum masuk).</div>`
+            : '';
+
+        const rowsHtml = top.map((r, i) => `
+            <tr class="hover:bg-gray-50">
+                <td class="p-2 border text-center font-bold">${i + 1}</td>
+                <td class="p-2 border text-center font-mono">${r.nis || '-'}</td>
+                <td class="p-2 border text-left font-semibold"><div class="single-line w-72" title="${r.nama}">${r.nama || '-'}</div></td>
+                <td class="p-2 border text-center">${r.kelas || '-'}</td>
+                <td class="p-2 border text-center">${r.jk || '-'}</td>
+                <td class="p-2 border text-center font-bold">${(Number(r.rata || 0) ? (Math.round(Number(r.rata) * 100) / 100) : 0)}</td>
+            </tr>
+        `).join('');
+
+        document.getElementById('rank-result').innerHTML = `
+            <div class="text-sm text-gray-600 mb-2">Top 3 • ${title}</div>
+            ${empty}
+            ${top.length ? `
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm border std-table whitespace-nowrap">
+                    <thead class="bg-blue-700 text-white">
+                        <tr>
+                            <th class="p-2 border w-16">Rank</th>
+                            <th class="p-2 border w-28">NIS</th>
+                            <th class="p-2 border text-left">Nama</th>
+                            <th class="p-2 border w-28">Kelas</th>
+                            <th class="p-2 border w-16">JK</th>
+                            <th class="p-2 border w-24">Rata-rata</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rowsHtml}</tbody>
+                </table>
+            </div>` : ''}
+        `;
+
+        btnExport.onclick = () => exportRankingXLSX(scope, (scope === 'umum' ? '' : key));
+    };
+
+    setKeyOptions();
+    renderTop3();
+
+    scopeSel.addEventListener('change', () => { setKeyOptions(); renderTop3(); });
+    keySel.addEventListener('change', renderTop3);
+}
+
 // --- IMPORT & EXPORT LOGIC ---
     let importContext = {};
     function triggerImport(type, p1, p2) {
@@ -1992,7 +2225,7 @@ function printLeggerSantri(nis, kelas){
         const data = siswa.map(s => {
             const { tahun_ajar, semester } = getActivePeriode();
             const sc = scores.find(x => String(x.nis) === String(s.nis) && x.mapel === mapel && String(x.tahun_ajar)===String(tahun_ajar) && Number(x.semester)===Number(semester)) || {};
-            return {NIS: s.nis, Nama: s.name, Kelas: kelas, Mapel: mapel, Hadir: sc.kehadiran||0, UH1: sc.uh1||0, UH2: sc.uh2||0, UH3: sc.uh3||0, UH4: sc.uh4||0, UH5: sc.uh5||0, Tugas: sc.tugas||0, "PAS/PAT": sc.pas_pat||sc.pas||0};
+            return {NIS: s.nis, Nama: s.name, Kelas: kelas, Mapel: mapel, Hadir: sc.kehadiran||0, Tugas: sc.tugas||0, UH1: sc.uh1||0, UH2: sc.uh2||0, UH3: sc.uh3||0, UH4: sc.uh4||0, UH5: sc.uh5||0, "PAS/PAT": sc.pas_pat||sc.pas||0};
         });
         saveExcel(data, `Nilai_${mapel}_${kelas}.xlsx`, [{wch:15}, {wch:30}]);
     }
@@ -2202,6 +2435,7 @@ function exportExcelMusyrif(kelas) {
                 if (['INPUT','TEXTAREA'].includes(found.inp.tagName) && typeof found.inp.select === 'function') found.inp.select();
             }
         });
+    }
 
     // --- Indikator perubahan & validasi nilai (maks 100) ---
     window._indicatorOptsByTable = window._indicatorOptsByTable || {};
@@ -2275,7 +2509,6 @@ function exportExcelMusyrif(kelas) {
         });
     }
 
-    }
 
     function addMapelRow(n='', k=[]) {
         const div = document.createElement('div');
