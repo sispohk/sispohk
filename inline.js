@@ -241,7 +241,13 @@ ${_adminTodoHtml}
             <div class="bg-white p-8 rounded-xl shadow border-l-8 border-blue-600">
                 <h2 class="text-3xl font-extrabold text-gray-800 mb-2">Selamat Datang, ${u.name}</h2>
                 <div class="flex flex-wrap gap-2 items-center">
-                    <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold uppercase">${u.role}</span>
+                    ${(() => {
+                    const badges = [];
+                    badges.push('Guru');
+                    if (u.musyrif) badges.push('Musyrif');
+                    if (u.kelas_wali) badges.push('Wali Kelas');
+                    return badges.map(b=>`<span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold uppercase">${b}</span>`).join('');
+                })()}
                     <span class="text-xs text-gray-500">Periode aktif: <b>${tahun_ajar}</b> / Semester <b>${semester}</b></span>
                 </div>
             </div>
@@ -425,10 +431,8 @@ function renderAdminTodoDashboardHTML(todos){
                 <span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-extrabold">${t.missing}</span>
             </td>
             <td class="p-2 text-center">
-                <button class="px-3 py-1 rounded bg-indigo-600 text-white text-xs font-bold shadow"
-                    onclick="event.stopPropagation(); renderAdminNilaiMonitor(decodeURIComponent('${_encArg(t.mapel)}'), decodeURIComponent('${_encArg(t.kelas)}'), decodeURIComponent('${_encArg(t.guru)}'))">Detail</button>
-                <button class="px-3 py-1 rounded bg-gray-700 text-white text-xs font-bold shadow ml-1"
-                    onclick="event.stopPropagation(); openAdminLeggerForKelas(decodeURIComponent('${_encArg(t.kelas)}'))">Legger</button>
+                <button class="px-3 py-1 rounded bg-blue-700 text-white text-xs font-bold shadow"
+                    onclick="event.stopPropagation(); renderNilaiPage(decodeURIComponent('${_encArg(t.mapel)}'), decodeURIComponent('${_encArg(t.kelas)}'))">Input Nilai</button>
             </td>
         </tr>
     `).join('');
@@ -532,10 +536,8 @@ function renderAdminTodoPage(){
             <td class="p-2 text-center font-mono text-sm">${t.filled}/${t.expected}</td>
             <td class="p-2 text-center"><span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-extrabold">${t.missing}</span></td>
             <td class="p-2 text-center">
-                <button class="px-3 py-1 rounded bg-indigo-600 text-white text-xs font-bold shadow"
-                    onclick="event.stopPropagation(); renderAdminNilaiMonitor(decodeURIComponent('${_encArg(t.mapel)}'), decodeURIComponent('${_encArg(t.kelas)}'), decodeURIComponent('${_encArg(t.guru)}'))">Detail</button>
-                <button class="px-3 py-1 rounded bg-gray-700 text-white text-xs font-bold shadow ml-1"
-                    onclick="event.stopPropagation(); openAdminLeggerForKelas(decodeURIComponent('${_encArg(t.kelas)}'))">Legger</button>
+                <button class="px-3 py-1 rounded bg-blue-700 text-white text-xs font-bold shadow"
+                    onclick="event.stopPropagation(); renderNilaiPage(decodeURIComponent('${_encArg(t.mapel)}'), decodeURIComponent('${_encArg(t.kelas)}'))">Input Nilai</button>
             </td>
         </tr>
     `).join('');
@@ -776,7 +778,7 @@ function renderAdminAnalyticsHTML({ tahun_ajar, semester }){
         <div class="bg-white p-6 rounded-xl shadow border">
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
                 <div>
-                    <h3 class="text-lg font-extrabold text-gray-800">🟩🟥 Heatmap Kelengkapan Nilai (Kelas × Mapel)</h3>
+                    <h3 class="text-lg font-extrabold text-gray-800">Heatmap Kelengkapan Nilai (Kelas × Mapel)</h3>
                     <div class="text-xs text-gray-500">Periode <b>${tahun_ajar}</b> / Semester <b>${semester}</b> • Hover untuk detail.</div>
                 </div>
             </div>
@@ -1343,6 +1345,7 @@ async function openAdminLeggerForKelas(kelas){
                 <td class="p-2 text-center">${u.musyrif||'-'}</td>
                 <td class="p-2 text-center">
                     <button ${canEdit ? `onclick="editGuru(${u.id})"` : 'disabled'} class="${canEdit ? 'text-blue-600 hover:bg-blue-100' : 'text-gray-400 cursor-not-allowed'} font-bold text-xs p-1 rounded">Edit</button>
+                    <button ${canEdit ? `onclick="adminDeleteGuru(${u.id})"` : 'disabled class="opacity-50 cursor-not-allowed"'} class="bg-red-600 text-white font-bold text-xs p-1 rounded ml-1">Hapus</button>
                 </td>
             </tr>`;
         }).join('');
@@ -1393,6 +1396,7 @@ async function openAdminLeggerForKelas(kelas){
             return { jenjang, kelas_unik, paralel };
         };
         const _kelasInfos = sourceData.map(s => _parseKelasInfo(s.kelas));
+        window.__adminSantriKelasInfos = _kelasInfos;
         const _uniq = (arr) => Array.from(new Set(arr.map(x => (x||'').toString().trim()).filter(Boolean)));
         const _sortSmart = (arr) => arr.sort((a,b)=> String(a).localeCompare(String(b), 'id', { numeric: true }));
         const jenjangList = _sortSmart(_uniq(_kelasInfos.map(x=>x.jenjang)));
@@ -1403,34 +1407,11 @@ async function openAdminLeggerForKelas(kelas){
         const paralelOptions = paralelList.map(v=>`<option value="${v}">${v}</option>`).join('');
 
 
-        const rows = sourceData.map((s, i) => {
-            const canEdit = !!s.id && !window.tempImportDataSantri;
-            return `
-            <tr class="hover:bg-gray-50 border-b" data-jenjang="${_parseKelasInfo(s.kelas).jenjang}" data-kelasunik="${_parseKelasInfo(s.kelas).kelas_unik}" data-paralel="${_parseKelasInfo(s.kelas).paralel}">
-                <td class="p-2 text-center">${i + 1}</td>
-                <td class="p-2 text-center font-mono">${s.nis||'-'}</td>
-                <td class="p-2 text-left font-bold filter-target"><div class="single-line w-64" title="${s.name||''}">${s.name||'-'}</div></td>
-                <td class="p-2 text-center">${s.jk||s.lp||'-'}</td>
-                <td class="p-2 text-center">${s.kelas||'-'}</td>
-                <td class="p-2 text-left"><div class="single-line w-56" title="${s.ttl||''}">${s.ttl||'-'}</div></td>
-                <td class="p-2 text-left"><div class="single-line w-40" title="${s.status_keluarga||''}">${s.status_keluarga||'-'}</div></td>
-                <td class="p-2 text-center">${(s.anak_ke ?? '-') }</td>
-                <td class="p-2 text-left"><div class="single-line w-56" title="${s.asal_sekolah||''}">${s.asal_sekolah||'-'}</div></td>
-                <td class="p-2 text-center">${s.tanggal_diterima||'-'}</td>
-                <td class="p-2 text-center">${s.diterima_kelas||'-'}</td>
-                <td class="p-2 text-left"><div class="single-line w-44" title="${s.nama_ayah||''}">${s.nama_ayah||'-'}</div></td>
-                <td class="p-2 text-left"><div class="single-line w-44" title="${s.nama_ibu||''}">${s.nama_ibu||'-'}</div></td>
-                <td class="p-2 text-left"><div class="single-line w-44" title="${s.pekerjaan_ayah||''}">${s.pekerjaan_ayah||'-'}</div></td>
-                <td class="p-2 text-left"><div class="single-line w-44" title="${s.pekerjaan_ibu||''}">${s.pekerjaan_ibu||'-'}</div></td>
-                <td class="p-2 text-left"><div class="single-line w-72" title="${s.alamat_ortu||''}">${s.alamat_ortu||'-'}</div></td>
-                <td class="p-2 text-left"><div class="single-line w-44" title="${s.nama_wali||''}">${s.nama_wali||'-'}</div></td>
-                <td class="p-2 text-left"><div class="single-line w-44" title="${s.pekerjaan_wali||''}">${s.pekerjaan_wali||'-'}</div></td>
-                <td class="p-2 text-left"><div class="single-line w-72" title="${s.alamat_wali||''}">${s.alamat_wali||'-'}</div></td>
-                <td class="p-2 text-center">
-                    <button ${canEdit ? `onclick="editSantri(${s.id})"` : 'disabled'} class="${canEdit ? 'text-blue-600 hover:bg-blue-100' : 'text-gray-400 cursor-not-allowed'} font-bold text-xs p-1 rounded">Edit</button>
-                </td>
-            </tr>`;
-        }).join('');
+        // --- PAGING STATE + CACHE (untuk performa) ---
+        window.__adminSantriSourceData = sourceData;
+        window.__adminSantriIsTempImport = !!window.tempImportDataSantri;
+        window.__adminSantriState = window.__adminSantriState || { page: 1, pageSize: 100 };
+        const rows = ''; // di-render via applyAdminSantriFilters()
 
         const headerBtn = `
         <div class="flex flex-wrap gap-2 justify-end">
@@ -1460,6 +1441,15 @@ async function openAdminLeggerForKelas(kelas){
               <option value="">Semua Paralel</option>
               ${paralelOptions}
             </select>
+            <select id="admin-santri-pagesize" onchange="adminSantriSetPageSize(this.value)" class="border p-2 rounded text-sm">
+              <option value="50">50/hal</option>
+              <option value="100">100/hal</option>
+              <option value="200">200/hal</option>
+            </select>
+            <button id="admin-santri-prev" onclick="adminSantriPrevPage()" class="bg-gray-200 px-3 py-2 rounded text-sm font-bold">‹</button>
+            <span id="admin-santri-pageinfo" class="text-sm text-gray-700 font-bold min-w-[110px] text-center">1/1</span>
+            <button id="admin-santri-next" onclick="adminSantriNextPage()" class="bg-gray-200 px-3 py-2 rounded text-sm font-bold">›</button>
+
           </div>
             <div class="overflow-auto max-h-[70vh]">
                 <table class="min-w-[1700px] w-full text-xs sm:text-sm border std-table whitespace-nowrap">
@@ -1479,6 +1469,14 @@ async function openAdminLeggerForKelas(kelas){
                 </table>
             </div>
         </div>`;
+
+        // set default page size control
+        try {
+            const st = window.__adminSantriState || { page: 1, pageSize: 100 };
+            const ps = document.getElementById('admin-santri-pagesize');
+            if (ps) ps.value = String(st.pageSize || 100);
+        } catch {}
+        applyAdminSantriFilters(true);
     }
 
 
@@ -1699,8 +1697,8 @@ async function openAdminLeggerForKelas(kelas){
             <div class="flex justify-between items-center mb-4">
                 <div><h2 class="text-2xl font-bold">${mapel} - ${kelas}</h2></div>
                 <div class="flex gap-2">
-                    <button onclick="triggerImport('mapel', '${mapel}', '${kelas}')" class="bg-green-600 text-white px-4 py-2 rounded text-sm font-bold shadow">Import</button>
                     <button onclick="exportExcelNilai('${mapel}', '${kelas}')" class="bg-blue-600 text-white px-4 py-2 rounded text-sm font-bold shadow">Export</button>
+                    <button onclick="triggerImport('mapel', '${mapel}', '${kelas}')" class="bg-green-600 text-white px-4 py-2 rounded text-sm font-bold shadow">Import</button>
                     <button onclick="saveNilaiMapel('${mapel}', '${kelas}')" class="bg-blue-800 text-white px-6 py-2 rounded font-bold shadow">Simpan</button>
                 </div>
             </div>
@@ -1988,14 +1986,15 @@ window._lastKonversiRows = data;
         const main = document.getElementById('main-content');
         
         const headerBtn = `<div class="flex gap-2 flex-wrap justify-end">
-            ${mode!=='print' && mode!=='data' && mode!=='rekap' ? `<button onclick="triggerImport('${mode}', '${kelas}')" class="bg-green-600 text-white px-3 py-1 rounded shadow text-sm font-bold">Import</button>` : ''}
-            ${(mode!=='print' && mode!=='rekap') ? `<button onclick="exportExcelWali('${mode}', '${kelas}')" class="bg-indigo-600 text-white px-3 py-1 rounded shadow text-sm font-bold">Export</button>` : ''}
-            ${(mode==='absen' || mode==='catatan') ? `<button onclick="saveWaliDataLocal('${mode}')" class="bg-blue-800 text-white px-4 py-1 rounded shadow text-sm font-bold">Simpan</button>` : ''}
-            ${mode==='data' ? `<button onclick="refreshWaliDataKelas()" class="bg-blue-800 text-white px-4 py-1 rounded shadow text-sm font-bold">Simpan</button>` : ''}
+            ${(mode!=='print' && mode!=='rekap') ? `<button onclick="exportExcelWali('${mode}', '${kelas}')" class="bg-blue-700 text-white px-4 py-2 rounded shadow text-sm font-bold">Export</button>` : ''}
+            ${mode!=='print' && mode!=='data' && mode!=='rekap' ? `<button onclick="triggerImport('${mode}', '${kelas}')" class="bg-green-600 text-white px-4 py-2 rounded shadow text-sm font-bold">Import</button>` : ''}
+            ${(mode==='absen' || mode==='catatan') ? `<button onclick="saveWaliDataLocal('${mode}')" class="bg-blue-600 text-white px-4 py-2 rounded shadow text-sm font-bold">Simpan</button>` : ''}
+            ${mode==='data' ? `<button onclick="refreshWaliDataKelas()" class="bg-gray-700 text-white px-4 py-2 rounded shadow text-sm font-bold">Refresh</button>
+                <button onclick="saveWaliDataLocal('${mode}')" class="bg-blue-600 text-white px-4 py-2 rounded shadow text-sm font-bold">Simpan</button>` : ''}
             ${mode==='print' ? `
-                <button onclick="exportLeggerXLSX('${kelas}')" class="bg-indigo-600 text-white px-3 py-1 rounded shadow text-sm font-bold">XLSX</button>
-                <button onclick="printLeggerKelas('${kelas}', true)" class="bg-gray-700 text-white px-3 py-1 rounded shadow text-sm font-bold">PDF</button>
-                <button onclick="printLeggerKelas('${kelas}', false)" class="bg-green-700 text-white px-3 py-1 rounded shadow text-sm font-bold">Print</button>
+                <button onclick="exportLeggerXLSX('${kelas}')" class="bg-green-700 text-white px-3 py-1 rounded shadow text-sm font-bold">XLSX</button>
+                <button onclick="printLeggerKelas('${kelas}', true)" class="bg-blue-700 text-white px-3 py-1 rounded shadow text-sm font-bold">PDF</button>
+                <button onclick="printLeggerKelas('${kelas}', false)" class="bg-gray-800 text-white px-3 py-1 rounded shadow text-sm font-bold">Print</button>
             ` : ''}
         </div>`;
 
@@ -2376,8 +2375,8 @@ let content = '';
             <div class=\"flex justify-between items-center mb-4\">
                 <h2 class=\"text-2xl font-bold\">Musyrif Kelas ${kelas}</h2>
                 <div class=\"flex gap-2\">
-                    <button onclick=\"triggerImport('musyrif', '${kelas}')\" class=\"bg-green-600 text-white px-4 py-2 rounded font-bold shadow text-sm\">Import</button>
                     <button onclick=\"exportExcelMusyrif('${kelas}')\" class=\"bg-blue-600 text-white px-4 py-2 rounded font-bold shadow text-sm\">Export</button>
+                    <button onclick=\"triggerImport('musyrif', '${kelas}')\" class=\"bg-green-600 text-white px-4 py-2 rounded font-bold shadow text-sm\">Import</button>
                     <button onclick=\"saveMusyrifData()\" class=\"bg-purple-600 text-white px-4 py-2 rounded font-bold shadow text-sm\">Simpan</button>
                 </div>
             </div>
@@ -4232,8 +4231,38 @@ function _comboStats(mapel, kelas, tahun_ajar, semester){
 
 
 // --- Admin Santri: Combined filters (search + jenjang + kelas unik + paralel)
-function applyAdminSantriFilters() {
+function adminSantriSetPageSize(v){
+  try{
+    const st = window.__adminSantriState = window.__adminSantriState || { page: 1, pageSize: 100 };
+    st.pageSize = Math.max(1, Number(v)||100);
+    st.page = 1;
+    applyAdminSantriFilters(true);
+  } catch(e){ console.error(e); }
+}
+function adminSantriPrevPage(){
+  try{
+    const st = window.__adminSantriState = window.__adminSantriState || { page: 1, pageSize: 100 };
+    st.page = Math.max(1, (st.page||1) - 1);
+    applyAdminSantriFilters(false);
+  } catch(e){ console.error(e); }
+}
+function adminSantriNextPage(){
+  try{
+    const st = window.__adminSantriState = window.__adminSantriState || { page: 1, pageSize: 100 };
+    st.page = (st.page||1) + 1;
+    applyAdminSantriFilters(false);
+  } catch(e){ console.error(e); }
+}
+
+function applyAdminSantriFilters(resetPage=false) {
   try {
+    const src = window.__adminSantriSourceData || students || [];
+    const infos = window.__adminSantriKelasInfos || src.map(s => ({ jenjang:'', kelas_unik:'', paralel:'' }));
+    const isTemp = !!window.__adminSantriIsTempImport;
+
+    const st = window.__adminSantriState = window.__adminSantriState || { page: 1, pageSize: 100 };
+    if (resetPage) st.page = 1;
+
     const q = (document.getElementById('admin-santri-search')?.value || '').toString().toLowerCase().trim();
     const jen = (document.getElementById('flt-jenjang')?.value || '').toString();
     const kls = (document.getElementById('flt-kelasunik')?.value || '').toString();
@@ -4242,15 +4271,113 @@ function applyAdminSantriFilters() {
     const tbody = document.getElementById('tbody-santri');
     if (!tbody) return;
 
-    Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
-      const t = (tr.innerText || '').toLowerCase();
-      const okText = (!q) || t.includes(q);
-      const okJen = (!jen) || (tr.dataset.jenjang === jen);
-      const okKls = (!kls) || (tr.dataset.kelasunik === kls);
-      const okPar = (!par) || (tr.dataset.paralel === par);
-      tr.style.display = (okText && okJen && okKls && okPar) ? '' : 'none';
-    });
+    // Filter data (lebih ringan daripada hide/show DOM ratusan baris)
+    const filtered = [];
+    for (let i=0;i<src.length;i++){
+      const s = src[i];
+      const info = infos[i] || { jenjang:'', kelas_unik:'', paralel:'' };
+
+      if (jen && info.jenjang !== jen) continue;
+      if (kls && info.kelas_unik !== kls) continue;
+      if (par && info.paralel !== par) continue;
+
+      if (q){
+        const hay = `${s.nis||''} ${s.name||''} ${s.kelas||''} ${s.jk||s.lp||''}`.toLowerCase();
+        if (!hay.includes(q)) continue;
+      }
+      filtered.push({ s, info, idx: i });
+    }
+
+    const total = filtered.length;
+    const pageSize = Math.max(1, Number(document.getElementById('admin-santri-pagesize')?.value || st.pageSize || 100));
+    st.pageSize = pageSize;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    st.page = Math.min(Math.max(1, st.page||1), totalPages);
+
+    const from = (st.page - 1) * pageSize;
+    const pageItems = filtered.slice(from, from + pageSize);
+
+    const rows = pageItems.map((item, j) => {
+      const s = item.s;
+      const info = item.info || { jenjang:'', kelas_unik:'', paralel:'' };
+      const canEdit = !!s.id && !isTemp;
+      const no = from + j + 1;
+      return `
+            <tr class="hover:bg-gray-50 border-b" data-jenjang="${info.jenjang}" data-kelasunik="${info.kelas_unik}" data-paralel="${info.paralel}">
+                <td class="p-2 text-center">${no}</td>
+                <td class="p-2 text-center font-mono">${s.nis||'-'}</td>
+                <td class="p-2 text-left font-bold filter-target"><div class="single-line w-64" title="${s.name||''}">${s.name||'-'}</div></td>
+                <td class="p-2 text-center">${s.jk||s.lp||'-'}</td>
+                <td class="p-2 text-center">${s.kelas||'-'}</td>
+                <td class="p-2 text-left"><div class="single-line w-56" title="${s.ttl||''}">${s.ttl||'-'}</div></td>
+                <td class="p-2 text-left"><div class="single-line w-44" title="${s.status_keluarga||''}">${s.status_keluarga||'-'}</div></td>
+                <td class="p-2 text-center">${(s.anak_ke ?? '-') }</td>
+                <td class="p-2 text-left"><div class="single-line w-56" title="${s.asal_sekolah||''}">${s.asal_sekolah||'-'}</div></td>
+                <td class="p-2 text-center">${s.tanggal_diterima||'-'}</td>
+                <td class="p-2 text-center">${s.diterima_kelas||'-'}</td>
+                <td class="p-2 text-left"><div class="single-line w-44" title="${s.nama_ayah||''}">${s.nama_ayah||'-'}</div></td>
+                <td class="p-2 text-left"><div class="single-line w-44" title="${s.nama_ibu||''}">${s.nama_ibu||'-'}</div></td>
+                <td class="p-2 text-left"><div class="single-line w-44" title="${s.pekerjaan_ayah||''}">${s.pekerjaan_ayah||'-'}</div></td>
+                <td class="p-2 text-left"><div class="single-line w-44" title="${s.pekerjaan_ibu||''}">${s.pekerjaan_ibu||'-'}</div></td>
+                <td class="p-2 text-left"><div class="single-line w-72" title="${s.alamat_ortu||''}">${s.alamat_ortu||'-'}</div></td>
+                <td class="p-2 text-left"><div class="single-line w-44" title="${s.nama_wali||''}">${s.nama_wali||'-'}</div></td>
+                <td class="p-2 text-left"><div class="single-line w-44" title="${s.pekerjaan_wali||''}">${s.pekerjaan_wali||'-'}</div></td>
+                <td class="p-2 text-left"><div class="single-line w-72" title="${s.alamat_wali||''}">${s.alamat_wali||'-'}</div></td>
+                <td class="p-2 text-center">
+                    <button ${canEdit ? `onclick="editSantri(${s.id})"` : 'disabled class="opacity-50 cursor-not-allowed"'} class="bg-yellow-500 text-white font-bold text-xs p-1 rounded">Edit</button>
+                    <button ${canEdit ? `onclick="adminDeleteSantri(${s.id})"` : 'disabled class="opacity-50 cursor-not-allowed"'} class="bg-red-600 text-white font-bold text-xs p-1 rounded ml-1">Hapus</button>
+                </td>
+            </tr>`;
+    }).join('');
+
+    tbody.innerHTML = rows || `<tr><td colspan="20" class="p-4 text-center text-gray-500">Tidak ada data</td></tr>`;
+
+    // pager UI
+    const infoEl = document.getElementById('admin-santri-pageinfo');
+    if (infoEl) infoEl.innerText = `${st.page}/${totalPages} • ${total} data`;
+    const prevBtn = document.getElementById('admin-santri-prev');
+    const nextBtn = document.getElementById('admin-santri-next');
+    if (prevBtn) prevBtn.disabled = (st.page<=1);
+    if (nextBtn) nextBtn.disabled = (st.page>=totalPages);
+
   } catch (e) {
     console.error(e);
+  }
+}
+
+async function adminDeleteSantri(id){
+  try{
+    if(!confirm('Hapus data santri ini?')) return;
+    await deleteSantriFromDB(id);
+    students = (students||[]).filter(s => String(s.id)!==String(id));
+    // refresh source cache
+    if(window.__adminSantriSourceData){
+      window.__adminSantriSourceData = (window.__adminSantriSourceData||[]).filter(s => String(s.id)!==String(id));
+      window.__adminSantriKelasInfos = (window.__adminSantriSourceData||[]).map(s => {
+        const sK = (s.kelas || '').toString().trim();
+        const parts = sK ? sK.split(/\s+/).filter(Boolean) : [];
+        const jenjang = parts[0] || '';
+        const paralel = parts.length ? parts[parts.length - 1] : '';
+        const kelas_unik = (parts.length >= 2) ? parts.slice(0, -1).join(' ') : jenjang;
+        return { jenjang, kelas_unik, paralel };
+      });
+    }
+    applyAdminSantriFilters(false);
+    alert('Data santri dihapus.');
+  } catch(e){
+    console.error(e);
+    alert('Gagal menghapus santri: ' + (e.message||e));
+  }
+}
+async function adminDeleteGuru(id){
+  try{
+    if(!confirm('Hapus data guru ini?')) return;
+    await deleteUserFromDB(id);
+    users = (users||[]).filter(u => String(u.id)!==String(id));
+    alert('Data guru dihapus.');
+    renderAdminGuru();
+  } catch(e){
+    console.error(e);
+    alert('Gagal menghapus guru: ' + (e.message||e));
   }
 }
