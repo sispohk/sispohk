@@ -2,7 +2,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         const u = getCurrentUser();
         if(!u) { window.location.href = 'index.html'; return; }
         document.getElementById('user-info-name').innerText = u.name;
-        document.getElementById('user-info-role').innerText = u.role;
+        (() => {
+        const labels = [];
+        try {
+            if (typeof isAdmin === 'function' && isAdmin(u)) labels.push('Admin');
+            else if (typeof isGuru === 'function' && isGuru(u)) labels.push('Guru');
+            else if (u.role) labels.push(String(u.role));
+            if (typeof isMusyrif === 'function' && isMusyrif(u)) labels.push('Musyrif');
+            if (typeof isWali === 'function' && isWali(u)) labels.push('Wali Kelas');
+        } catch (e) {
+            if (u.role) labels.push(String(u.role));
+        }
+        const uniq = labels.filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i);
+        document.getElementById('user-info-role').innerText = uniq.join(', ');
+    })();
         setLoading(true, "Memuat Data...");
         setLoadingProgress(0, 'Memuat ulang data...');
             await loadInitialData({ onProgress: (pct, label) => setLoadingProgress(pct, label) });
@@ -1369,10 +1382,31 @@ async function openAdminLeggerForKelas(kelas){
         const main = document.getElementById('main-content');
         const sourceData = window.tempImportDataSantri || students;
 
+        // --- FILTER OPSI (Jenjang / Kelas Unik / Paralel) ---
+        const _parseKelasInfo = (kelasStr) => {
+            const s = (kelasStr || '').toString().trim();
+            if (!s) return { jenjang: '', kelas_unik: '', paralel: '' };
+            const parts = s.split(/\s+/).filter(Boolean);
+            const jenjang = parts[0] || '';
+            const paralel = parts.length ? parts[parts.length - 1] : '';
+            const kelas_unik = (parts.length >= 2) ? parts.slice(0, -1).join(' ') : jenjang;
+            return { jenjang, kelas_unik, paralel };
+        };
+        const _kelasInfos = sourceData.map(s => _parseKelasInfo(s.kelas));
+        const _uniq = (arr) => Array.from(new Set(arr.map(x => (x||'').toString().trim()).filter(Boolean)));
+        const _sortSmart = (arr) => arr.sort((a,b)=> String(a).localeCompare(String(b), 'id', { numeric: true }));
+        const jenjangList = _sortSmart(_uniq(_kelasInfos.map(x=>x.jenjang)));
+        const kelasUnikList = _sortSmart(_uniq(_kelasInfos.map(x=>x.kelas_unik)));
+        const paralelList = _sortSmart(_uniq(_kelasInfos.map(x=>x.paralel)));
+        const jenjangOptions = jenjangList.map(v=>`<option value="${v}">${v}</option>`).join('');
+        const kelasUnikOptions = kelasUnikList.map(v=>`<option value="${v}">${v}</option>`).join('');
+        const paralelOptions = paralelList.map(v=>`<option value="${v}">${v}</option>`).join('');
+
+
         const rows = sourceData.map((s, i) => {
             const canEdit = !!s.id && !window.tempImportDataSantri;
             return `
-            <tr class="hover:bg-gray-50 border-b">
+            <tr class="hover:bg-gray-50 border-b" data-jenjang="${_parseKelasInfo(s.kelas).jenjang}" data-kelasunik="${_parseKelasInfo(s.kelas).kelas_unik}" data-paralel="${_parseKelasInfo(s.kelas).paralel}">
                 <td class="p-2 text-center">${i + 1}</td>
                 <td class="p-2 text-center font-mono">${s.nis||'-'}</td>
                 <td class="p-2 text-left font-bold filter-target"><div class="single-line w-64" title="${s.name||''}">${s.name||'-'}</div></td>
@@ -1412,7 +1446,21 @@ async function openAdminLeggerForKelas(kelas){
                 <h2 class="text-2xl font-bold">Data Santri</h2>
                 ${headerBtn}
             </div>
-            <input type="text" onkeyup="filterTable('tbody-santri')" placeholder="Cari Santri..." class="w-full border p-2 mb-4 rounded">
+            <div class="flex flex-wrap items-center gap-2 mb-4">
+            <input id="admin-santri-search" type="text" oninput="applyAdminSantriFilters()" placeholder="Cari Santri..." class="flex-1 min-w-[220px] border p-2 rounded">
+            <select id="flt-jenjang" onchange="applyAdminSantriFilters()" class="border p-2 rounded text-sm">
+              <option value="">Semua Jenjang</option>
+              ${jenjangOptions}
+            </select>
+            <select id="flt-kelasunik" onchange="applyAdminSantriFilters()" class="border p-2 rounded text-sm min-w-[180px]">
+              <option value="">Semua Kelas</option>
+              ${kelasUnikOptions}
+            </select>
+            <select id="flt-paralel" onchange="applyAdminSantriFilters()" class="border p-2 rounded text-sm">
+              <option value="">Semua Paralel</option>
+              ${paralelOptions}
+            </select>
+          </div>
             <div class="overflow-auto max-h-[70vh]">
                 <table class="min-w-[1700px] w-full text-xs sm:text-sm border std-table whitespace-nowrap">
                     <thead class="bg-blue-600 text-white sticky top-0">
@@ -1986,7 +2034,7 @@ let content = '';
 
             content = `
               <div class="bg-white rounded-xl shadow p-6">
-                <input type="text" onkeyup="filterTable('tbody-wali-data')" placeholder="Cari Santri..." class="w-full border p-2 mb-4 rounded">
+                
                 <div class="overflow-auto max-h-[70vh]">
                   <table class="min-w-[1700px] w-full text-xs sm:text-sm border std-table whitespace-nowrap">
                     <thead class="bg-blue-600 text-white sticky top-0">
@@ -4181,3 +4229,28 @@ function _comboStats(mapel, kelas, tahun_ajar, semester){
   };
 }
 
+
+
+// --- Admin Santri: Combined filters (search + jenjang + kelas unik + paralel)
+function applyAdminSantriFilters() {
+  try {
+    const q = (document.getElementById('admin-santri-search')?.value || '').toString().toLowerCase().trim();
+    const jen = (document.getElementById('flt-jenjang')?.value || '').toString();
+    const kls = (document.getElementById('flt-kelasunik')?.value || '').toString();
+    const par = (document.getElementById('flt-paralel')?.value || '').toString();
+
+    const tbody = document.getElementById('tbody-santri');
+    if (!tbody) return;
+
+    Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
+      const t = (tr.innerText || '').toLowerCase();
+      const okText = (!q) || t.includes(q);
+      const okJen = (!jen) || (tr.dataset.jenjang === jen);
+      const okKls = (!kls) || (tr.dataset.kelasunik === kls);
+      const okPar = (!par) || (tr.dataset.paralel === par);
+      tr.style.display = (okText && okJen && okKls && okPar) ? '' : 'none';
+    });
+  } catch (e) {
+    console.error(e);
+  }
+}
