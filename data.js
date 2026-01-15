@@ -19,6 +19,9 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 let db;
 if (typeof supabase !== 'undefined') {
   db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  // `let db` di top-level tidak otomatis menjadi properti window.
+  // Beberapa fitur (mis. chat) mengecek window.db, jadi expose eksplisit.
+  try { window.db = db; window.__dbReady = true; } catch {}
 } else {
   console.error('Library Supabase gagal dimuat.');
 }

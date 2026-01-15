@@ -128,6 +128,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         function renderDashboardContent() {
         const u = getCurrentUser();
 
+        const isWaliRole = (typeof isWali === 'function') ? isWali(u) : !!(u && (u.kelas_wali || u.wali));
+
         // Admin dashboard: ringkasan statistik
         if (isAdmin(u)) {
             const totalGuru = users.length;
@@ -222,12 +224,12 @@ ${_adminTodoHtml}
         });
 
         const pct = expected ? Math.min(100, Math.round((filled/expected)*100)) : 0;
-        const isWaliRole = isWali(u);
         const isMusyrifRole = !!(u.musyrif && String(u.musyrif).trim());
 
         const _comboProgress = computeGuruComboProgress(u, combos);
 const _guruAnalyticsHtml = renderGuruAnalyticsHTML(u, combos);
         const _guruChatHtml = renderChatInboxCardHTML('guru');
+        const _waliMissingHtml = (typeof isWali==='function' && isWali(u)) ? buildWaliMissingNilaiCardHTML(getWaliKelas(u), { tahun_ajar, semester }) : '';
         
         const _guruTodoHtml = '';
 document.getElementById('main-content').innerHTML = `
@@ -282,8 +284,10 @@ document.getElementById('main-content').innerHTML = `
             ${_guruAnalyticsHtml}
 
             ${_guruChatHtml}
+
+            ${_waliMissingHtml}
 <div class="bg-white p-6 rounded-xl shadow border">
-                <h3 class="text-lg font-bold text-gray-800 mb-2">Panduan Singkat Guru</h3>
+                <h3 class="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2"><span class="text-xl">📘</span><span>Panduan Singkat Guru</span></h3>
                 <ol class="list-decimal pl-6 text-sm text-gray-700 space-y-1">
                     <li>Pilih <b>Mapel → Kelas</b> dari sidebar.</li>
                     <li>Isi nilai, lalu klik <b>Simpan</b> (disimpan batch agar aman untuk data banyak).</li>
@@ -293,16 +297,10 @@ document.getElementById('main-content').innerHTML = `
                 
             </div>
 
-<div class="bg-white p-6 rounded-xl shadow border">
-                <h3 class="text-lg font-bold text-gray-800 mb-2">Catatan</h3>
-                <ul class="list-disc pl-6 text-sm text-gray-700 space-y-1">
-                    <li>Input nilai disimpan <b>batch</b> agar tidak terpotong saat data banyak.</li>
-                    <li>Absensi (S/I/A) berbentuk angka; Sikap berbentuk <b>A/B/C/D</b>.</li>
-                </ul>
-            </div>
             </div>
 
         </div>`;
+        loadChatInboxInto('chat-inbox-guru');
     }
 
 
@@ -372,6 +370,7 @@ function computeNilaiTodoEntries({ tahun_ajar, semester }){
                         kelas: _normStr(kelas),
                         mapel: String(mapel || '').trim(),
                         guru: String(g.name || g.nama_guru || g.username || '-').trim(),
+                        guru_id: g.id,
                         expected, filled, missing
                     });
                 }
@@ -384,7 +383,100 @@ function computeNilaiTodoEntries({ tahun_ajar, semester }){
 }
 
 
-// Todo nilai khusus untuk guru (berdasarkan mapel & kelas yang diampu)
+// Rekap nilai mapel BELUM masuk khusus untuk wali kelas (ditampilkan di dashboard guru jika ia wali kelas)
+function buildWaliMissingNilaiCardHTML(kelasWali, { tahun_ajar, semester }){
+    try{
+        const kelas = String(kelasWali||'').trim();
+        if(!kelas) return '';
+        const siswa = (students || []).filter(s => _normStr(s.kelas) === _normStr(kelas));
+        const expected = siswa.length;
+        if(!expected) return '';
+
+        // build combos dari penugasan guru (mapel x kelas)
+        const combos = [];
+        (users || []).forEach(g => {
+            const arr = parseMapelData(g.mapel);
+            (arr || []).forEach(m => {
+                const mapelRaw = String(m?.nama || '').trim();
+                if(!mapelRaw) return;
+                (m.kelas || []).forEach(k => {
+                    if(_normStr(k) !== _normStr(kelas)) return;
+                    combos.push({
+                        mapel: _normUpper(mapelRaw),
+                        mapelRaw,
+                        guru: String(g.name || g.nama_guru || g.username || '-').trim(),
+                        guru_id: g.id
+                    });
+                });
+            });
+        });
+
+        // unique by mapel+guru_id
+        const seen = new Set();
+        const list = combos.filter(c=>{
+            const key = `${c.mapel}||${c.guru_id||c.guru}`;
+            if(seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        }).map(c=>{
+            const filled = _countDistinctScoresFor(c.mapelRaw, kelas, tahun_ajar, semester);
+            const missing = Math.max(0, expected - filled);
+            return { ...c, filled, missing, expected };
+        }).filter(r=> r.missing > 0);
+
+        if(!list.length) return '';
+
+        // sort: paling banyak belum masuk
+        list.sort((a,b)=> (b.missing-a.missing) || a.mapel.localeCompare(b.mapel,'id') || String(a.guru||'').localeCompare(String(b.guru||''),'id'));
+
+        const top = list.slice(0, 20); // biar tidak kepanjangan
+        const rows = top.map((r, idx)=>{
+            const toNameEnc = encodeURIComponent(r.guru || '');
+            const mapelEnc = encodeURIComponent(r.mapelRaw || '');
+            const kelasEnc = encodeURIComponent(kelas);
+            return `
+            <tr class="border-b hover:bg-gray-50">
+                <td class="p-2 text-center text-xs text-gray-500">${idx+1}</td>
+                <td class="p-2 text-left font-extrabold">${escapeHtml(r.mapel)}</td>
+                <td class="p-2 text-left">${escapeHtml(r.guru||'-')}</td>
+                <td class="p-2 text-center font-mono">${r.filled}/${r.expected}</td>
+                <td class="p-2 text-center font-mono font-extrabold">${r.missing}</td>
+                <td class="p-2 text-center">
+                    <button class="bg-blue-700 hover:bg-blue-800 text-white px-3 py-1 rounded font-bold text-xs shadow"
+                        onclick="openChatCompose(${Number(r.guru_id)||0}, '${toNameEnc}', '${mapelEnc}', '${kelasEnc}')">Kirim Pesan</button>
+                </td>
+            </tr>`;
+        }).join('');
+
+        return `
+        <div class="bg-white p-6 rounded-xl shadow border">
+            <div class="flex items-center justify-between gap-2 mb-3">
+                <div>
+                    <h3 class="text-lg font-extrabold text-gray-800">📌 Nilai Mapel Belum Masuk (Kelas ${escapeHtml(kelas)})</h3>
+                    <div class="text-xs text-gray-600">Menampilkan mapel yang masih belum lengkap untuk kelas wali Anda.</div>
+                </div>
+            </div>
+            <div class="overflow-auto">
+                <table class="min-w-[900px] w-full text-sm border std-table">
+                    <thead class="bg-gray-800 text-white">
+                        <tr>
+                            <th class="p-2 w-12">No</th>
+                            <th class="p-2 text-left">Mata Pelajaran</th>
+                            <th class="p-2 text-left">Nama Guru</th>
+                            <th class="p-2 w-28">Yang Sudah</th>
+                            <th class="p-2 w-28">Yang Belum</th>
+                            <th class="p-2 w-32">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>
+        </div>`;
+    }catch(e){
+        console.error(e);
+        return '';
+    }
+}
 function computeNilaiTodoEntriesForGuru(u, { tahun_ajar, semester }){
     const todos = [];
     const mapelArr = parseMapelData(u?.mapel);
@@ -485,7 +577,7 @@ function renderAdminTodoDashboardHTML(todos){
     if (!list.length){
         return `
         <div class="bg-white p-6 rounded-xl shadow border">
-            <h3 class="text-lg font-extrabold text-blue-900">🧭 To-do Otomatis: Nilai Mapel yang Belum Masuk</h3>
+            <h3 class="text-lg font-extrabold text-blue-900">🧭 Nilai Mapel yang Belum Masuk</h3>
             <div class="text-sm text-gray-700">Periode <b>${tahun_ajar}</b> / Semester <b>${semester}</b> • Semua mapel sudah lengkap.</div>
         </div>`;
     }
@@ -513,11 +605,11 @@ function renderAdminTodoDashboardHTML(todos){
             <td class="p-2 text-left font-bold">${escapeHtml(t.mapel||'-')}</td>
             <td class="p-2 text-center font-mono">${escapeHtml(t.kelas||'-')}</td>
             <td class="p-2 text-left">${escapeHtml(t.guru||'-')}</td>
-            <td class="p-2 text-center">${(t.filled||0)}/${(t.expected||0)}</td>
-            <td class="p-2 text-center font-bold text-red-700">${t.missing||0}</td>
             <td class="p-2 text-center">
-                <button class="bg-blue-700 hover:bg-blue-800 text-white px-3 py-1 rounded shadow text-xs font-bold"
-                    onclick="event.stopPropagation(); renderAdminNilaiMonitor(decodeURIComponent('${_encArg(t.mapel)}'), decodeURIComponent('${_encArg(t.kelas)}'), decodeURIComponent('${_encArg(t.guru)}'))">Input Nilai</button>
+                <div class="flex flex-wrap gap-2 justify-center">
+                    <button class="bg-gray-800 hover:bg-gray-900 text-white px-3 py-1 rounded shadow text-xs font-bold ${t.guru_id ? '' : 'opacity-50 cursor-not-allowed'}"
+                        ${t.guru_id ? `onclick="event.stopPropagation(); openChatCompose(${t.guru_id}, '${_encArg(t.guru||'')}', '${_encArg(t.mapel||'')}', '${_encArg(t.kelas||'')}')"` : 'disabled'}>Kirim Pesan</button>
+                </div>
             </td>
         </tr>
     `).join('');
@@ -526,7 +618,7 @@ function renderAdminTodoDashboardHTML(todos){
     <div class="bg-white p-6 rounded-xl shadow border">
         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-4">
             <div>
-                <h3 class="text-lg font-extrabold text-blue-900">🧭 To-do Otomatis: Nilai Mapel yang Belum Masuk</h3>
+                <h3 class="text-lg font-extrabold text-blue-900">🧭 Nilai Mapel yang Belum Masuk</h3>
                 <div class="text-xs text-gray-600">Periode <b>${tahun_ajar}</b> / Semester <b>${semester}</b> • Menampilkan 10 mapel paling belum lengkap (mapel lengkap tidak ditampilkan).</div>
             </div>
         </div>
@@ -538,8 +630,6 @@ function renderAdminTodoDashboardHTML(todos){
                         <th class="p-2 text-left">Mapel</th>
                         <th class="p-2 w-28">Kelas</th>
                         <th class="p-2 text-left">Guru</th>
-                        <th class="p-2 w-24">Terisi</th>
-                        <th class="p-2 w-24">Belum</th>
                         <th class="p-2 w-28">Aksi</th>
                     </tr>
                 </thead>
@@ -768,6 +858,84 @@ function _sparkHist(vals){
         return `<div class="w-[8px] rounded-sm" style="height:${h}px;background:rgba(17,24,39,${op})" title="${c}"></div>`;
     }).join('');
     return `<div class="flex items-end gap-[2px] h-[26px]">${bars}</div>`;
+}
+
+
+// ===============================
+// Ranking/Distribusi: helper legger untuk ranking (cache)
+// ===============================
+let _rankingCache = { key: '', rows: [], tahun_ajar: '', semester: 0 };
+
+
+function _sortRankingRows(rows){
+    const arr = Array.isArray(rows) ? rows.slice() : [];
+    const num = (v)=> {
+        const n = Number(v);
+        return Number.isFinite(n) ? n : 0;
+    };
+    const str = (v)=> String(v||'').trim();
+    arr.sort((a,b)=>{
+        const ra = num(a.rata);
+        const rb = num(b.rata);
+        if (rb !== ra) return rb - ra;
+        // tie-breaker: total/jumlah
+        const ta = num(a.total ?? a.jumlah ?? a.sum ?? a.nilai_total);
+        const tb = num(b.total ?? b.jumlah ?? b.sum ?? b.nilai_total);
+        if (tb !== ta) return tb - ta;
+        // tie-breaker: nama
+        const na = str(a.nama || a.name);
+        const nb = str(b.nama || b.name);
+        const c = na.localeCompare(nb, 'id', { sensitivity: 'base' });
+        if (c !== 0) return c;
+        // tie-breaker: NIS
+        return str(a.nis).localeCompare(str(b.nis), 'id', { sensitivity: 'base' });
+    });
+    return arr;
+}
+function _inferParalelFromKelas(kelas) {
+    try {
+        if (typeof _parseKelasParts === 'function') {
+            const p = _parseKelasParts(kelas);
+            if (p && p.paralel) return p.paralel;
+        }
+    } catch(e){}
+    const tokens = String(kelas || '').trim().split(/\s+/).filter(Boolean);
+    return tokens.length ? tokens[tokens.length - 1] : '';
+}
+
+function _getAllLeggerRowsForRanking() {
+    const { tahun_ajar, semester } = getActivePeriode();
+    const key = `${tahun_ajar}|${semester}|${(typeof bobotNilai !== 'undefined' && bobotNilai && JSON.stringify(bobotNilai)) ? 'b' : 'nb'}`;
+    if (_rankingCache.key === key && Array.isArray(_rankingCache.rows)) {
+        return { rows: _rankingCache.rows, tahun_ajar: _rankingCache.tahun_ajar, semester: _rankingCache.semester };
+    }
+
+    const kelasList = Array.from(new Set((students || []).map(s => String(s.kelas || '').trim()).filter(Boolean)))
+        .sort((a, b) => a.localeCompare(b));
+
+    const all = [];
+    kelasList.forEach(kelas => {
+        try {
+            const d = buildLeggerDataForKelas(kelas);
+            (d.rows || []).forEach(r => {
+                all.push({
+                    nis: r.nis,
+                    nama: r.nama,
+                    kelas: String(kelas || ''),
+                    jenjang: (typeof _inferJenjangFromKelas === 'function' ? (_inferJenjangFromKelas(kelas) || '') : ''),
+                    paralel: _inferParalelFromKelas(kelas) || '',
+                    jurusan_key: (()=>{ const p=_parseKelasParts(kelas); const j=(p.jenjang||'').trim(); const jur=(p.jurusan||'').trim(); return (jur?`${j} ${jur}`.trim():j); })(),
+                    rata: Number(r.rata || 0) || 0,
+                    jumlah: Number(r.jumlah || 0) || 0
+                });
+            });
+        } catch (e) {
+            console.warn('Gagal build legger untuk kelas', kelas, e);
+        }
+    });
+
+    _rankingCache = { key, rows: all, tahun_ajar, semester: Number(semester) || 0 };
+    return { rows: all, tahun_ajar, semester: Number(semester) || 0 };
 }
 
 function buildAdminDistribusiHTML({ tahun_ajar, semester }){
@@ -1228,7 +1396,7 @@ async function openAdminLeggerForKelas(kelas){
                 <td class="p-2 text-center">${waliVal}</td>
                 <td class="p-2 text-center">${u.musyrif||'-'}</td>
                 <td class="p-2 text-center">
-                    <button ${canEdit ? `onclick="editGuru(${u.id})"` : 'disabled'} class="${canEdit ? 'text-blue-600 hover:bg-blue-100' : 'text-gray-400 cursor-not-allowed'} font-bold text-xs px-3 py-1 rounded shadow font-bold text-xs px-3 py-1 rounded shadow">Edit</button>
+                    <button ${canEdit ? `onclick="editGuru(${u.id})"` : 'disabled'} class="bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs px-3 py-1 rounded shadow">Edit</button>
                     <button ${canEdit ? `onclick="adminDeleteGuru(${u.id})"` : 'disabled class="opacity-50 cursor-not-allowed"'} class="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-3 py-1 rounded shadow">Hapus</button>
                 </td>
             </tr>`;
@@ -1878,9 +2046,9 @@ window._lastKonversiRows = data;
             ${mode==='data' ? `
                 <button onclick="saveWaliDataLocal('${mode}')" class="bg-blue-600 text-white px-4 py-2 rounded shadow text-sm font-bold">Simpan</button>` : ''}
             ${mode==='print' ? `
-                <button onclick="exportLeggerXLSX('${kelas}')" class="bg-green-700 text-white px-3 py-1 rounded shadow text-sm font-bold">XLSX</button>
-                <button onclick="printLeggerKelas('${kelas}', true)" class="bg-blue-700 text-white px-3 py-1 rounded shadow text-sm font-bold">PDF</button>
-                <button onclick="printLeggerKelas('${kelas}', false)" class="bg-gray-800 text-white px-3 py-1 rounded shadow text-sm font-bold">Print</button>
+                <button onclick="exportLeggerXLSX('${kelas}')" class="bg-green-700 text-white px-4 py-2 rounded font-bold shadow text-sm">XLSX</button>
+                <button onclick="printLeggerKelas('${kelas}', true)" class="bg-blue-700 text-white px-4 py-2 rounded font-bold shadow text-sm">PDF</button>
+                <button onclick="printLeggerKelas('${kelas}', false)" class="bg-gray-800 text-white px-4 py-2 rounded font-bold shadow text-sm">PRINT</button>
             ` : ''}
         </div>`;
 
@@ -1912,15 +2080,13 @@ let content = '';
                     <td class="p-2 text-left"><div class="single-line w-44" title="${s.pekerjaan_wali||''}">${s.pekerjaan_wali||'-'}</div></td>
                     <td class="p-2 text-left"><div class="single-line w-72" title="${s.alamat_wali||''}">${s.alamat_wali||'-'}</div></td>
                     <td class="p-2 text-center">
-                        <button ${canEdit ? `onclick="editSantri(${s.id})"` : 'disabled'} class="${canEdit ? 'text-blue-600 hover:bg-blue-100' : 'text-gray-400 cursor-not-allowed'} font-bold text-xs px-3 py-1 rounded shadow font-bold text-xs px-3 py-1 rounded shadow">Edit</button>
+                        <button ${canEdit ? `onclick="editSantri(${s.id})"` : 'disabled'} class="bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs px-3 py-1 rounded shadow">Edit</button>
                     </td>
                 </tr>`;
             }).join('');
 
             content = `
-              ${renderWaliRekapDashboardHTML(kelas)}
-              ${renderChatInboxCardHTML('wali')}
-              <div class="bg-white rounded-xl shadow p-6">
+                            <div class="bg-white rounded-xl shadow p-6">
                 
                 <div class="overflow-auto max-h-[70vh]">
                   <table class="min-w-[1700px] w-full text-xs sm:text-sm border std-table whitespace-nowrap">
@@ -2079,9 +2245,7 @@ let content = '';
         }
 
         else if (mode === 'print') {
-            content = `<div class="bg-white rounded-xl shadow p-6">
-                ${renderLeggerTableHTML(kelas, 'table-legger-wali', 'Wali Kelas • ' + kelas)}
-            </div>`;
+            content = renderWaliPrintArabicHTML(kelas);
         }
 
         main.innerHTML = `
@@ -2092,8 +2256,6 @@ let content = '';
             </div>
             ${content}
         </div>`;
-        // Load inbox pesan (wali kelas)
-        loadChatInboxInto('chat-inbox-wali');
         if(mode==='absen') { enableArrowNavigation('table-absen'); attachInputIndicators('table-absen', { max100: true }); }
         if(mode==='catatan') { enableArrowNavigation('table-catatan'); attachInputIndicators('table-catatan', { max100: false }); }
     }
@@ -2614,6 +2776,112 @@ let content = '';
         _printHTML(`LEGGER_${kelas}`, html);
     }
 
+    // --- PRINT LEGGER KELAS (ARAB) ---
+    function printLeggerKelasArabic(kelasEnc){
+        const kelas = decodeURIComponent(String(kelasEnc||''));
+        const { mapels, rows, tahun_ajar, semester } = buildLeggerDataForKelas(kelas);
+
+        const headFixed = [
+            'الرقم',
+            'رقم القيد',
+            'اسم الطالب/الطالبة',
+            'الاسم (لاتيني)',
+            'الجنس'
+        ];
+        const headMapel = (mapels||[]).map(m => {
+            const key = _normMapel(m);
+            const ar = (_mapelAr && _mapelAr[key]) ? _mapelAr[key] : ('المادة: ' + String(m||''));
+            return ar;
+        });
+        const headTail = ['المجموع','المعدل','الترتيب'];
+        const head = [...headFixed, ...headMapel, ...headTail];
+
+        const thead = head.map(h=>`<th>${escapeHtml(h)}</th>`).join('');
+        const tbody = (rows||[]).map(r=>{
+            const s = (students||[]).find(x => String(x.nis) === String(r.nis)) || {};
+            const namaArab = (s.nama_arab && String(s.nama_arab).trim()) ? String(s.nama_arab).trim()
+              : (s.name_arab && String(s.name_arab).trim()) ? String(s.name_arab).trim() : '-';
+
+            const jk = (String(r.jk||'').toUpperCase()==='P') ? 'طالبة'
+              : (String(r.jk||'').toUpperCase()==='L') ? 'طالب' : '-';
+
+            const cellsMapel = (mapels||[]).map(m => {
+                const v = Number(r.mapel[m]||0);
+                return v ? _toArabicIndic(v) : '-';
+            });
+
+            const cells = [
+                _toArabicIndic(r.no),
+                _toArabicIndic(r.nis),
+                namaArab,
+                r.nama || '-',
+                jk,
+                ...cellsMapel,
+                _toArabicIndic(r.jumlah || 0),
+                _toArabicIndic(r.rata || 0),
+                (r.ranking ? _toArabicIndic(r.ranking) : '-')
+            ].map(v=>`<td>${escapeHtml(v)}</td>`).join('');
+
+            return `<tr>${cells}</tr>`;
+        }).join('');
+
+        const css = `
+          body{ font-family: "Noto Naskh Arabic", "Amiri", Tahoma, Arial, sans-serif; padding: 16px; }
+          h1{ font-size: 16px; margin: 0 0 8px; }
+          .meta{ font-size: 12px; color:#333; margin-bottom: 12px; }
+          table{ border-collapse: collapse; width: 100%; }
+          th, td{ border: 1px solid #222; padding: 6px 8px; font-size: 11px; }
+          th{ background:#f2f2f2; font-weight:800; }
+          td{ vertical-align: top; }
+          .rtl{ direction: rtl; unicode-bidi: plaintext; }
+          .center{ text-align:center; }
+          @media print { button{ display:none; } }
+        `;
+
+        const html = `
+          <div class="rtl">
+            <h1>كشف درجات الفصل ${escapeHtml(kelas)}</h1>
+            <div class="meta">السنة الدراسية: <b>${escapeHtml(_toArabicIndic(tahun_ajar))}</b> • الفصل: <b>${escapeHtml(_semesterToArab(semester))}</b></div>
+          </div>
+          <table>
+            <thead><tr>${thead}</tr></thead>
+            <tbody>${tbody || '<tr><td colspan="999">-</td></tr>'}</tbody>
+          </table>
+        `;
+
+        _printHTML('KASHF_' + kelas, `<style>${css}</style>${html}`);
+    }
+
+    // --- WALI: HALAMAN PRINT (ARAB) ---
+    function renderWaliPrintArabicHTML(kelas){
+        const kelasEnc = encodeURIComponent(String(kelas||''));
+        const { tahun_ajar, semester } = getActivePeriode();
+        const judul = `كشف درجات الفصل ${_toArabicIndic(kelas)}`;
+        return `
+          <div class="bg-white rounded-xl shadow p-6 border">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+              <div class="rtl" style="direction:rtl">
+                <div class="text-xs text-gray-500 font-bold">طباعة</div>
+                <div class="text-2xl font-extrabold">${escapeHtml(judul)}</div>
+                <div class="text-xs text-gray-600">السنة الدراسية: <b>${escapeHtml(_toArabicIndic(tahun_ajar))}</b> • الفصل: <b>${escapeHtml(_semesterToArab(semester))}</b></div>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button onclick="printLeggerKelasArabic('${kelasEnc}')" class="px-4 py-2 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-extrabold text-sm shadow">🖨️ طباعة كشف الدرجات</button>
+              </div>
+            </div>
+
+            <div class="text-sm text-gray-700 rtl" style="direction:rtl">
+              ملاحظة: هذه نسخة أولية باللغة العربية. طباعة كشف طالب واحد متاحة من زر 🖨️ في جدول الليجر.
+            </div>
+
+            <div class="mt-4">
+              ${renderLeggerTableHTML(kelas, 'table-legger-wali', 'Preview • ' + kelas)}
+            </div>
+          </div>
+        `;
+    }
+
+
 
     
     // --- RAPOR PRINT (per santri) ---
@@ -3043,6 +3311,19 @@ function _parseKelasParts(k){
     return { jenjang, jurusan, paralel, kelas: parts.join(' ') };
 }
 
+// Untuk ranking: group "per jenjang" yang diminta user adalah kombinasi seperti
+// "X A" / "XI IPA" / "XII IPS" (mengabaikan paralel detail seperti A4).
+function _rankJenjangKey(kelasStr){
+    const p = _parseKelasParts(kelasStr);
+    const j = (p.jenjang || '').trim();
+    const jur = (p.jurusan || '').trim();
+    const par = (p.paralel || '').trim();
+    if (!j) return '';
+    if (jur) return `${j} ${jur}`.trim();
+    if (par) return `${j} ${par.charAt(0)}`.trim();
+    return j;
+}
+
 function updateAdminLeggerKelasOptions(init=false){
     const jenSel = document.getElementById('flt-legger-jenjang');
     const jurSel = document.getElementById('flt-legger-jurusan');
@@ -3119,11 +3400,10 @@ function renderAdminRanking() {
     const main = document.getElementById('main-content');
     const { rows, tahun_ajar, semester } = _getAllLeggerRowsForRanking();
 
-    const kelasList = Array.from(new Set(rows.map(r => r.kelas).filter(Boolean))).sort((a, b) => a.localeCompare(b));
-    const paralelList = Array.from(new Set(rows.map(r => r.paralel).filter(Boolean))).sort((a, b) => a.localeCompare(b));
-    const jenjangList = Array.from(new Set(rows.map(r => r.jenjang).filter(Boolean))).sort((a, b) => a.localeCompare(b));
-
-    main.innerHTML = `
+    const kelasList = Array.from(new Set(rows.map(r => r.kelas).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'id'));
+    const jurusanList = Array.from(new Set(rows.map(r => r.jurusan_key).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'id'));
+    const jenjangList = Array.from(new Set(rows.map(r => r.jenjang).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'id'));
+main.innerHTML = `
         <div class="bg-white p-6 rounded shadow">
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
                 <div>
@@ -3141,9 +3421,9 @@ function renderAdminRanking() {
                     <label class="text-xs font-bold text-gray-600">Tipe Ranking</label>
                     <select id="rank-scope" class="w-full border rounded px-3 py-2 text-sm">
                         <option value="kelas">Per Kelas</option>
-                        <option value="paralel">Per Jurusan/Paralel (mis. X IPA, XI IPS)</option>
-                        <option value="jenjang">Per Jenjang (X / XI / XII)</option>
-                        <option value="umum">Juara Umum (Semua Jenjang)</option>
+                        <option value="jurusan">Per Jurusan</option>
+                        <option value="jenjang">Per Jenjang</option>
+                        <option value="umum">Juara Umum</option>
                     </select>
                 </div>
 
@@ -3152,9 +3432,9 @@ function renderAdminRanking() {
                     <select id="rank-key" class="w-full border rounded px-3 py-2 text-sm"></select>
                 </div>
 
-                <div class="flex items-end">
-                    <button id="btn-export-ranking" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded font-bold shadow text-sm">XLSX</button>
-                    <button onclick="exportRankingPDF()" class="w-full bg-gray-800 text-white px-4 py-2 rounded font-bold shadow text-sm">PDF</button>
+                <div class="flex items-end justify-end gap-2">
+                    <button id="btn-export-ranking" class="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded font-bold shadow text-sm">XLSX</button>
+                    <button onclick="exportRankingPDF()" class="bg-gray-800 hover:bg-black text-white px-4 py-2 rounded font-bold shadow text-sm">PDF</button>
                 </div>
             </div>
 
@@ -3175,10 +3455,10 @@ function renderAdminRanking() {
             keyWrap.classList.remove('hidden');
             keyLabel.innerText = 'Kelas';
             opts = kelasList;
-        } else if (scope === 'paralel') {
+        } else if (scope === 'jurusan') {
             keyWrap.classList.remove('hidden');
-            keyLabel.innerText = 'Paralel/Jurusan';
-            opts = paralelList;
+            keyLabel.innerText = 'Jurusan';
+            opts = jurusanList;
         } else if (scope === 'jenjang') {
             keyWrap.classList.remove('hidden');
             keyLabel.innerText = 'Jenjang';
@@ -3200,7 +3480,7 @@ function renderAdminRanking() {
         let filtered = rows;
 
         if (scope === 'kelas') filtered = rows.filter(r => _eq(r.kelas, key));
-        if (scope === 'paralel') filtered = rows.filter(r => _eq(r.paralel, key));
+        if (scope === 'jurusan') filtered = rows.filter(r => _eq(r.jurusan_key, key));
         if (scope === 'jenjang') filtered = rows.filter(r => _eq(r.jenjang, key));
         if (scope === 'umum') filtered = rows;
 
@@ -3209,7 +3489,7 @@ function renderAdminRanking() {
 
         const title =
             scope === 'kelas' ? `Kelas <b>${key || '-'}</b>` :
-            scope === 'paralel' ? `Paralel <b>${key || '-'}</b>` :
+            scope === 'jurusan' ? `Jurusan <b>${key || '-'}</b>` :
             scope === 'jenjang' ? `Jenjang <b>${key || '-'}</b>` :
             `Juara Umum`;
 
@@ -4268,7 +4548,7 @@ function exportRankingPDF(){
 // ===============================
 
 function renderChatInboxCardHTML(context){
-    const title = (context === 'wali') ? '💬 Pesan untuk Wali Kelas' : '💬 Pesan untuk Guru';
+    const title = (context === 'wali') ? '💬 Pesan untuk Wali Kelas' : '💬 Pesan cinta dari para Guru';
     const holderId = (context === 'wali') ? 'chat-inbox-wali' : 'chat-inbox-guru';
     return `
     <div class="bg-white p-6 rounded-xl shadow border">
@@ -4288,8 +4568,16 @@ async function loadChatInboxInto(holderId){
         holder.innerHTML = `<div class="text-sm text-gray-600">Anda belum login.</div>`;
         return;
     }
-    if (!window.db){
-        holder.innerHTML = `<div class="text-sm text-red-600">Supabase belum siap.</div>`;
+    if (typeof db === 'undefined' || !db){
+        holder.innerHTML = `<div class="text-sm text-gray-600">Menyiapkan koneksi...</div>`;
+        // retry beberapa kali sampai db siap (mis. setelah data.js selesai load)
+        window.__chatDbRetry = window.__chatDbRetry || {};
+        window.__chatDbRetry[holderId] = (window.__chatDbRetry[holderId] || 0) + 1;
+        if (window.__chatDbRetry[holderId] <= 30){
+            setTimeout(()=>loadChatInboxInto(holderId), 150);
+        } else {
+            holder.innerHTML = `<div class="text-sm text-red-600">Supabase belum siap.</div>`;
+        }
         return;
     }
 
@@ -4311,26 +4599,49 @@ async function loadChatInboxInto(holderId){
         const rows = data.map(m => {
             const from = (users || []).find(x => String(x.id) === String(m.from_guru_id));
             const fromName = from ? (from.name || from.nama_guru || from.username) : `ID:${m.from_guru_id}`;
-            const meta = [
-                m.kelas ? `<span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-900 text-xs font-bold">${escapeHtml(m.kelas)}</span>` : '',
-                m.mapel ? `<span class="px-2 py-0.5 rounded-full bg-green-100 text-green-900 text-xs font-bold">${escapeHtml(m.mapel)}</span>` : ''
-            ].filter(Boolean).join(' ');
+            const kelas = (m.kelas || '').toString().trim();
+            const mapel = (m.mapel || '').toString().trim();
+            const msg = (m.message || '').toString().trim();
+            const time = m.created_at ? new Date(m.created_at).toLocaleString() : '';
+
+            const chipKelas = kelas ? `<span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 text-xs font-bold" title="${escapeHtml(kelas)}">${escapeHtml(kelas)}</span>` : '';
+            const chipMapel = mapel ? `<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold" title="${escapeHtml(mapel)}">${escapeHtml(mapel)}</span>` : '';
+            const chipMsg = msg ? `<span class="px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 text-xs font-bold max-w-[420px] truncate" title="${escapeHtml(msg)}">${escapeHtml(msg)}</span>` : '';
+
             return `
-            <div class="border rounded-lg p-3 mb-2">
+            <div class="bg-white rounded-xl border shadow-sm p-3">
                 <div class="flex flex-wrap items-center justify-between gap-2">
-                    <div class="font-bold text-gray-900">${escapeHtml(fromName)}</div>
-                    <div class="text-xs text-gray-500">${new Date(m.created_at).toLocaleString()}</div>
-                </div>
-                <div class="mt-1">${meta}</div>
-                <div class="mt-2 text-gray-800 whitespace-pre-wrap">${escapeHtml(m.message || '')}</div>
-                <div class="mt-2 flex gap-2">
-                    <button class="bg-blue-700 hover:bg-blue-800 text-white px-3 py-1 rounded shadow text-xs font-bold"
-                        onclick="openChatCompose(${m.from_guru_id}, '${_encArg(fromName)}', '${_encArg(m.mapel||'')}', '${_encArg(m.kelas||'')}')">Balas</button>
+                    <div class="flex flex-wrap items-center gap-2 min-w-0">
+                        <span class="font-extrabold text-gray-900">${escapeHtml(fromName)}</span>
+                        ${chipKelas}
+                        ${chipMapel}
+                        ${chipMsg}
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <span class="text-xs text-gray-500">${escapeHtml(time)}</span>
+                        <button class="bg-blue-700 hover:bg-blue-800 text-white px-3 py-1 rounded shadow text-xs font-bold"
+                            onclick="openChatCompose(${m.from_guru_id}, '${_encArg(fromName)}', '${_encArg(m.mapel||'')}', '${_encArg(m.kelas||'')}')">Balas</button>
+                    </div>
                 </div>
             </div>`;
         }).join('');
 
-        holder.innerHTML = rows;
+        holder.innerHTML = rows || `<div class="text-sm text-gray-600">Belum ada pesan.</div>`;
+
+        // Auto refresh inbox (tanpa perlu tekan tombol refresh)
+        window.__chatInboxInterval = window.__chatInboxInterval || {};
+        if (!window.__chatInboxInterval[holderId]){
+            window.__chatInboxInterval[holderId] = setInterval(() => {
+                const el = document.getElementById(holderId);
+                if (!el){
+                    clearInterval(window.__chatInboxInterval[holderId]);
+                    delete window.__chatInboxInterval[holderId];
+                    return;
+                }
+                loadChatInboxInto(holderId);
+            }, 15000);
+        }
+
     }catch(e){
         holder.innerHTML = `<div class="text-sm text-red-600">Gagal memuat pesan. Pastikan tabel <b>chat_messages</b> sudah dibuat.</div>`;
         console.error(e);
@@ -4342,15 +4653,84 @@ function openChatCompose(toGuruId, toGuruNameEnc, mapelEnc, kelasEnc){
     const mapel = decodeURIComponent(mapelEnc || '');
     const kelas = decodeURIComponent(kelasEnc || '');
     const hint = `${toName}${kelas ? ' • ' + kelas : ''}${mapel ? ' • ' + mapel : ''}`.trim();
-    const msg = prompt(`Kirim pesan ke:\n${hint}\n\nIsi pesan:`);
-    if (!msg) return;
-    sendChatMessage(toGuruId, kelas, mapel, msg);
+    openChatComposeModal({ toGuruId, hint, kelas, mapel });
+}
+
+// Modal compose chat (lebih rapi daripada prompt)
+function openChatComposeModal({ toGuruId, hint, kelas, mapel }){
+    // pastikan db siap
+    // jika db belum siap, tetap buka modal tapi tombol kirim dinonaktifkan sementara
+    const _dbReadyNow = !(typeof db === 'undefined' || !db);
+
+    const existing = document.getElementById('chat-compose-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'chat-compose-modal';
+    modal.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4';
+    modal.innerHTML = `
+      <div class="w-full max-w-lg bg-white rounded-2xl shadow-xl border">
+        <div class="p-4 border-b flex items-start justify-between gap-3">
+          <div>
+            <div class="text-sm text-gray-500">Kirim Pesan</div>
+            <div class="font-extrabold text-gray-900">${escapeHtml(hint || 'Guru')}</div>
+          </div>
+          <button id="chat-close" class="text-gray-500 hover:text-gray-800 font-bold px-2">✕</button>
+        </div>
+
+        <div class="p-4">
+          ${_dbReadyNow ? "" : `<div class="mb-3 text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-2">Menyiapkan koneksi… tombol Kirim akan aktif otomatis.</div>`}
+          <label class="block text-xs font-bold text-gray-600 mb-2">Isi pesan</label>
+          <textarea id="chat-msg" rows="5" class="w-full border rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="Tulis pesan singkat dan jelas..."></textarea>
+          <div class="text-xs text-gray-500 mt-2">Tips: sebutkan mapel/kelas bila perlu.</div>
+        </div>
+
+        <div class="p-4 border-t flex items-center justify-end gap-2">
+          <button id="chat-cancel" class="px-4 py-2 rounded-xl border font-bold text-sm text-gray-700 hover:bg-gray-50">Batal</button>
+          <button id="chat-send" ${_dbReadyNow ? "" : "disabled"} class="px-4 py-2 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-extrabold text-sm shadow ${_dbReadyNow ? "" : "opacity-50 cursor-not-allowed"}">Kirim</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+    const close = () => modal.remove();
+    modal.querySelector('#chat-close').onclick = close;
+    modal.querySelector('#chat-cancel').onclick = close;
+    modal.addEventListener('click', (e)=>{ if (e.target === modal) close(); });
+
+    const ta = modal.querySelector('#chat-msg');
+    ta.focus();
+    // jika db belum siap saat modal dibuka, aktifkan tombol kirim otomatis ketika sudah siap
+    if (!_dbReadyNow){
+        const btn = modal.querySelector('#chat-send');
+        const t = setInterval(() => {
+            if (typeof db !== 'undefined' && db){
+                clearInterval(t);
+                btn.disabled = false;
+                btn.classList.remove('opacity-50','cursor-not-allowed');
+            }
+        }, 150);
+        setTimeout(()=>{ try{ clearInterval(t);}catch(e){} }, 6000);
+    }
+
+    modal.querySelector('#chat-send').onclick = async () => {
+        const msg = (ta.value || '').trim();
+        if (!msg){
+            showToast('Pesan masih kosong', 'error');
+            ta.focus();
+            return;
+        }
+        modal.querySelector('#chat-send').disabled = true;
+        modal.querySelector('#chat-send').innerText = 'Mengirim...';
+        await sendChatMessage(toGuruId, kelas, mapel, msg);
+        close();
+    };
 }
 
 async function sendChatMessage(toGuruId, kelas, mapel, message){
     const u = getCurrentUser();
     if (!u || !u.id){ showToast('Anda belum login', 'error'); return; }
-    if (!window.db){ showToast('Supabase belum siap', 'error'); return; }
+    if (typeof db === 'undefined' || !db){ showToast('Supabase belum siap', 'error'); return; }
     try{
         const payload = {
             from_guru_id: u.id,
@@ -4363,7 +4743,6 @@ async function sendChatMessage(toGuruId, kelas, mapel, message){
         if (error) throw error;
         showToast('Pesan terkirim', 'success');
         // refresh inbox penerima (kalau sedang dibuka di device yang sama)
-        loadChatInboxInto('chat-inbox-wali');
         loadChatInboxInto('chat-inbox-guru');
     }catch(e){
         console.error(e);
