@@ -317,6 +317,14 @@ function _normStr(s){ return String(s||'').trim(); }
 
 // Safe encode for inline onclick attributes
 function _encArg(v){ return encodeURIComponent(String(v ?? '')); }
+function escapeHtml(str){
+    return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
 
 
 // A score row is considered "filled" only if at least one component > 0.
@@ -3026,7 +3034,6 @@ function printLeggerSantri(nis, kelas){
     }
 
 
-    async 
 function _parseKelasParts(k){
     const parts = String(k || '').trim().split(/\s+/).filter(Boolean);
     if (!parts.length) return { jenjang:'', jurusan:'', paralel:'', kelas:'' };
@@ -3831,6 +3838,7 @@ function exportExcelMusyrif(kelas) {
         const table = document.getElementById(tableId);
         if (!table) return;
 
+        if (!window._indicatorOptsByTable) window._indicatorOptsByTable = {};
         window._indicatorOptsByTable[tableId] = opts;
 
         const els = table.querySelectorAll('input, textarea, select');
