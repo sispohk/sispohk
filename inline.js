@@ -121,8 +121,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <li><a href="#" onclick="renderWaliPage('data')" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">📋 Data Kelas</a></li>
             <li><a href="#" onclick="renderWaliPage('absen')" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">📅 Absensi & Sikap</a></li>
             <li><a href="#" onclick="renderWaliPage('catatan')" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">📝 Catatan & Prestasi</a></li>
-            <li><a href="#" onclick="renderWaliPage('rekap')" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">📌 Rekap Nilai Mapel</a></li>
-            <li><a href="#" onclick="renderWaliPage('print')" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">🖨️ Rapor & Legger</a></li>`;
+<li><a href="#" onclick="renderWaliPage('print')" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">🖨️ Rapor & Legger</a></li>`;
         }
     }
 
@@ -186,26 +185,20 @@ ${_adminTodoHtml}
 
 
                 
-                <div class="bg-blue-50 p-6 rounded-xl border border-blue-200">
-                    <h3 class="text-lg font-extrabold text-blue-900 mb-2">Panduan Singkat Admin</h3>
-                    <ol class="list-decimal pl-6 text-sm text-blue-900 space-y-1">
+                <div class="bg-white p-6 rounded-xl shadow border">
+                    <h3 class="text-lg font-bold text-gray-800 mb-2">Panduan Singkat Admin</h3>
+                    <ol class="list-decimal pl-6 text-sm text-gray-700 space-y-1">
                         <li>Cek <b>Periode Aktif</b> (Tahun Ajar & Semester) di bagian atas.</li>
                         <li>Isi/cek <b>Database</b>: Guru, Santri, Legger (import/export tersedia).</li>
                         <li>Atur <b>Bobot</b> & <b>Konversi</b> sebelum input nilai berjalan jauh.</li>
                         <li>Pantau <b>Status Nilai</b> dan gunakan menu <b>Ranking</b> untuk Top 3.</li>
                         <li>Bangun/cetak <b>Rapor & Legger</b> setelah nilai mapel lengkap.</li>
                     </ol>
-                    <div class="text-xs text-blue-800 mt-3">Tip: Kalau ada menu yang hilang, biasanya karena kolom <b>wali</b> / <b>musyrif</b> pada data guru belum terisi.</div>
-                </div>
-
-<div class="bg-white p-6 rounded-xl shadow border">
-                    <h3 class="text-lg font-bold text-gray-800 mb-2">Catatan Singkat</h3>
-                    <ul class="list-disc pl-6 text-sm text-gray-700 space-y-1">
-                        <li>Role akun hanya: <b>admin</b> dan <b>guru</b>. Peran wali kelas/musyrif otomatis aktif kalau kolom <b>wali</b> / <b>musyrif</b> terisi.</li>
-                        <li>Menu <b>Data Santri</b> kini menampilkan semua kolom sesuai tabel <b>public.santri</b> (import/export juga sama).</li>
-                    </ul>
+                    
                 </div>
 </div>`;
+        // Load inbox pesan (guru)
+        loadChatInboxInto('chat-inbox-guru');
             return;
         }
 
@@ -233,10 +226,11 @@ ${_adminTodoHtml}
         const isMusyrifRole = !!(u.musyrif && String(u.musyrif).trim());
 
         const _comboProgress = computeGuruComboProgress(u, combos);
-        const _guruQuickHtml = renderGuruQuickContinueHTML(_comboProgress);
-        const _guruAnalyticsHtml = renderGuruAnalyticsHTML(u, combos);
-
-        document.getElementById('main-content').innerHTML = `
+const _guruAnalyticsHtml = renderGuruAnalyticsHTML(u, combos);
+        const _guruChatHtml = renderChatInboxCardHTML('guru');
+        
+        const _guruTodoHtml = '';
+document.getElementById('main-content').innerHTML = `
         <div class="max-w-6xl mx-auto space-y-6">
             <div class="bg-white p-8 rounded-xl shadow border-l-8 border-blue-600">
                 <h2 class="text-3xl font-extrabold text-gray-800 mb-2">Selamat Datang, ${u.name}</h2>
@@ -283,20 +277,20 @@ ${_adminTodoHtml}
             </div>
 
             <div class="space-y-6">
-                ${_guruQuickHtml}
-            </div>
+</div>
 
             ${_guruAnalyticsHtml}
 
-            <div class="bg-green-50 p-6 rounded-xl border border-green-200">
-                <h3 class="text-lg font-extrabold text-green-900 mb-2">Panduan Singkat Guru</h3>
-                <ol class="list-decimal pl-6 text-sm text-green-900 space-y-1">
+            ${_guruChatHtml}
+<div class="bg-white p-6 rounded-xl shadow border">
+                <h3 class="text-lg font-bold text-gray-800 mb-2">Panduan Singkat Guru</h3>
+                <ol class="list-decimal pl-6 text-sm text-gray-700 space-y-1">
                     <li>Pilih <b>Mapel → Kelas</b> dari sidebar.</li>
                     <li>Isi nilai, lalu klik <b>Simpan</b> (disimpan batch agar aman untuk data banyak).</li>
                     <li>Cek <b>Status Nilai</b> (jika tersedia) untuk memastikan mapel sudah terkirim.</li>
                     <li>Kalau Anda juga <b>Wali Kelas</b> atau <b>Musyrif</b>, menu tambahan akan muncul otomatis.</li>
                 </ol>
-                <div class="text-xs text-green-800 mt-3">Tip: Pastikan periode aktif sudah benar: <b>${tahun_ajar}</b> / Semester <b>${semester}</b>.</div>
+                
             </div>
 
 <div class="bg-white p-6 rounded-xl shadow border">
@@ -381,6 +375,90 @@ function computeNilaiTodoEntries({ tahun_ajar, semester }){
     return todos;
 }
 
+
+// Todo nilai khusus untuk guru (berdasarkan mapel & kelas yang diampu)
+function computeNilaiTodoEntriesForGuru(u, { tahun_ajar, semester }){
+    const todos = [];
+    const mapelArr = parseMapelData(u?.mapel);
+    mapelArr.forEach(m => {
+        const mapel = m?.nama;
+        (m.kelas || []).forEach(kelas => {
+            const siswa = (students || []).filter(s => _normStr(s.kelas) === _normStr(kelas));
+            const expected = siswa.length;
+            if (!expected) return;
+            const filled = _countDistinctScoresFor(mapel, kelas, tahun_ajar, semester);
+            const missing = Math.max(0, expected - filled);
+            if (missing > 0){
+                todos.push({
+                    kelas: _normStr(kelas),
+                    mapel: String(mapel || '').trim(),
+                    guru: String(u?.name || u?.nama_guru || u?.username || '-').trim(),
+                    expected, filled, missing
+                });
+            }
+        });
+    });
+    todos.sort((a,b)=> (b.missing-a.missing) || a.mapel.localeCompare(b.mapel, 'id') || a.kelas.localeCompare(b.kelas, 'id'));
+    return todos;
+}
+
+function renderGuruTodoDashboardHTML(todos){
+    const { tahun_ajar, semester } = getActivePeriode();
+    if (!todos || todos.length === 0){
+        return `
+        <div class="bg-white p-6 rounded-xl shadow border">
+            <h3 class="text-lg font-bold text-gray-800 mb-1">To-do Nilai Mapel yang Belum Masuk</h3>
+            <div class="text-sm text-gray-700">Periode <b>${tahun_ajar}</b> / Semester <b>${semester}</b> sudah lengkap untuk mapel yang Anda ampu.</div>
+        </div>`;
+    }
+
+    // Top 10 mapel paling belum lengkap
+    const topMapel = _aggTop(todos, 'mapel').slice(0, 10);
+    const topSet = new Set(topMapel.map(([k,_]) => k));
+    const rows = todos.filter(t => topSet.has(String(t.mapel||'').trim()));
+
+    return `
+        <div class="bg-white p-6 rounded-xl shadow border">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-4">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-800">To-do Nilai Mapel yang Belum Masuk</h3>
+                    <div class="text-xs text-gray-500">Menampilkan 10 mapel paling belum lengkap (khusus mapel yang Anda ampu) • Periode <b>${tahun_ajar}</b> / Semester <b>${semester}</b></div>
+                </div>
+            </div>
+            <div class="overflow-auto">
+                <table class="min-w-[900px] w-full text-sm border std-table">
+                    <thead class="bg-blue-600 text-white">
+                        <tr>
+                            <th class="p-2">No</th>
+                            <th class="p-2 text-left">Mapel</th>
+                            <th class="p-2">Kelas</th>
+                            <th class="p-2">Terisi</th>
+                            <th class="p-2">Belum</th>
+                            <th class="p-2">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.map((t,i)=>`
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="p-2 text-center text-xs text-gray-500">${i+1}</td>
+                                <td class="p-2 text-left font-extrabold">${t.mapel}</td>
+                                <td class="p-2 text-center">${t.kelas}</td>
+                                <td class="p-2 text-center font-mono">${t.filled}/${t.expected}</td>
+                                <td class="p-2 text-center"><span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-extrabold">${t.missing}</span></td>
+                                <td class="p-2 text-center">
+                                    <button class="bg-blue-700 hover:bg-blue-800 text-white px-3 py-1 rounded shadow text-xs font-bold"
+                                        onclick="renderNilaiPage('${t.mapel.replace(/'/g,"\\'")}', '${t.kelas.replace(/'/g,"\\'")}')">Input Nilai</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+}
+
+
 function _aggTop(todos, key){
     const m = new Map();
     (todos || []).forEach(t => {
@@ -391,81 +469,75 @@ function _aggTop(todos, key){
     return Array.from(m.entries()).sort((a,b)=>b[1]-a[1]);
 }
 
+
 function renderAdminTodoDashboardHTML(todos){
     const { tahun_ajar, semester } = getActivePeriode();
-    if (!todos || todos.length === 0){
+    const list = (todos || []).filter(t => (t.missing || 0) > 0);
+
+    if (!list.length){
         return `
-        <div class="bg-green-50 p-6 rounded-xl border border-green-200">
-            <h3 class="text-lg font-extrabold text-green-900 mb-1">✅ To-do Otomatis: Nilai Mapel</h3>
-            <div class="text-sm text-green-900">Periode <b>${tahun_ajar}</b> / Semester <b>${semester}</b> sudah lengkap. Tidak ada mapel-kelas yang tertinggal.</div>
+        <div class="bg-white p-6 rounded-xl shadow border">
+            <h3 class="text-lg font-extrabold text-blue-900">🧭 To-do Otomatis: Nilai Mapel yang Belum Masuk</h3>
+            <div class="text-sm text-gray-700">Periode <b>${tahun_ajar}</b> / Semester <b>${semester}</b> • Semua mapel sudah lengkap.</div>
         </div>`;
     }
 
-    const topKelas = _aggTop(todos, 'kelas').slice(0, 8);
-    const topMapel = _aggTop(todos, 'mapel').slice(0, 8);
-    const topDetail = todos; // show all rows (not only top 15)
+    // Top 10 MAPEL paling belum lengkap (diakumulasikan dari semua kelas)
+    const agg = {};
+    list.forEach(t => {
+        const k = String(t.mapel || '').trim();
+        if (!k) return;
+        agg[k] = (agg[k] || 0) + (t.missing || 0);
+    });
+    const topMapel = Object.entries(agg)
+        .sort((a,b)=> (b[1]-a[1]) || a[0].localeCompare(b[0], 'id'))
+        .slice(0, 10)
+        .map(x => x[0]);
 
-    const smallList = (items, label) => `
-        <div class="bg-white p-4 rounded-xl border shadow-sm">
-            <div class="font-extrabold text-gray-800 mb-2">${label}</div>
-            <div class="space-y-2">
-                ${items.map(([k,v]) => `
-                    <div class="flex items-center justify-between gap-3">
-                        <div class="text-sm font-bold text-gray-800 truncate" title="${k}">${k}</div>
-                        <div class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full font-extrabold">${v}</div>
-                    </div>
-                `).join('')}
-            </div>
-        </div>
-    `;
+    const topSet = new Set(topMapel);
+    const rows = list
+        .filter(t => topSet.has(String(t.mapel || '').trim()))
+        .sort((a,b)=> (b.missing-a.missing) || String(a.mapel||'').localeCompare(String(b.mapel||''), 'id') || String(a.kelas||'').localeCompare(String(b.kelas||''), 'id'));
 
-    const detailRows = topDetail.map((t, i) => `
-        <tr class="hover:bg-gray-50 border-b cursor-pointer"
-            onclick="renderAdminNilaiMonitor(decodeURIComponent('${_encArg(t.mapel)}'), decodeURIComponent('${_encArg(t.kelas)}'), decodeURIComponent('${_encArg(t.guru)}'))">
+    const body = rows.map((t, i) => `
+        <tr class="hover:bg-gray-50 border-b">
             <td class="p-2 text-center text-xs text-gray-500">${i+1}</td>
-            <td class="p-2 font-bold">${t.kelas}</td>
-            <td class="p-2">${t.mapel}</td>
-            <td class="p-2">${t.guru}</td>
-            <td class="p-2 text-center text-sm font-mono">${t.filled}/${t.expected}</td>
+            <td class="p-2 text-left font-bold">${escapeHtml(t.mapel||'-')}</td>
+            <td class="p-2 text-center font-mono">${escapeHtml(t.kelas||'-')}</td>
+            <td class="p-2 text-left">${escapeHtml(t.guru||'-')}</td>
+            <td class="p-2 text-center">${(t.filled||0)}/${(t.expected||0)}</td>
+            <td class="p-2 text-center font-bold text-red-700">${t.missing||0}</td>
             <td class="p-2 text-center">
-                <span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-extrabold">${t.missing}</span>
-            </td>
-            <td class="p-2 text-center">
-                <button class="px-3 py-1 rounded bg-blue-700 text-white text-xs font-bold shadow"
-                    onclick="event.stopPropagation(); renderNilaiPage(decodeURIComponent('${_encArg(t.mapel)}'), decodeURIComponent('${_encArg(t.kelas)}'))">Input Nilai</button>
+                <button class="bg-blue-700 hover:bg-blue-800 text-white px-3 py-1 rounded shadow text-xs font-bold"
+                    onclick="event.stopPropagation(); renderAdminNilaiMonitor(decodeURIComponent('${_encArg(t.mapel)}'), decodeURIComponent('${_encArg(t.kelas)}'), decodeURIComponent('${_encArg(t.guru)}'))">Input Nilai</button>
             </td>
         </tr>
     `).join('');
 
     return `
-    <div class="bg-blue-50 p-6 rounded-xl border border-blue-200">
+    <div class="bg-white p-6 rounded-xl shadow border">
         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-4">
             <div>
                 <h3 class="text-lg font-extrabold text-blue-900">🧭 To-do Otomatis: Nilai Mapel yang Belum Masuk</h3>
-                <div class="text-xs text-blue-900">Periode <b>${tahun_ajar}</b> / Semester <b>${semester}</b> • Klik baris untuk lihat detail.</div>
-            </div>
-            <button class="bg-blue-700 text-white px-4 py-2 rounded font-bold text-sm shadow"
-                onclick="renderAdminTodoPage()">Lihat Semua</button>
-        </div>
-        <div class="bg-white p-4 rounded-xl border shadow-sm">
-                        <div class="overflow-auto">
-                <table class="min-w-[900px] w-full text-sm border std-table">
-                    <thead class="bg-blue-600 text-white">
-                        <tr>
-                            <th class="p-2 w-12">No</th>
-                            <th class="p-2 text-left">Kelas</th>
-                            <th class="p-2 text-left">Mapel</th>
-                            <th class="p-2 text-left">Guru</th>
-                            <th class="p-2 w-24">Terisi</th>
-                            <th class="p-2 w-20">Sisa</th>
-                            <th class="p-2 w-44">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>${detailRows}</tbody>
-                </table>
+                <div class="text-xs text-gray-600">Periode <b>${tahun_ajar}</b> / Semester <b>${semester}</b> • Menampilkan 10 mapel paling belum lengkap (mapel lengkap tidak ditampilkan).</div>
             </div>
         </div>
-        <div class="text-xs text-blue-800 mt-3">Catatan: “Terisi” dihitung dari jumlah santri yang sudah punya record nilai di tabel <b>nilai_mapel</b> (periode aktif).</div>
+        <div class="overflow-auto">
+            <table class="min-w-[980px] w-full text-sm border std-table">
+                <thead class="bg-blue-600 text-white">
+                    <tr>
+                        <th class="p-2 w-12">No</th>
+                        <th class="p-2 text-left">Mapel</th>
+                        <th class="p-2 w-28">Kelas</th>
+                        <th class="p-2 text-left">Guru</th>
+                        <th class="p-2 w-24">Terisi</th>
+                        <th class="p-2 w-24">Belum</th>
+                        <th class="p-2 w-28">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>${body}</tbody>
+            </table>
+        </div>
     </div>`;
 }
 
@@ -629,180 +701,14 @@ function _buildScoreIndexForPeriode(tahun_ajar, semester){
 }
 
 function renderAdminAnalyticsHTML({ tahun_ajar, semester }){
-    // Tahap 1: Heatmap kelengkapan nilai + Kelas rawan telat
-    const kelasList = _sortKelasList(Array.from(new Set((students||[])
-        .map(s => _normStr(s.kelas))
-        .filter(Boolean))));
+    // Tahap 1: Heatmap dihapus sesuai permintaan
+    const heatmapHtml = ``;
 
-    // Mapel unik dari data guru
-    const mapelSet = new Set();
-    (users || []).forEach(g => {
-        const arr = parseMapelData(g.mapel);
-        (arr||[]).forEach(m => {
-            const nama = String(m?.nama||'').trim();
-            if (nama) mapelSet.add(_normUpper(nama));
-        });
-    });
-    const mapelList = Array.from(mapelSet).sort((a,b)=>a.localeCompare(b, 'id', { sensitivity:'base' }));
-
-    // Jika data terlalu besar, tetap tampilkan tapi biar tidak "patah" di layar
-    const scoreIdx = _buildScoreIndexForPeriode(tahun_ajar, semester);
-    const kelasCount = new Map();
-    (students || []).forEach(s => {
-        const k = _normStr(s.kelas);
-        if (!k) return;
-        kelasCount.set(k, (kelasCount.get(k)||0) + 1);
-    });
-
-    // Heatmap rows
-    const heatRows = kelasList.map(kelas => {
-        const expected = kelasCount.get(kelas) || 0;
-        const tds = mapelList.map(mapel => {
-            if (!expected) {
-                return `<td class="p-1 text-center text-xs text-gray-400">-</td>`;
-            }
-            const key = `${_normUpper(mapel)}||${_normStr(kelas)}`;
-            const filled = scoreIdx.get(key)?.size || 0;
-            const pct = expected ? Math.round((filled/expected)*100) : 0;
-            const missing = Math.max(0, expected-filled);
-            const bg = _heatBgFromPct(pct);
-            const title = `${kelas} • ${mapel}\nTerisi: ${filled}/${expected} (${pct}%)\nSisa: ${missing}`;
-            return `
-                <td class="p-1 text-center align-middle">
-                    <div class="rounded-md border px-2 py-2 text-[11px] font-extrabold" style="background:${bg}" title="${title}">
-                        ${missing===0 ? '✓' : missing}
-                    </div>
-                </td>`;
-        }).join('');
-
-        return `
-            <tr class="border-b hover:bg-gray-50">
-                <td class="p-2 font-extrabold sticky left-0 bg-white z-10 border-r" style="min-width:140px">${kelas}</td>
-                ${tds}
-            </tr>`;
-    }).join('');
-
-    const heatHeader = mapelList.map(m => `
-        <th class="p-2 text-left text-xs whitespace-nowrap" style="min-width:92px">
-            <span class="font-extrabold">${m}</span>
-        </th>`).join('');
-
-    const legend = `
-        <div class="flex flex-wrap items-center gap-2 text-xs text-gray-700">
-            <span class="font-extrabold">Legenda:</span>
-            <span class="inline-flex items-center gap-1"><span class="w-4 h-4 rounded border" style="background:${_heatBgFromPct(0)}"></span> banyak kosong</span>
-            <span class="inline-flex items-center gap-1"><span class="w-4 h-4 rounded border" style="background:${_heatBgFromPct(50)}"></span> sedang</span>
-            <span class="inline-flex items-center gap-1"><span class="w-4 h-4 rounded border" style="background:${_heatBgFromPct(90)}"></span> hampir lengkap</span>
-            <span class="inline-flex items-center gap-1"><span class="w-4 h-4 rounded border" style="background:${_heatBgFromPct(100)}"></span> lengkap</span>
-            <span class="text-gray-500">(angka = sisa santri belum ada record nilai)</span>
-        </div>`;
-
-    // Kelas rawan telat: ambil dari todos
-    const todos = computeNilaiTodoEntries({ tahun_ajar, semester });
-    const perKelas = new Map();
-    (todos||[]).forEach(t => {
-        const k = _normStr(t.kelas);
-        if (!k) return;
-        let o = perKelas.get(k);
-        if (!o){ o = { kelas:k, missingTotal:0, combos:0, mapelMissing:new Map() }; perKelas.set(k,o); }
-        o.missingTotal += Number(t.missing||0);
-        o.combos += 1;
-        const m = String(t.mapel||'').trim();
-        if (m) o.mapelMissing.set(m, (o.mapelMissing.get(m)||0) + Number(t.missing||0));
-    });
-
-    const rawanArr = Array.from(perKelas.values())
-        .sort((a,b)=> (b.missingTotal-a.missingTotal) || (b.combos-a.combos) || a.kelas.localeCompare(b.kelas))
-        .slice(0, 12);
-
-    const rawanRows = rawanArr.map((o, i) => {
-        const topMapel = Array.from(o.mapelMissing.entries())
-            .sort((a,b)=>b[1]-a[1])
-            .slice(0,3)
-            .map(([m,v]) => `<span class="inline-flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-full text-xs font-bold"><span class="truncate" title="${m}">${m}</span><span class="bg-red-100 text-red-800 px-2 py-0.5 rounded-full text-[10px] font-extrabold">${v}</span></span>`)
-            .join(' ');
-
-        return `
-            <tr class="border-b hover:bg-gray-50">
-                <td class="p-2 text-center text-xs text-gray-500">${i+1}</td>
-                <td class="p-2 font-extrabold">${o.kelas}</td>
-                <td class="p-2 text-center"><span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-extrabold">${o.missingTotal}</span></td>
-                <td class="p-2 text-center text-sm font-mono">${o.combos}</td>
-                <td class="p-2">${topMapel || '<span class="text-xs text-gray-400">-</span>'}</td>
-                <td class="p-2 text-center">
-                    <button class="px-3 py-1 rounded bg-gray-700 text-white text-xs font-bold shadow"
-                        onclick="openAdminLeggerForKelas(decodeURIComponent('${_encArg(o.kelas)}'))">Legger</button>
-                </td>
-            </tr>`;
-    }).join('');
-
-    const rawanHtml = (!rawanArr.length) ? `
-        <div class="bg-green-50 p-5 rounded-xl border border-green-200">
-            <div class="font-extrabold text-green-900">✅ Tidak ada kelas rawan telat</div>
-            <div class="text-sm text-green-900">Semua mapel-kelas terdeteksi sudah lengkap untuk periode aktif.</div>
-        </div>
-    ` : `
-        <div class="bg-white p-6 rounded-xl shadow border">
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
-                <div>
-                    <h3 class="text-lg font-extrabold text-gray-800">⏳ Kelas Rawan Telat (nilai belum masuk)</h3>
-                    <div class="text-xs text-gray-500">Berdasarkan total “sisa santri” yang belum punya record nilai di periode aktif.</div>
-                </div>
-                <button class="bg-blue-700 text-white px-4 py-2 rounded font-bold text-sm shadow" onclick="renderAdminTodoPage()">Lihat Semua</button>
-            </div>
-            <div class="overflow-auto">
-                <table class="min-w-[900px] w-full text-sm border std-table">
-                    <thead class="bg-gray-800 text-white">
-                        <tr>
-                            <th class="p-2 w-12">No</th>
-                            <th class="p-2 text-left">Kelas</th>
-                            <th class="p-2 w-28">Total Sisa</th>
-                            <th class="p-2 w-24">Mapel Telat</th>
-                            <th class="p-2 text-left">Top Mapel Penyumbang</th>
-                            <th class="p-2 w-24">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>${rawanRows}</tbody>
-                </table>
-            </div>
-        </div>
-    `;
-
-    // Heatmap block (skip bila tidak ada data)
-    const heatmapHtml = (!kelasList.length || !mapelList.length) ? `
-        <div class="bg-yellow-50 p-5 rounded-xl border border-yellow-200">
-            <div class="font-extrabold text-yellow-900">ℹ️ Heatmap belum bisa dibuat</div>
-            <div class="text-sm text-yellow-900">Pastikan data <b>Santri (kelas)</b> dan <b>Mapel guru</b> sudah terisi.</div>
-        </div>
-    ` : `
-        <div class="bg-white p-6 rounded-xl shadow border">
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
-                <div>
-                    <h3 class="text-lg font-extrabold text-gray-800">Heatmap Kelengkapan Nilai (Kelas × Mapel)</h3>
-                    <div class="text-xs text-gray-500">Periode <b>${tahun_ajar}</b> / Semester <b>${semester}</b> • Hover untuk detail.</div>
-                </div>
-            </div>
-            ${legend}
-            <div class="overflow-auto mt-3">
-                <table class="min-w-[1100px] w-full text-sm border std-table">
-                    <thead class="bg-blue-600 text-white sticky top-0 z-20">
-                        <tr>
-                            <th class="p-2 text-left sticky left-0 z-30 bg-blue-600" style="min-width:140px">Kelas</th>
-                            ${heatHeader}
-                        </tr>
-                    </thead>
-                    <tbody>${heatRows}</tbody>
-                </table>
-            </div>
-            <div class="text-xs text-gray-500 mt-2">Catatan: cell menampilkan <b>sisa santri</b> yang belum punya record nilai untuk mapel tersebut. Angka 0 ditandai ✓.</div>
-        </div>
-    `;
     // Tahap 2: Outlier detector
     const outlierHtml = buildAdminOutlierHTML({ tahun_ajar, semester });
 
     return `
         <div class="space-y-4">
-            ${heatmapHtml}
             ${outlierHtml}
         </div>
     `;
@@ -1192,37 +1098,7 @@ function renderGuruAnalyticsHTML(u, combos){
             `).join('\n');
 
             return `
-                <details class="bg-white rounded-xl shadow border" open>
-                    <summary class="cursor-pointer select-none p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                        <div>
-                            <div class="text-lg font-extrabold text-gray-800">📉📈 Delta UH(avg) vs PAS/PAT • <span class="text-blue-700">${mapel}</span></div>
-                            <div class="text-xs text-gray-500">Urut dari delta terbesar → terkecil (hanya santri yang punya UH & PAS/PAT).</div>
-                        </div>
-                        <div class="text-xs text-gray-600">Data: <b>${rows.length}</b> santri • Periode <b>${tahun_ajar}</b> / S<b>${semester}</b></div>
-                    </summary>
-                    <div class="px-4 pb-4">
-                        <div class="overflow-auto max-h-[65vh]">
-                            <table class="min-w-[900px] w-full text-sm border std-table whitespace-nowrap">
-                                <thead class="bg-gray-800 text-white sticky top-0">
-                                    <tr>
-                                        <th class="p-2 w-12">#</th>
-                                        <th class="p-2 w-28">NIS</th>
-                                        <th class="p-2 text-left">Nama</th>
-                                        <th class="p-2 w-16">L/P</th>
-                                        <th class="p-2 text-left">Kelas</th>
-                                        <th class="p-2 w-24">UH avg</th>
-                                        <th class="p-2 w-24">PAS/PAT</th>
-                                        <th class="p-2 w-24">Δ</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${body || `<tr><td colspan="8" class="p-3 text-center text-gray-500">Belum ada data delta untuk mapel ini.</td></tr>`}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </details>
-            `;
+`;
         }).join('\n');
 
         return `<div class="space-y-4">${sections}</div>`;
@@ -1344,24 +1220,25 @@ async function openAdminLeggerForKelas(kelas){
                 <td class="p-2 text-center">${waliVal}</td>
                 <td class="p-2 text-center">${u.musyrif||'-'}</td>
                 <td class="p-2 text-center">
-                    <button ${canEdit ? `onclick="editGuru(${u.id})"` : 'disabled'} class="${canEdit ? 'text-blue-600 hover:bg-blue-100' : 'text-gray-400 cursor-not-allowed'} font-bold text-xs p-1 rounded">Edit</button>
-                    <button ${canEdit ? `onclick="adminDeleteGuru(${u.id})"` : 'disabled class="opacity-50 cursor-not-allowed"'} class="bg-red-600 text-white font-bold text-xs p-1 rounded ml-1">Hapus</button>
+                    <button ${canEdit ? `onclick="editGuru(${u.id})"` : 'disabled'} class="${canEdit ? 'text-blue-600 hover:bg-blue-100' : 'text-gray-400 cursor-not-allowed'} font-bold text-xs px-3 py-1 rounded shadow font-bold text-xs px-3 py-1 rounded shadow">Edit</button>
+                    <button ${canEdit ? `onclick="adminDeleteGuru(${u.id})"` : 'disabled class="opacity-50 cursor-not-allowed"'} class="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-3 py-1 rounded shadow">Hapus</button>
                 </td>
             </tr>`;
         }).join('');
 
         const headerBtn = `
         <div class="flex flex-wrap gap-2 justify-end">
-            <button onclick="triggerImport('guru')" class="bg-green-600 text-white px-4 py-2 rounded font-bold shadow text-sm">Import</button>
-            <button onclick="downloadExcelGuru()" class="bg-blue-600 text-white px-4 py-2 rounded font-bold shadow text-sm">Export</button>
-            <button onclick="saveAdminImport('guru')" class="bg-blue-800 text-white px-4 py-2 rounded font-bold shadow text-sm">Simpan</button>
-            <button onclick="openModal('guru')" class="bg-gray-700 text-white px-4 py-2 rounded font-bold shadow text-sm">Tambah</button>
-        </div>`;
+            <button onclick="downloadExcelGuru()" class="bg-blue-700 text-white px-4 py-2 rounded font-bold shadow text-sm">Export</button>
+            <button onclick="triggerImport('guru')" class="bg-green-700 text-white px-4 py-2 rounded font-bold shadow text-sm">Import</button>
+            <button onclick="openModal('guru')" class="bg-gray-800 text-white px-4 py-2 rounded font-bold shadow text-sm">Tambah</button>
+            <button onclick="saveAdminImport('guru')" class="bg-blue-900 text-white px-4 py-2 rounded font-bold shadow text-sm">Simpan</button>
+        </div>
+`;
 
         main.innerHTML = `
         <div class="bg-white p-6 rounded shadow">
             <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-3 mb-4">
-                <h2 class="text-2xl font-bold">Data Guru</h2>
+                <h2 class="text-2xl font-bold">👥 Data Guru</h2>
                 ${headerBtn}
             </div>
             <input type="text" onkeyup="filterTable('tbody-guru')" placeholder="Cari Guru..." class="w-full border p-2 mb-4 rounded">
@@ -1415,16 +1292,17 @@ async function openAdminLeggerForKelas(kelas){
 
         const headerBtn = `
         <div class="flex flex-wrap gap-2 justify-end">
-            <button onclick="triggerImport('santri')" class="bg-green-600 text-white px-4 py-2 rounded font-bold shadow text-sm">Import</button>
-            <button onclick="downloadExcelSantri()" class="bg-blue-600 text-white px-4 py-2 rounded font-bold shadow text-sm">Export</button>
-            <button onclick="saveAdminImport('santri')" class="bg-blue-800 text-white px-4 py-2 rounded font-bold shadow text-sm">Simpan</button>
-            <button onclick="openModal('santri')" class="bg-gray-700 text-white px-4 py-2 rounded font-bold shadow text-sm">Tambah</button>
-        </div>`;
+            <button onclick="downloadExcelSantri()" class="bg-blue-700 text-white px-4 py-2 rounded font-bold shadow text-sm">Export</button>
+            <button onclick="triggerImport('santri')" class="bg-green-700 text-white px-4 py-2 rounded font-bold shadow text-sm">Import</button>
+            <button onclick="openModal('santri')" class="bg-gray-800 text-white px-4 py-2 rounded font-bold shadow text-sm">Tambah</button>
+            <button onclick="saveAdminImport('santri')" class="bg-blue-900 text-white px-4 py-2 rounded font-bold shadow text-sm">Simpan</button>
+        </div>
+`;
 
         main.innerHTML = `
         <div class="bg-white p-6 rounded shadow">
             <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-3 mb-4">
-                <h2 class="text-2xl font-bold">Data Santri</h2>
+                <h2 class="text-2xl font-bold">🎓 Data Santri</h2>
                 ${headerBtn}
             </div>
             <div class="flex flex-wrap items-center gap-2 mb-4">
@@ -1514,7 +1392,7 @@ async function openAdminLeggerForKelas(kelas){
                 </div>
 
                 <div class="mt-8 flex flex-wrap gap-2 justify-end">
-                    <button onclick="renderBobotNilai()" class="bg-gray-200 text-gray-800 px-6 py-3 rounded font-bold hover:bg-gray-300">Refresh</button>
+                    
                     <button onclick="saveBobotNilaiUI()" class="bg-yellow-600 text-white px-8 py-3 rounded font-bold hover:bg-yellow-700">Simpan</button>
                 </div>
             </div>`;
@@ -1594,7 +1472,7 @@ async function openAdminLeggerForKelas(kelas){
                         <p class="text-sm text-gray-600">Ini adalah <b>nilai ideal</b> yang dipakai rumus katrol untuk menghasilkan <b>Nilai Konversi</b>.</p>
                     </div>
                     <div class="flex gap-2 justify-end">
-                        <button onclick="renderKonversiNilai()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded font-bold hover:bg-gray-300">Refresh</button>
+                        
                         <button onclick="saveKonversiNilaiUI()" class="bg-blue-800 text-white px-6 py-2 rounded font-bold">Simpan</button>
                     </div>
                 </div>
@@ -1856,7 +1734,7 @@ window._lastKonversiRows = data;
                         </div>
                     </div>
                     <div class="flex gap-2 justify-end">
-                        <button onclick="renderKonversiMapelPage('${mapel}','${kelas}')" class="bg-gray-200 text-gray-800 px-4 py-2 rounded text-sm font-bold hover:bg-gray-300">Refresh</button>
+                        
                         <button onclick="exportExcelKonversi('${mapel}','${kelas}')" class="bg-blue-600 text-white px-4 py-2 rounded text-sm font-bold shadow">Export</button>
                     </div>
                 </div>
@@ -1989,7 +1867,7 @@ window._lastKonversiRows = data;
             ${(mode!=='print' && mode!=='rekap') ? `<button onclick="exportExcelWali('${mode}', '${kelas}')" class="bg-blue-700 text-white px-4 py-2 rounded shadow text-sm font-bold">Export</button>` : ''}
             ${mode!=='print' && mode!=='data' && mode!=='rekap' ? `<button onclick="triggerImport('${mode}', '${kelas}')" class="bg-green-600 text-white px-4 py-2 rounded shadow text-sm font-bold">Import</button>` : ''}
             ${(mode==='absen' || mode==='catatan') ? `<button onclick="saveWaliDataLocal('${mode}')" class="bg-blue-600 text-white px-4 py-2 rounded shadow text-sm font-bold">Simpan</button>` : ''}
-            ${mode==='data' ? `<button onclick="refreshWaliDataKelas()" class="bg-gray-700 text-white px-4 py-2 rounded shadow text-sm font-bold">Refresh</button>
+            ${mode==='data' ? `
                 <button onclick="saveWaliDataLocal('${mode}')" class="bg-blue-600 text-white px-4 py-2 rounded shadow text-sm font-bold">Simpan</button>` : ''}
             ${mode==='print' ? `
                 <button onclick="exportLeggerXLSX('${kelas}')" class="bg-green-700 text-white px-3 py-1 rounded shadow text-sm font-bold">XLSX</button>
@@ -2026,12 +1904,14 @@ let content = '';
                     <td class="p-2 text-left"><div class="single-line w-44" title="${s.pekerjaan_wali||''}">${s.pekerjaan_wali||'-'}</div></td>
                     <td class="p-2 text-left"><div class="single-line w-72" title="${s.alamat_wali||''}">${s.alamat_wali||'-'}</div></td>
                     <td class="p-2 text-center">
-                        <button ${canEdit ? `onclick="editSantri(${s.id})"` : 'disabled'} class="${canEdit ? 'text-blue-600 hover:bg-blue-100' : 'text-gray-400 cursor-not-allowed'} font-bold text-xs p-1 rounded">Edit</button>
+                        <button ${canEdit ? `onclick="editSantri(${s.id})"` : 'disabled'} class="${canEdit ? 'text-blue-600 hover:bg-blue-100' : 'text-gray-400 cursor-not-allowed'} font-bold text-xs px-3 py-1 rounded shadow font-bold text-xs px-3 py-1 rounded shadow">Edit</button>
                     </td>
                 </tr>`;
             }).join('');
 
             content = `
+              ${renderWaliRekapDashboardHTML(kelas)}
+              ${renderChatInboxCardHTML('wali')}
               <div class="bg-white rounded-xl shadow p-6">
                 
                 <div class="overflow-auto max-h-[70vh]">
@@ -2151,10 +2031,7 @@ let content = '';
                                 <div class="h-3" style="width:${pct}%;background:${barBg}"></div>
                             </div>
                         </td>
-                        <td class="p-2 text-center">
-                            <span class="bg-gray-100 px-2 py-1 rounded-full text-xs font-extrabold">${missing}</span>
-                        </td>
-                    </tr>
+</tr>
                 `;
             }).join('');
 
@@ -2167,7 +2044,7 @@ let content = '';
                 <div class="bg-white rounded-xl shadow p-6">
                     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
                         <div>
-                            <h3 class="text-lg font-extrabold text-gray-800">📌 Rekap Nilai Mapel (Sudah Masuk / Belum)</h3>
+                            <h3 class="text-lg font-extrabold text-gray-800">Rekap Nilai Mapel</h3>
                             <div class="text-xs text-gray-500">Periode <b>${tahun_ajar}</b> / Semester <b>${semester}</b> • Kelas <b>${kelas}</b></div>
                         </div>
                     </div>
@@ -2207,6 +2084,8 @@ let content = '';
             </div>
             ${content}
         </div>`;
+        // Load inbox pesan (wali kelas)
+        loadChatInboxInto('chat-inbox-wali');
         if(mode==='absen') { enableArrowNavigation('table-absen'); attachInputIndicators('table-absen', { max100: true }); }
         if(mode==='catatan') { enableArrowNavigation('table-catatan'); attachInputIndicators('table-catatan', { max100: false }); }
     }
@@ -3147,131 +3026,87 @@ function printLeggerSantri(nis, kelas){
     }
 
 
-    async function renderAdminLegger(){
-        const main = document.getElementById('main-content');
-        const kelasList = Array.from(new Set(students.map(s=>String(s.kelas||'').trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
-        const defaultKelas = kelasList[0] || '';
-        main.innerHTML = `
-            <div class="bg-white p-6 rounded shadow">
-                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-                    <div>
-                        <h2 class="text-2xl font-bold">📊 Legger Santri</h2>
-                        <div class="text-sm text-gray-600">Tampilan ini mengikuti filter kelas.</div>
-                    </div>
-                    <div class="flex flex-wrap gap-2 items-center justify-end">
-                        <select id="admin-legger-kelas" class="border rounded px-3 py-2 text-sm">
-                            ${kelasList.map(k=>`<option value="${k}">${k}</option>`).join('')}
-                        </select>
-                        <button onclick="exportLeggerXLSX(document.getElementById('admin-legger-kelas').value)" class="bg-indigo-600 text-white px-4 py-2 rounded font-bold shadow text-sm">XLSX</button>
-                        <button onclick="printLeggerKelas(document.getElementById('admin-legger-kelas').value, true)" class="bg-gray-700 text-white px-4 py-2 rounded font-bold shadow text-sm">PDF</button>
-                        <button onclick="printLeggerKelas(document.getElementById('admin-legger-kelas').value, false)" class="bg-green-700 text-white px-4 py-2 rounded font-bold shadow text-sm">Print</button>
-                    </div>
-                </div>
-                <div id="admin-legger-wrap"></div>
-            </div>
-        `;
-        const sel = document.getElementById('admin-legger-kelas');
-        const render = () => {
-            const k = sel.value;
-            document.getElementById('admin-legger-wrap').innerHTML = renderLeggerTableHTML(k, 'table-legger-admin', `Admin • Kelas ${k}`);
-        };
-        if (defaultKelas) sel.value = defaultKelas;
-        sel.addEventListener('change', render);
-        render();
-    }
-
-
-
-
-// --- ADMIN: RANKING / JUARA ---
-let _rankingCache = { key: '', rows: [], tahun_ajar: '', semester: 0 };
-
-function _inferParalelFromKelas(kelas) {
-    const raw = String(kelas || '').trim();
-    if (!raw) return '';
-    const parts = raw.split(/\s+/).filter(Boolean);
-    const jenjang = _inferJenjangFromKelas(raw) || (parts[0] || '').toUpperCase();
-
-    // ambil token jurusan (umumnya token ke-2: IPA/IPS/BAHASA/dll)
-    let jur = '';
-    if (parts.length >= 2) {
-        const cand = String(parts[1] || '').toUpperCase();
-        // tolak token yang terlalu "kelas" seperti A1/A2/A4, atau murni angka
-        const looksLikeKelasSuffix = /^[A-Z]\d+$/i.test(cand) || /^[A-Z]$/i.test(cand);
-        if (!looksLikeKelasSuffix && /[A-Z]/.test(cand) && !/^\d+$/.test(cand)) jur = cand;
-    }
-    return jur ? `${jenjang} ${jur}` : (jenjang || raw);
+    async 
+function _parseKelasParts(k){
+    const parts = String(k || '').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return { jenjang:'', jurusan:'', paralel:'', kelas:'' };
+    const jenjang = parts[0] || '';
+    const paralel = parts.length >= 2 ? parts[parts.length - 1] : '';
+    const jurusan = parts.length >= 3 ? parts.slice(1, -1).join(' ') : '';
+    return { jenjang, jurusan, paralel, kelas: parts.join(' ') };
 }
 
-function _getAllLeggerRowsForRanking() {
-    const { tahun_ajar, semester } = getActivePeriode();
-    const key = `${tahun_ajar}|${semester}|${(bobotNilai && JSON.stringify(bobotNilai)) ? 'b' : 'nb'}`;
-    if (_rankingCache.key === key && Array.isArray(_rankingCache.rows)) {
-        return { rows: _rankingCache.rows, tahun_ajar: _rankingCache.tahun_ajar, semester: _rankingCache.semester };
-    }
+function updateAdminLeggerKelasOptions(init=false){
+    const jenSel = document.getElementById('flt-legger-jenjang');
+    const jurSel = document.getElementById('flt-legger-jurusan');
+    const kelasSel = document.getElementById('admin-legger-kelas');
+    if (!jenSel || !jurSel || !kelasSel) return;
 
-    const kelasList = Array.from(new Set((students || []).map(s => String(s.kelas || '').trim()).filter(Boolean)))
-        .sort((a, b) => a.localeCompare(b));
+    const fJenjang = jenSel.value || '';
+    const fJurusan = jurSel.value || '';
 
-    const all = [];
-    kelasList.forEach(kelas => {
-        try {
-            const d = buildLeggerDataForKelas(kelas);
-            (d.rows || []).forEach(r => {
-                all.push({
-                    nis: String(r.nis || ''),
-                    nama: String(r.nama || ''),
-                    jk: String(r.jk || ''),
-                    kelas: String(kelas || ''),
-                    jenjang: _inferJenjangFromKelas(kelas) || '',
-                    paralel: _inferParalelFromKelas(kelas) || '',
-                    rata: Number(r.rata || 0) || 0,
-                    jumlah: Number(r.jumlah || 0) || 0
-                });
-            });
-        } catch (e) {
-            console.warn('Gagal build legger untuk kelas', kelas, e);
-        }
+    const allKelas = Array.from(new Set((students || []).map(s => String(s.kelas||'').trim()).filter(Boolean)))
+        .sort((a,b)=>a.localeCompare(b, 'id'));
+
+    const filtered = allKelas.filter(k => {
+        const p = _parseKelasParts(k);
+        return (!fJenjang || p.jenjang === fJenjang) && (!fJurusan || p.jurusan === fJurusan);
     });
 
-    _rankingCache = { key, rows: all, tahun_ajar, semester: Number(semester) || 0 };
-    return { rows: all, tahun_ajar, semester: Number(semester) || 0 };
-}
+    const prev = kelasSel.value;
+    kelasSel.innerHTML = filtered.map(k => `<option value="${k}">${k}</option>`).join('');
+    if (filtered.includes(prev) && !init) kelasSel.value = prev;
 
-function _sortRankingRows(rows) {
-    return [...(rows || [])].sort((a, b) => (b.rata || 0) - (a.rata || 0) || String(a.nama || '').localeCompare(String(b.nama || '')));
-}
-
-function exportRankingXLSX(scope, key) {
-    try {
-        const { rows, tahun_ajar, semester } = _getAllLeggerRowsForRanking();
-        let filtered = rows;
-
-        const _eq = (x, y) => String(x || '').trim() === String(y || '').trim();
-
-        if (scope === 'kelas') filtered = rows.filter(r => _eq(r.kelas, key));
-        if (scope === 'paralel') filtered = rows.filter(r => _eq(r.paralel, key));
-        if (scope === 'jenjang') filtered = rows.filter(r => _eq(r.jenjang, key));
-        if (scope === 'umum') filtered = rows;
-
-        const sorted = _sortRankingRows(filtered);
-        const out = sorted.map((r, i) => ({
-            Rank: i + 1,
-            NIS: r.nis,
-            Nama: r.nama,
-            Kelas: r.kelas,
-            JK: r.jk,
-            'Rata-rata': r.rata
-        }));
-
-        const tag = scope === 'umum' ? 'UMUM' : String(key || '').replace(/[^\w\- ]+/g, '').replace(/\s+/g, '_');
-        saveExcel(out, `RANKING_${tag}_${tahun_ajar}_S${semester}.xlsx`, [{ wch: 14 }, { wch: 28 }, { wch: 16 }]);
-        showToast('Export ranking berhasil.', 'success');
-    } catch (e) {
-        console.error(e);
-        showToast('Gagal export ranking: ' + (e.message || e), 'error');
+    const selected = kelasSel.value || filtered[0] || '';
+    const holder = document.getElementById('admin-legger-holder');
+    if (holder && selected){
+        holder.innerHTML = renderLeggerTableHTML(selected, 'table-legger-admin', 'Admin • ' + selected);
+    } else if (holder){
+        holder.innerHTML = `<div class="text-sm text-gray-600">Tidak ada data kelas untuk filter ini.</div>`;
     }
 }
+
+function renderAdminLegger(){
+    const main = document.getElementById('main-content');
+
+    const kelasAll = Array.from(new Set((students || []).map(s => String(s.kelas||'').trim()).filter(Boolean)))
+        .sort((a,b)=>a.localeCompare(b, 'id'));
+
+    const parts = kelasAll.map(k => _parseKelasParts(k));
+    const jenjangList = Array.from(new Set(parts.map(p=>p.jenjang).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'id'));
+    const jurusanList = Array.from(new Set(parts.map(p=>p.jurusan).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'id'));
+
+    main.innerHTML = `
+        <div class="bg-white p-6 rounded shadow">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+                <div>
+                    <h2 class="text-2xl font-bold">📊 Legger Santri</h2>
+                    <div class="text-sm text-gray-600">Tampilan ini mengikuti filter kelas / jurusan / jenjang.</div>
+                </div>
+                <div class="flex flex-wrap gap-2 items-center justify-end">
+                    <select id="flt-legger-jenjang" onchange="updateAdminLeggerKelasOptions()" class="border rounded px-3 py-2 text-sm">
+                        <option value="">Semua Jenjang</option>
+                        ${jenjangList.map(j=>`<option value="${j}">${j}</option>`).join('')}
+                    </select>
+                    <select id="flt-legger-jurusan" onchange="updateAdminLeggerKelasOptions()" class="border rounded px-3 py-2 text-sm">
+                        <option value="">Semua Jurusan</option>
+                        ${jurusanList.map(j=>`<option value="${j}">${j}</option>`).join('')}
+                    </select>
+                    <select id="admin-legger-kelas" onchange="updateAdminLeggerKelasOptions()" class="border rounded px-3 py-2 text-sm">
+                        ${kelasAll.map(k=>`<option value="${k}">${k}</option>`).join('')}
+                    </select>
+                    <button onclick="exportLeggerXLSX(document.getElementById('admin-legger-kelas').value)" class="bg-green-700 text-white px-4 py-2 rounded font-bold shadow text-sm">XLSX</button>
+                    <button onclick="printLeggerKelas(document.getElementById('admin-legger-kelas').value)" class="bg-gray-800 text-white px-4 py-2 rounded font-bold shadow text-sm">PDF</button>
+                </div>
+            </div>
+            <div id="admin-legger-holder" class="bg-white rounded-xl border shadow-sm p-4">
+                ${kelasAll[0] ? renderLeggerTableHTML(kelasAll[0], 'table-legger-admin', 'Admin • ' + kelasAll[0]) : `<div class="text-sm text-gray-600">Belum ada data kelas.</div>`}
+            </div>
+        </div>
+    `;
+    updateAdminLeggerKelasOptions(true);
+}
+
 
 function renderAdminRanking() {
     const main = document.getElementById('main-content');
@@ -3311,7 +3146,8 @@ function renderAdminRanking() {
                 </div>
 
                 <div class="flex items-end">
-                    <button id="btn-export-ranking" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded font-bold shadow text-sm">Export XLSX</button>
+                    <button id="btn-export-ranking" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded font-bold shadow text-sm">XLSX</button>
+                    <button onclick="exportRankingPDF()" class="w-full bg-gray-800 text-white px-4 py-2 rounded font-bold shadow text-sm">PDF</button>
                 </div>
             </div>
 
@@ -3405,6 +3241,8 @@ function renderAdminRanking() {
                 </table>
             </div>` : ''}
         `;
+        window.__lastRankingHTML = document.getElementById('rank-result').innerHTML;
+        window.__lastRankingTitle = title;
 
         btnExport.onclick = () => exportRankingXLSX(scope, (scope === 'umum' ? '' : key));
     };
@@ -4324,8 +4162,8 @@ function applyAdminSantriFilters(resetPage=false) {
                 <td class="p-2 text-left"><div class="single-line w-44" title="${s.pekerjaan_wali||''}">${s.pekerjaan_wali||'-'}</div></td>
                 <td class="p-2 text-left"><div class="single-line w-72" title="${s.alamat_wali||''}">${s.alamat_wali||'-'}</div></td>
                 <td class="p-2 text-center">
-                    <button ${canEdit ? `onclick="editSantri(${s.id})"` : 'disabled class="opacity-50 cursor-not-allowed"'} class="bg-yellow-500 text-white font-bold text-xs p-1 rounded">Edit</button>
-                    <button ${canEdit ? `onclick="adminDeleteSantri(${s.id})"` : 'disabled class="opacity-50 cursor-not-allowed"'} class="bg-red-600 text-white font-bold text-xs p-1 rounded ml-1">Hapus</button>
+                    <button ${canEdit ? `onclick="editSantri(${s.id})"` : 'disabled class="opacity-50 cursor-not-allowed"'} class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold text-xs px-3 py-1 rounded shadow">Edit</button>
+                    <button ${canEdit ? `onclick="adminDeleteSantri(${s.id})"` : 'disabled class="opacity-50 cursor-not-allowed"'} class="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-3 py-1 rounded shadow">Hapus</button>
                 </td>
             </tr>`;
     }).join('');
@@ -4380,4 +4218,257 @@ async function adminDeleteGuru(id){
     console.error(e);
     alert('Gagal menghapus guru: ' + (e.message||e));
   }
+}
+
+
+
+function exportRankingPDF(){
+    const html = window.__lastRankingHTML;
+    const title = window.__lastRankingTitle || 'Ranking';
+    if (!html){
+        alert('Ranking belum dihitung. Klik Proses dulu.');
+        return;
+    }
+    const w = window.open('', '_blank');
+    w.document.open();
+    w.document.write(`<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>${title}</title>
+<style>
+  body{font-family: Arial, sans-serif; padding: 16px;}
+  table{border-collapse: collapse; width:100%;}
+  th, td{border:1px solid #333; padding:6px; font-size:12px;}
+  th{font-weight:700;}
+  .no-print{display:none;}
+</style>
+</head>
+<body>
+  <h2 style="margin:0 0 10px 0;">${title}</h2>
+  ${html}
+  <script>window.onload=()=>{window.print();}</script>
+</body>
+</html>`);
+    w.document.close();
+}
+
+
+// ===============================
+// CHAT: WALI ↔ GURU MAPEL (Sederhana, via Supabase)
+// Tabel: public.chat_messages (lihat SQL_MIGRASI_CHAT_MESSAGES.sql)
+// ===============================
+
+function renderChatInboxCardHTML(context){
+    const title = (context === 'wali') ? '💬 Pesan untuk Wali Kelas' : '💬 Pesan untuk Guru';
+    const holderId = (context === 'wali') ? 'chat-inbox-wali' : 'chat-inbox-guru';
+    return `
+    <div class="bg-white p-6 rounded-xl shadow border">
+        <div class="flex items-center justify-between gap-2 mb-2">
+            <h3 class="text-lg font-extrabold text-gray-800">${title}</h3>
+            <button onclick="loadChatInboxInto('${holderId}')" class="bg-gray-800 text-white px-3 py-1 rounded shadow text-xs font-bold">Refresh</button>
+        </div>
+        <div id="${holderId}" class="text-sm text-gray-600">Memuat pesan...</div>
+    </div>`;
+}
+
+async function loadChatInboxInto(holderId){
+    const u = getCurrentUser();
+    const holder = document.getElementById(holderId);
+    if (!holder) return;
+    if (!u || !u.id){
+        holder.innerHTML = `<div class="text-sm text-gray-600">Anda belum login.</div>`;
+        return;
+    }
+    if (!window.db){
+        holder.innerHTML = `<div class="text-sm text-red-600">Supabase belum siap.</div>`;
+        return;
+    }
+
+    try{
+        const { data, error } = await db
+            .from('chat_messages')
+            .select('*')
+            .eq('to_guru_id', u.id)
+            .order('created_at', { ascending: false })
+            .limit(12);
+
+        if (error) throw error;
+
+        if (!data || data.length === 0){
+            holder.innerHTML = `<div class="text-sm text-gray-600">Belum ada pesan.</div>`;
+            return;
+        }
+
+        const rows = data.map(m => {
+            const from = (users || []).find(x => String(x.id) === String(m.from_guru_id));
+            const fromName = from ? (from.name || from.nama_guru || from.username) : `ID:${m.from_guru_id}`;
+            const meta = [
+                m.kelas ? `<span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-900 text-xs font-bold">${escapeHtml(m.kelas)}</span>` : '',
+                m.mapel ? `<span class="px-2 py-0.5 rounded-full bg-green-100 text-green-900 text-xs font-bold">${escapeHtml(m.mapel)}</span>` : ''
+            ].filter(Boolean).join(' ');
+            return `
+            <div class="border rounded-lg p-3 mb-2">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="font-bold text-gray-900">${escapeHtml(fromName)}</div>
+                    <div class="text-xs text-gray-500">${new Date(m.created_at).toLocaleString()}</div>
+                </div>
+                <div class="mt-1">${meta}</div>
+                <div class="mt-2 text-gray-800 whitespace-pre-wrap">${escapeHtml(m.message || '')}</div>
+                <div class="mt-2 flex gap-2">
+                    <button class="bg-blue-700 hover:bg-blue-800 text-white px-3 py-1 rounded shadow text-xs font-bold"
+                        onclick="openChatCompose(${m.from_guru_id}, '${_encArg(fromName)}', '${_encArg(m.mapel||'')}', '${_encArg(m.kelas||'')}')">Balas</button>
+                </div>
+            </div>`;
+        }).join('');
+
+        holder.innerHTML = rows;
+    }catch(e){
+        holder.innerHTML = `<div class="text-sm text-red-600">Gagal memuat pesan. Pastikan tabel <b>chat_messages</b> sudah dibuat.</div>`;
+        console.error(e);
+    }
+}
+
+function openChatCompose(toGuruId, toGuruNameEnc, mapelEnc, kelasEnc){
+    const toName = decodeURIComponent(toGuruNameEnc || '');
+    const mapel = decodeURIComponent(mapelEnc || '');
+    const kelas = decodeURIComponent(kelasEnc || '');
+    const hint = `${toName}${kelas ? ' • ' + kelas : ''}${mapel ? ' • ' + mapel : ''}`.trim();
+    const msg = prompt(`Kirim pesan ke:\n${hint}\n\nIsi pesan:`);
+    if (!msg) return;
+    sendChatMessage(toGuruId, kelas, mapel, msg);
+}
+
+async function sendChatMessage(toGuruId, kelas, mapel, message){
+    const u = getCurrentUser();
+    if (!u || !u.id){ showToast('Anda belum login', 'error'); return; }
+    if (!window.db){ showToast('Supabase belum siap', 'error'); return; }
+    try{
+        const payload = {
+            from_guru_id: u.id,
+            to_guru_id: toGuruId,
+            kelas: kelas || null,
+            mapel: mapel || null,
+            message: String(message || '').trim()
+        };
+        const { error } = await db.from('chat_messages').insert([payload]);
+        if (error) throw error;
+        showToast('Pesan terkirim', 'success');
+        // refresh inbox penerima (kalau sedang dibuka di device yang sama)
+        loadChatInboxInto('chat-inbox-wali');
+        loadChatInboxInto('chat-inbox-guru');
+    }catch(e){
+        console.error(e);
+        showToast('Gagal kirim pesan. Pastikan tabel chat_messages sudah dibuat.', 'error');
+    }
+}
+
+
+// ===============================
+// WALI: Rekap Nilai Mapel dipindah ke Dashboard + kolom Aksi
+// ===============================
+function renderWaliRekapDashboardHTML(kelas){
+    const { tahun_ajar, semester } = getActivePeriode();
+    const siswa = (students || []).filter(s => _normStr(s.kelas) === _normStr(kelas));
+    const expected = siswa.length;
+
+    // Build expected combos from guru assignments (mapel × guru) for this class
+    const combos = [];
+    (users || []).forEach(g => {
+        const arr = parseMapelData(g.mapel);
+        (arr || []).forEach(m => {
+            const mapel = String(m?.nama || '').trim();
+            if (!mapel) return;
+            (m.kelas || []).forEach(k => {
+                if (_normStr(k) !== _normStr(kelas)) return;
+                combos.push({
+                    mapel: _normUpper(mapel),
+                    mapelRaw: mapel,
+                    guru: String(g.name || g.nama_guru || g.username || '-').trim(),
+                    guru_id: g.id
+                });
+            });
+        });
+    });
+
+    // Unique by mapel+guru_id
+    const seen = new Set();
+    const list = combos.filter(c => {
+        const key = `${c.mapel}||${c.guru_id}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    }).sort((a,b)=> a.mapel.localeCompare(b.mapel, 'id', { sensitivity:'base' }) || String(a.guru||'').localeCompare(String(b.guru||''), 'id', { sensitivity:'base' }));
+
+    if (!list.length){
+        return `
+        <div class="bg-white rounded-xl shadow p-6 border">
+            <h3 class="text-lg font-extrabold text-gray-800 mb-1">Rekap Nilai Mapel</h3>
+            <div class="text-sm text-gray-600">Belum ada data mapel untuk kelas <b>${escapeHtml(kelas)}</b>.</div>
+        </div>`;
+    }
+
+    const rows = list.map((c, i) => {
+        const filled = _countDistinctScoresFor(c.mapelRaw, kelas, tahun_ajar, semester);
+        const missing = Math.max(0, expected - filled);
+        const pct = expected ? Math.round((filled/expected)*100) : 0;
+
+        const statusBadge = (filled === 0)
+            ? `<span class="px-2 py-1 rounded-full bg-red-100 text-red-800 text-xs font-extrabold">Belum Masuk</span>`
+            : (missing === 0
+                ? `<span class="px-2 py-1 rounded-full bg-green-100 text-green-800 text-xs font-extrabold">Lengkap</span>`
+                : `<span class="px-2 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs font-extrabold">Sebagian</span>`
+              );
+
+        const barBg = _heatBgFromPct(pct);
+        return `
+            <tr class="border-b hover:bg-gray-50">
+                <td class="p-2 text-center text-xs text-gray-500">${i+1}</td>
+                <td class="p-2 font-extrabold text-left">${escapeHtml(c.mapel)}</td>
+                <td class="p-2 text-left">${escapeHtml(c.guru || '-')}</td>
+                <td class="p-2 text-center">${statusBadge}</td>
+                <td class="p-2 text-center font-mono">${filled}/${expected}</td>
+                <td class="p-2">
+                    <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden border">
+                        <div class="h-3" style="width:${pct}%;background:${barBg}"></div>
+                    </div>
+                </td>
+                <td class="p-2 text-center">
+                    <div class="flex flex-wrap gap-2 justify-center">
+                        <button class="bg-blue-700 hover:bg-blue-800 text-white px-3 py-1 rounded shadow text-xs font-bold"
+                            onclick="renderAdminNilaiMonitor(decodeURIComponent('${_encArg(c.mapelRaw)}'), decodeURIComponent('${_encArg(kelas)}'), decodeURIComponent('${_encArg(c.guru)}'))">Lihat Nilai</button>
+                        <button class="bg-gray-800 hover:bg-gray-900 text-white px-3 py-1 rounded shadow text-xs font-bold"
+                            onclick="openChatCompose(${c.guru_id}, '${_encArg(c.guru)}', '${_encArg(c.mapelRaw)}', '${_encArg(kelas)}')">Kirim Pesan</button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    return `
+        <div class="bg-white rounded-xl shadow p-6 border">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
+                <div>
+                    <h3 class="text-lg font-extrabold text-gray-800">Rekap Nilai Mapel</h3>
+                    <div class="text-xs text-gray-500">Periode <b>${tahun_ajar}</b> / Semester <b>${semester}</b> • Kelas <b>${escapeHtml(kelas)}</b></div>
+                </div>
+            </div>
+            <div class="overflow-auto">
+                <table class="min-w-[980px] w-full text-sm border std-table">
+                    <thead class="bg-gray-800 text-white">
+                        <tr>
+                            <th class="p-2 w-12">No</th>
+                            <th class="p-2 text-left">Mapel</th>
+                            <th class="p-2 text-left">Guru Mapel</th>
+                            <th class="p-2 w-28">Status</th>
+                            <th class="p-2 w-28">Terisi</th>
+                            <th class="p-2 text-left">Progress</th>
+                            <th class="p-2 w-40">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>
+        </div>
+    `;
 }
