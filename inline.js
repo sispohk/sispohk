@@ -458,7 +458,7 @@ function buildWaliMissingNilaiCardHTML(kelasWali, { tahun_ajar, semester }){
                     <thead class="bg-gray-800 text-white">
                         <tr>
                             <th class="p-2 w-12">No</th>
-	                        <th class="p-2 text-left">Mapel</th>
+                            <th class="p-2 text-left">Mata Pelajaran</th>
                             <th class="p-2 text-left">Nama Guru</th>
                             <th class="p-2 w-28">Yang Sudah</th>
                             <th class="p-2 w-28">Yang Belum</th>
@@ -526,12 +526,12 @@ function renderGuruTodoDashboardHTML(todos){
                 <table class="min-w-[900px] w-full text-sm border std-table">
                     <thead class="bg-blue-600 text-white">
                         <tr>
-                            <th class="p-2 w-12">No</th>
+                            <th class="p-2">No</th>
                             <th class="p-2 text-left">Mapel</th>
-                            <th class="p-2 w-28">Kelas</th>
-                            <th class="p-2 w-28">Yang Sudah</th>
-                            <th class="p-2 w-28">Yang Belum</th>
-                            <th class="p-2 w-44">Aksi</th>
+                            <th class="p-2">Kelas</th>
+                            <th class="p-2">Terisi</th>
+                            <th class="p-2">Belum</th>
+                            <th class="p-2">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -540,8 +540,8 @@ function renderGuruTodoDashboardHTML(todos){
                                 <td class="p-2 text-center text-xs text-gray-500">${i+1}</td>
                                 <td class="p-2 text-left font-extrabold">${t.mapel}</td>
                                 <td class="p-2 text-center">${t.kelas}</td>
-                                <td class="p-2 text-center font-mono text-sm">${t.filled}/${t.expected}</td>
-	                            	<td class="p-2 text-center"><span class="bg-pink-100 text-pink-800 px-2 py-1 rounded-full text-xs font-extrabold">${t.missing}</span></td>
+                                <td class="p-2 text-center font-mono">${t.filled}/${t.expected}</td>
+                                <td class="p-2 text-center"><span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-extrabold">${t.missing}</span></td>
                                 <td class="p-2 text-center">
                                     <button class="bg-blue-700 hover:bg-blue-800 text-white px-3 py-1 rounded shadow text-xs font-bold"
                                         onclick="renderNilaiPage('${t.mapel.replace(/'/g,"\\'")}', '${t.kelas.replace(/'/g,"\\'")}')">Input Nilai</button>
@@ -596,18 +596,24 @@ function renderAdminTodoDashboardHTML(todos){
         .filter(t => topSet.has(String(t.mapel || '').trim()))
         .sort((a,b)=> (b.missing-a.missing) || String(a.mapel||'').localeCompare(String(b.mapel||''), 'id') || String(a.kelas||'').localeCompare(String(b.kelas||''), 'id'));
 
-    // Samakan format baris dengan tabel to-do guru (border, align, tombol)
     const body = rows.map((t, i) => `
-        <tr class="border-b hover:bg-gray-50">
+        <tr class="hover:bg-gray-50 border-b">
             <td class="p-2 text-center text-xs text-gray-500">${i+1}</td>
-            <td class="p-2 text-center">${escapeHtml(t.kelas||'-')}</td>
-            <td class="p-2 text-left font-extrabold">${escapeHtml(t.mapel||'-')}</td>
+            <td class="p-2 text-center font-mono">${escapeHtml(t.kelas||'-')}</td>
+            <td class="p-2 text-left font-bold">${escapeHtml(t.mapel||'-')}</td>
             <td class="p-2 text-left">${escapeHtml(t.guru||'-')}</td>
-            <td class="p-2 text-center font-mono text-sm">${escapeHtml(String((t.filled??0)))}/${escapeHtml(String((t.expected??0)))}</td>
-	            <td class="p-2 text-center"><span class="bg-pink-100 text-pink-800 px-2 py-1 rounded-full text-xs font-extrabold">${escapeHtml(String((t.missing??0)))}</span></td>
             <td class="p-2 text-center">
-                <button class="bg-blue-700 hover:bg-blue-800 text-white px-3 py-1 rounded shadow text-xs font-bold whitespace-nowrap ${t.guru_id ? '' : 'opacity-50 cursor-not-allowed'}"
-                    ${t.guru_id ? `onclick="event.stopPropagation(); openChatCompose(${t.guru_id}, '${_encArg(t.guru||'')}', '${_encArg(t.mapel||'')}', '${_encArg(t.kelas||'')}')"` : 'disabled'}>Chat Guru</button>
+                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-800 border border-emerald-200">${t.filled||0}</span>
+                <div class="text-[10px] text-gray-500 mt-0.5">dari ${t.expected||0}</div>
+            </td>
+            <td class="p-2 text-center">
+                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-extrabold bg-rose-50 text-rose-800 border border-rose-200">${t.missing||0}</span>
+            </td>
+            <td class="p-2 text-center">
+                <div class="flex gap-2 justify-center">
+                    <button class="btn btn-message whitespace-nowrap ${t.guru_id ? '' : 'opacity-50 cursor-not-allowed'}"
+                        ${t.guru_id ? `onclick="event.stopPropagation(); openChatCompose(${t.guru_id}, '${_encArg(t.guru||'')}', '${_encArg(t.mapel||'')}', '${_encArg(t.kelas||'')}')"` : 'disabled'}>Chat Guru</button>
+                </div>
             </td>
         </tr>
     `).join('');
@@ -621,14 +627,14 @@ function renderAdminTodoDashboardHTML(todos){
             </div>
         </div>
         <div class="overflow-auto">
-            <table class="min-w-[1040px] w-full text-sm border std-table">
+            <table class="min-w-[980px] w-full text-sm border std-table">
                 <thead class="bg-blue-600 text-white">
                     <tr>
                         <th class="p-2 w-12">No</th>
                         <th class="p-2 w-28">Kelas</th>
-                        <th class="p-2 text-left">Mata Pelajaran</th>
+                        <th class="p-2 text-left">Mapel</th>
                         <th class="p-2 text-left">Guru</th>
-                        <th class="p-2 w-28">Yang Sudah</th>
+                        <th class="p-2 w-28">Yang sudah</th>
                         <th class="p-2 w-28">Yang Belum</th>
                         <th class="p-2 w-44">Aksi</th>
                     </tr>
@@ -697,14 +703,14 @@ function renderAdminTodoPage(){
     const todos = computeNilaiTodoEntries({ tahun_ajar, semester });
 
     const rows = (todos || []).map((t,i)=>`
-        <tr class="border-b hover:bg-gray-50 cursor-pointer"
+        <tr class="hover:bg-gray-50 border-b cursor-pointer"
             onclick="renderAdminNilaiMonitor(decodeURIComponent('${_encArg(t.mapel)}'), decodeURIComponent('${_encArg(t.kelas)}'), decodeURIComponent('${_encArg(t.guru)}'))">
             <td class="p-2 text-center text-xs text-gray-500">${i+1}</td>
-            <td class="p-2 text-center">${t.kelas}</td>
-            <td class="p-2 text-left font-extrabold">${t.mapel}</td>
-            <td class="p-2 text-left">${t.guru}</td>
+            <td class="p-2 font-bold">${t.kelas}</td>
+            <td class="p-2">${t.mapel}</td>
+            <td class="p-2">${t.guru}</td>
             <td class="p-2 text-center font-mono text-sm">${t.filled}/${t.expected}</td>
-            <td class="p-2 text-center"><span class="bg-pink-100 text-pink-800 px-2 py-1 rounded-full text-xs font-extrabold">${t.missing}</span></td>
+            <td class="p-2 text-center"><span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-extrabold">${t.missing}</span></td>
             <td class="p-2 text-center">
                 <button class="px-3 py-1 rounded bg-blue-700 text-white text-xs font-bold shadow"
                     onclick="event.stopPropagation(); renderNilaiPage(decodeURIComponent('${_encArg(t.mapel)}'), decodeURIComponent('${_encArg(t.kelas)}'))">Input Nilai</button>
@@ -732,8 +738,8 @@ function renderAdminTodoPage(){
                         <th class="p-2 text-left">Kelas</th>
                         <th class="p-2 text-left">Mapel</th>
                         <th class="p-2 text-left">Guru</th>
-                        <th class="p-2 w-28">Yang Sudah</th>
-                        <th class="p-2 w-28">Yang Belum</th>
+                        <th class="p-2 w-24">Terisi</th>
+                        <th class="p-2 w-20">Sisa</th>
                         <th class="p-2 w-44">Aksi</th>
                     </tr>
                 </thead>
@@ -1895,73 +1901,58 @@ async function openAdminLeggerForKelas(kelas){
 	            // hitung konversi PH (dari rerata UH)
 	            const denomUH = (maxUH - minUH);
 	            const applyKonversiPH = (validUH.length > 0) && (meanUH < meanIdeal) && (denomUH > 0);
-	            // tail-boost: rerata sudah aman, tapi masih ada ekor bawah < ideal
-	            const applyTailPH = (validUH.length > 0) && (denomUH > 0) && (meanUH >= meanIdeal) && (minUH > 0) && (minUH < meanIdeal);
 
-	            // hitung konversi SAS/PAS/PAT
+	            // hitung konversi PAS/PAT
 	            const denomPAS = (maxPAS - minPAS);
 	            const applyKonversiPAS = (validPAS.length > 0) && (meanPAS < meanIdeal) && (denomPAS > 0);
-	            // tail-boost: rerata sudah aman, tapi masih ada ekor bawah < ideal
-	            const applyTailPAS = (validPAS.length > 0) && (denomPAS > 0) && (meanPAS >= meanIdeal) && (minPAS > 0) && (minPAS < meanIdeal);
 
-            // hitung konversi keterampilan (dari nilai tugas)
+            // hitung konversi PK (dari nilai tugas)
+            // Mode 1: konversi penuh (lama) jika rerata tugas < ideal dan ada sebaran nilai
             const denomK = (maxTugas - minTugas);
             const applyKonversiK = (validTugas.length > 0) && (meanTugas < meanIdeal) && (denomK > 0);
-            // tail-boost: rerata tugas sudah aman, tapi masih ada nilai tugas < ideal
-            const applyTailK = (validTugas.length > 0) && (denomK > 0) && (meanTugas >= meanIdeal) && (minTugas > 0) && (minTugas < meanIdeal);
+
+            // Mode 2: konversi ekor bawah (solusi baru)
+            // Jika rerata tugas sudah >= ideal, tapi masih ada sebagian nilai di bawah ideal,
+            // maka hanya nilai yang < ideal yang dinaikkan secara halus (yang >= ideal tidak diubah).
+            const hasLowTugas = (validTugas.length > 0) && validTugas.some(v => Number(v) > 0 && Number(v) < meanIdeal);
+            const denomLowK = (meanIdeal - minTugas);
+            const applyTailKonversiK = (!!ideal) && hasLowTugas && (denomLowK > 0);
 
 	            data.forEach(d => {
-	                // Harian/Sumatif (dari rerata UH)
-	                {
+	                // PH (dari UH)
+	                if (!applyKonversiPH) {
 	                    const v = Number(d.nilai_uh) || 0;
-	                    if (applyKonversiPH) {
-	                        let conv = meanIdeal + (v - meanUH) * (maxIdeal - minIdeal) / denomUH;
-	                        conv = _clamp(conv, minIdeal, maxIdeal);
-	                        d.nilai_ph = Math.round(conv * 100) / 100;
-	                    } else if (applyTailPH && v > 0 && v < meanIdeal && (meanIdeal - minUH) > 0) {
-	                        // konversi hanya untuk nilai yang di bawah ideal
-	                        let conv = meanIdeal - (meanIdeal - minIdeal) * ((meanIdeal - v) / (meanIdeal - minUH));
-	                        conv = _clamp(conv, minIdeal, meanIdeal);
-	                        d.nilai_ph = Math.round(conv * 100) / 100;
-	                    } else {
-	                        d.nilai_ph = Math.round(v * 100) / 100;
-	                    }
+	                    d.nilai_ph = Math.round(v * 100) / 100;
+	                } else {
+	                    let conv = meanIdeal + (d.nilai_uh - meanUH) * (maxIdeal - minIdeal) / denomUH;
+	                    conv = _clamp(conv, minIdeal, maxIdeal);
+	                    d.nilai_ph = Math.round(conv * 100) / 100;
 	                }
 
-	                // SAS/PAS/PAT (konversi dari nilai PAS/PAT)
-	                {
+	                // PAS/PAT (konversi dari nilai PAS/PAT)
+	                if (!applyKonversiPAS) {
 	                    const v = Number(d.nilai_paspat) || 0;
-	                    if (applyKonversiPAS) {
-	                        let conv = meanIdeal + (v - meanPAS) * (maxIdeal - minIdeal) / denomPAS;
-	                        conv = _clamp(conv, minIdeal, maxIdeal);
-	                        d.nilai_paspat_konv = Math.round(conv * 100) / 100;
-	                    } else if (applyTailPAS && v > 0 && v < meanIdeal && (meanIdeal - minPAS) > 0) {
-	                        // konversi hanya untuk nilai yang di bawah ideal
-	                        let conv = meanIdeal - (meanIdeal - minIdeal) * ((meanIdeal - v) / (meanIdeal - minPAS));
-	                        conv = _clamp(conv, minIdeal, meanIdeal);
-	                        d.nilai_paspat_konv = Math.round(conv * 100) / 100;
-	                    } else {
-	                        d.nilai_paspat_konv = Math.round(v * 100) / 100;
-	                    }
-	                }
-
-	                // PK (dari Tugas)
-                {
-                    const v = Number(d.nilai_tugas) || 0;
-                    if (applyKonversiK) {
-                        let conv = meanIdeal + (v - meanTugas) * (maxIdeal - minIdeal) / denomK;
-                        conv = _clamp(conv, minIdeal, maxIdeal);
-                        d.nilai_pk = Math.round(conv * 100) / 100;
-                    } else if (applyTailK && v > 0 && v < meanIdeal && (meanIdeal - minTugas) > 0) {
-                        // konversi hanya untuk nilai yang di bawah ideal
-                        let conv = meanIdeal - (meanIdeal - minIdeal) * ((meanIdeal - v) / (meanIdeal - minTugas));
-                        conv = _clamp(conv, minIdeal, meanIdeal);
-                        d.nilai_pk = Math.round(conv * 100) / 100;
-                    } else {
-                        d.nilai_pk = Math.round(v * 100) / 100;
-                    }
+	                    d.nilai_paspat_konv = Math.round(v * 100) / 100;
+	                } else {
+	                    let conv = meanIdeal + (d.nilai_paspat - meanPAS) * (maxIdeal - minIdeal) / denomPAS;
+	                    conv = _clamp(conv, minIdeal, maxIdeal);
+	                    d.nilai_paspat_konv = Math.round(conv * 100) / 100;
+	                }                // PK (dari Tugas)
+                const vT = Number(d.nilai_tugas) || 0;
+                if (applyKonversiK) {
+                    let conv = meanIdeal + (vT - meanTugas) * (maxIdeal - minIdeal) / denomK;
+                    conv = _clamp(conv, minIdeal, maxIdeal);
+                    d.nilai_pk = Math.round(conv * 100) / 100;
+                } else if (applyTailKonversiK && vT > 0 && vT < meanIdeal) {
+                    // Naikkan nilai di bawah ideal saja (yang di atas ideal dibiarkan)
+                    // Pemetaan: [minTugas .. meanIdeal] -> [minIdeal .. meanIdeal]
+                    let conv = meanIdeal - (meanIdeal - minIdeal) * (meanIdeal - vT) / denomLowK;
+                    conv = _clamp(conv, minIdeal, meanIdeal);
+                    d.nilai_pk = Math.round(conv * 100) / 100;
+                } else {
+                    d.nilai_pk = Math.round(vT * 100) / 100;
                 }
-            });
+});
 
             window._lastKonversiRows = data;
 
@@ -2117,8 +2108,6 @@ async function openAdminLeggerForKelas(kelas){
 	                "PK": r.nilai_pk,
 	            }));
             const ws = XLSX.utils.json_to_sheet(rows);
-            const autoCols = _autoFitHeaderCols(ws);
-            if(autoCols) ws['!cols']=autoCols;
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Konversi Nilai');
             const { tahun_ajar, semester } = getActivePeriode();
@@ -4521,45 +4510,9 @@ function exportExcelMusyrif(kelas) {
         });
         saveExcel(data, `Hafalan_${kelas}.xlsx`, [{wch:15}, {wch:30}]);
     }
-    
-    // Auto-fit kolom Excel berdasarkan label header (baris pertama)
-    function _autoFitHeaderCols(ws, opts = {}) {
-        try {
-            const minWch = Number(opts.minWch ?? 10);
-            const maxWch = Number(opts.maxWch ?? 45);
-            const pad = Number(opts.pad ?? 2);
-            if (!ws || !ws['!ref']) return null;
-            const range = XLSX.utils.decode_range(ws['!ref']);
-            const headerRow = range.s.r; // baris pertama
-            const cols = [];
-            for (let c = range.s.c; c <= range.e.c; c++) {
-                const addr = XLSX.utils.encode_cell({ r: headerRow, c });
-                const cell = ws[addr];
-                const label = cell && cell.v != null ? String(cell.v) : '';
-                let wch = label.length + pad;
-                if (!Number.isFinite(wch) || wch < minWch) wch = minWch;
-                if (wch > maxWch) wch = maxWch;
-                cols.push({ wch });
-            }
-            return cols;
-        } catch (e) {
-            console.warn('autoFitHeaderCols failed', e);
-            return null;
-        }
-    }
-
-function saveExcel(json, filename, colWidths = []) {
+    function saveExcel(json, filename, colWidths = []) {
         const ws = XLSX.utils.json_to_sheet(json);
-        // Auto-fit berdasarkan label header agar judul kolom tidak tertutup
-        const autoCols = _autoFitHeaderCols(ws);
-        if (autoCols) ws['!cols'] = autoCols;
-        // Jika ada colWidths custom, override kolom awal yang dispesifikkan (tanpa merusak auto-fit kolom lain)
-        if (colWidths.length > 0) {
-            ws['!cols'] = ws['!cols'] || [];
-            colWidths.forEach((w, i) => {
-                ws['!cols'][i] = Object.assign({}, ws['!cols'][i] || {}, w);
-            });
-        }
+        if(colWidths.length > 0) ws['!cols'] = colWidths;
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
         XLSX.writeFile(wb, filename);
@@ -4871,7 +4824,7 @@ function saveExcel(json, filename, colWidths = []) {
             <div class="bg-gray-50 border rounded-xl p-4">
                 <div class="font-extrabold mb-2">📊 Monitoring & follow-up</div>
                 <ul class="list-disc pl-5 space-y-1">
-                    <li>Pantau <b>Nilai Mapel Belum Masuk</b> (kolom <b>Kelas</b>, <b>Yang Sudah</b>, <b>Yang Belum</b>) dan kirim <b>Chat Guru</b> bila perlu.</li>
+                    <li>Pantau <b>Nilai Mapel Belum Masuk</b> dan kirim <b>Chat Guru</b> bila perlu.</li>
                     <li>Inbox <b>Pesan cinta dari para Guru</b> untuk membaca pesan masuk. (Tombol <b>Chat Admin</b> ada di samping <b>Refresh</b> pada kartu ini.)</li>
                     <li>Jika ada angka aneh: cek periode aktif, kelas/mapel, dan pastikan input sudah disimpan.</li>
                 </ul>
@@ -4934,7 +4887,7 @@ function saveExcel(json, filename, colWidths = []) {
                     <li>Halaman Konversi menampilkan <b>Nilai UH</b>, <b>Harian/Sumatif</b>, <b>SAS/PAS/PAT</b>, dan <b>PK</b>.</li>
                     <li>Badge header 📋 bisa diklik untuk <b>salin 1 kolom</b> (siap tempel ke Excel/rekap lain).</li>
                     <li>Tombol <b>RDM</b> (di sebelah XLSX) membuka portal RDM di tab baru.</li>
-                    <li><b>PK</b> adalah <b>konversi dari Nilai Tugas</b>. Jika angka PK terlihat sama persis dengan Nilai Tugas, itu berarti konversi tidak diterapkan (misal: variasi nilai tugas 1 kelas nol/seragam, atau rata-rata tugas sudah ≥ target ideal).</li>
+                    <li><b>PK</b> adalah <b>konversi dari Nilai Tugas</b>. Sistem akan menaikkan nilai tugas yang berada <b>di bawah nilai ideal</b> secara halus (nilai yang sudah ≥ ideal dibiarkan). Jika PK masih sama dengan Nilai Tugas, biasanya karena <b>semua nilai tugas sudah ≥ ideal</b> atau <b>belum ada nilai tugas</b> yang terisi.</li>
                     <li>Konversi hanya membantu analisis; <b>nilai rapor</b> tetap dihitung dari bobot resmi.</li>
                 </ul>
             </div>
@@ -5649,7 +5602,7 @@ function renderWaliRekapDashboardHTML(kelas){
                             <th class="p-2 w-28">Status</th>
                             <th class="p-2 w-28">Terisi</th>
                             <th class="p-2 text-left">Progress</th>
-                        <th class="p-2 w-44">Aksi</th>
+                            <th class="p-2 w-40">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>${rows}</tbody>
