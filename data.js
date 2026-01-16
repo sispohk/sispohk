@@ -21,7 +21,7 @@ if (typeof supabase !== 'undefined') {
   db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   // `let db` di top-level tidak otomatis menjadi properti window.
   // Beberapa fitur (mis. chat) mengecek window.db, jadi expose eksplisit.
-  try { window.db = db; window.__dbReady = true; } catch {}
+  try { window.db = db; window.__dbReady = true; window.getTitimangsaRapor = getTitimangsaRapor; window.saveAppConfig = saveAppConfig; } catch {}
 } else {
   console.error('Library Supabase gagal dimuat.');
 }
@@ -35,7 +35,7 @@ let musyrifScores = [];
 let currentUser = null;
 
 // --- 2B) KONFIGURASI PERIODE AKTIF (cached) ---
-let appConfig = { tahun_ajar_aktif: '2025/2026', semester_aktif: 1 };
+let appConfig = { tahun_ajar_aktif: '2025/2026', semester_aktif: 1, titimangsa_rapor: '' };
 let bobotNilai = null; // { bobot_kehadiran, bobot_tugas, bobot_uh, bobot_paspat }
 const konversiIdealCache = new Map(); // key: `${tahunAjar||'GLOBAL'}|${jenjang}|${semester}`
 // Cache matrix ideal global (tahun_ajar = null) agar bisa dipakai sinkron di dashboard/legger
@@ -402,8 +402,58 @@ async function fetchAppConfig() {
   if (error) throw new Error(error.message || String(error));
   if (data?.tahun_ajar_aktif) appConfig.tahun_ajar_aktif = data.tahun_ajar_aktif;
   if (data?.semester_aktif) appConfig.semester_aktif = Number(data.semester_aktif) || 1;
+  // titimangsa rapor (opsional)
+  if (data?.titimangsa_rapor !== undefined) appConfig.titimangsa_rapor = data.titimangsa_rapor || '';
+  else if (data?.titimangsa_rapor_aktif !== undefined) appConfig.titimangsa_rapor = data.titimangsa_rapor_aktif || '';
   return appConfig;
 }
+
+function getTitimangsaRapor() {
+  // Sumber utama: appConfig (dari DB). Fallback: localStorage.
+  const v = (appConfig && typeof appConfig.titimangsa_rapor === 'string') ? appConfig.titimangsa_rapor.trim() : '';
+  if (v) return v;
+  try {
+    const ls = localStorage.getItem('erapor_titimangsa_rapor') || '';
+    return String(ls||'').trim();
+  } catch {
+    return '';
+  }
+}
+
+async function saveAppConfig({ tahun_ajar_aktif, semester_aktif, titimangsa_rapor }) {
+  const payload = {
+    tahun_ajar_aktif: String(tahun_ajar_aktif || '').trim(),
+    semester_aktif: Number(semester_aktif) || 1,
+    updated_at: new Date().toISOString(),
+  };
+  // titimangsa rapor bersifat opsional (kolom DB mungkin belum ada)
+  if (titimangsa_rapor !== undefined) payload.titimangsa_rapor = String(titimangsa_rapor || '').trim();
+
+  // update DB jika kolom tersedia; jika tidak, fallback localStorage
+  const res = await db.from('app_config').update(payload).eq('id', 1).select('*').single();
+  if (res.error) {
+    // Fallback: beberapa instance DB mungkin belum punya kolom titimangsa_rapor.
+    const msg = String(res.error.message || res.error);
+    if (payload.tahun_ajar_aktif) appConfig.tahun_ajar_aktif = payload.tahun_ajar_aktif;
+    if (payload.semester_aktif) appConfig.semester_aktif = payload.semester_aktif;
+    if (payload.titimangsa_rapor !== undefined) appConfig.titimangsa_rapor = payload.titimangsa_rapor || '';
+    try {
+      if (payload.titimangsa_rapor !== undefined) localStorage.setItem('erapor_titimangsa_rapor', payload.titimangsa_rapor || '');
+    } catch {}
+
+    // Jika error karena kolom titimangsa belum ada, anggap sukses (pakai localStorage).
+    if (/titimangsa_rapor/i.test(msg) && /(column|does not exist|unknown)/i.test(msg)) {
+      return appConfig;
+    }
+    throw new Error(msg);
+  }
+  // sukses: refresh cache
+  if (res.data?.tahun_ajar_aktif) appConfig.tahun_ajar_aktif = res.data.tahun_ajar_aktif;
+  if (res.data?.semester_aktif) appConfig.semester_aktif = Number(res.data.semester_aktif) || 1;
+  if (res.data?.titimangsa_rapor !== undefined) appConfig.titimangsa_rapor = res.data.titimangsa_rapor || '';
+  return appConfig;
+}
+
 
 async function fetchBobotNilaiGlobal() {
   // Coba ambil baris 'global' jika kolom scope ada; kalau tidak, ambil baris terbaru.

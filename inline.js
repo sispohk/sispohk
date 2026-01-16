@@ -69,6 +69,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 <li class="px-3 mt-6 mb-2 text-xs text-blue-300 uppercase font-bold tracking-wider">Pengaturan</li>
             <li><a href="#" onclick="renderBobotNilai()" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">⚖️ Bobot Nilai</a></li>
             <li><a href="#" onclick="renderKonversiNilai()" class="block p-2 rounded hover:bg-blue-700 text-sm pl-4">🔄 Konversi Nilai</a></li>
+<li><a href=\"#\" onclick=\"renderAdminPeriodeRapor\(\)\" class=\"block p-2 rounded hover:bg-blue-700 text-sm pl-4\">🗓️ Tahun Ajaran & Titimangsa</a></li>
 `;
         }
         
@@ -126,7 +127,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-        function renderDashboardContent() {
+        async function renderDashboardContent() {
         const u = getCurrentUser();
 
         const isWaliRole = (typeof isWali === 'function') ? isWali(u) : !!(u && (u.kelas_wali || u.wali));
@@ -141,8 +142,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             // hitung mapel unik
             const mapelSet = new Set();
             const { tahun_ajar, semester } = getActivePeriode();
-            const _todosNilai = computeNilaiTodoEntries({ tahun_ajar, semester });
-            const _adminTodoHtml = renderAdminTodoDashboardHTML(_todosNilai);
+            // NOTE: To-do Nilai sekarang memakai ringkasan (summary) dari DB via RPC agar dashboard lebih ringan.
+            // Slot akan diisi setelah DOM ter-render.
+            const _adminTodoHtml = `<div id="admin-todo-slot"></div>`;
             const _adminAnalyticsHtml = renderAdminAnalyticsHTML({ tahun_ajar, semester });
             users.forEach(g => {
                 const m = parseMapelData(g.mapel);
@@ -199,6 +201,8 @@ ${_adminTodoHtml}
 </div>`;
         // Load inbox pesan (guru)
         loadChatInboxInto('chat-inbox-guru');
+	    // Isi slot ringkasan to-do nilai (summary via DB)
+	    loadAdminTodoSummaryInto('admin-todo-slot', { tahun_ajar, semester });
             return;
         }
 
@@ -227,7 +231,8 @@ ${_adminTodoHtml}
         const _comboProgress = computeGuruComboProgress(u, combos);
 const _guruAnalyticsHtml = renderGuruAnalyticsHTML(u, combos);
         const _guruChatHtml = renderChatInboxCardHTML('guru');
-        const _waliMissingHtml = (typeof isWali==='function' && isWali(u)) ? buildWaliMissingNilaiCardHTML(getWaliKelas(u), { tahun_ajar, semester }) : '';
+	    // NOTE: Ringkasan nilai belum masuk untuk wali kelas sekarang diambil via summary DB (lebih ringan)
+	    const _waliMissingHtml = (typeof isWali==='function' && isWali(u)) ? '<div id="wali-missing-slot"></div>' : '';
         
         const _guruTodoHtml = '';
 document.getElementById('main-content').innerHTML = `
@@ -298,6 +303,9 @@ document.getElementById('main-content').innerHTML = `
 
         </div>`;
         loadChatInboxInto('chat-inbox-guru');
+	    if (typeof isWali==='function' && isWali(u)) {
+	        loadWaliMissingSummaryInto('wali-missing-slot', getWaliKelas(u), { tahun_ajar, semester });
+	    }
     }
 
 
@@ -319,6 +327,169 @@ function escapeHtml(str){
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+}
+
+
+// ===============================
+// TITIMANGSA: Input Indonesia -> otomatis jadi Arab (untuk cetak rapor)
+// ===============================
+function toArabicTitimangsa(input){
+    const s = String(input || '').trim();
+    if (!s) return '';
+
+    // Jika sudah mengandung huruf Arab, biarkan apa adanya.
+    if (/[\u0600-\u06FF]/.test(s)) return s;
+
+    const monthMap = {
+        'januari': 'يناير',
+        'februari': 'فبراير',
+        'maret': 'مارس',
+        'april': 'أبريل',
+        'mei': 'مايو',
+        'juni': 'يونيو',
+        'juli': 'يوليو',
+        'agustus': 'أغسطس',
+        'september': 'سبتمبر',
+        'oktober': 'أكتوبر',
+        'november': 'نوفمبر',
+        'desember': 'ديسمبر',
+    };
+    const cityMap = {
+        'kuningan': 'كونينغان',
+    };
+
+    let city = '';
+    let rest = s;
+    if (s.includes(',')) {
+        const parts = s.split(',');
+        city = (parts.shift() || '').trim();
+        rest = parts.join(',').trim();
+    }
+
+    const m = rest.match(/(\d{1,2})\s+([A-Za-zÀ-ÿ]+)\s+(\d{4})/i);
+    if (!m) return s;
+
+    const day = String(Number(m[1]));
+    const monthId = String(m[2] || '').toLowerCase().trim();
+    const year = String(Number(m[3]));
+    const monthAr = monthMap[monthId] || m[2];
+
+    const cityKey = city.toLowerCase().trim();
+    const cityAr = city ? (cityMap[cityKey] || city) : '';
+    const base = `${day} ${monthAr} ${year}م`;
+    return cityAr ? `${cityAr}، ${base}` : base;
+}
+
+function updateTitimangsaPreview(){
+    const inp = document.getElementById('cfg-titimangsa');
+    const prev = document.getElementById('cfg-titimangsa-preview');
+    if (!inp || !prev) return;
+    prev.textContent = toArabicTitimangsa(inp.value || '');
+}
+
+
+// ===============================
+// TO-DO NILAI: Ambil ringkasan dari DB (RPC) agar dashboard tidak berat
+// ===============================
+// Sementara dimatikan (fallback ke hitung lokal) sampai SQL RPC di Supabase benar-benar sesuai dengan skema kolom nilai.
+// Jika ingin mengaktifkan lagi, ubah ke true.
+const USE_TODO_SUMMARY_RPC = false;
+
+async function _fetchTodoMapelSummaryDB({ tahun_ajar, semester, kelas = null, limit = 200 } = {}){
+    try{
+        if (!USE_TODO_SUMMARY_RPC) return null;
+        if (!window.db || typeof db.rpc !== 'function') return null;
+        const args = {
+            p_tahun_ajar: String(tahun_ajar || ''),
+            p_semester: Number(semester || 1) || 1,
+            p_kelas: kelas ? String(kelas) : null,
+            p_limit: Number(limit || 200) || 200,
+        };
+        const { data, error } = await db.rpc('todo_mapel_summary', args);
+        if (error) {
+            console.warn('RPC todo_mapel_summary gagal, fallback ke hitung lokal.', error);
+            return null;
+        }
+        return Array.isArray(data) ? data : [];
+    }catch(e){
+        console.warn('RPC todo_mapel_summary error, fallback ke hitung lokal.', e);
+        return null;
+    }
+}
+
+function _renderWaliMissingFromSummary(kelas, rows){
+    const list = (rows || []).filter(r => String(r.kelas||'').trim() === String(kelas||'').trim());
+    if (!list.length) return '';
+    list.sort((a,b)=> (Number(b.missing||0)-Number(a.missing||0)) || String(a.mapel||'').localeCompare(String(b.mapel||''),'id') || String(a.guru||'').localeCompare(String(b.guru||''),'id'));
+    const top = list.slice(0, 20);
+    const rowsHtml = top.map((r, idx)=>{
+        const toNameEnc = encodeURIComponent(r.guru || '');
+        const mapelEnc = encodeURIComponent(r.mapel || '');
+        const kelasEnc = encodeURIComponent(kelas || '');
+        return `
+            <tr class="border-b hover:bg-gray-50">
+                <td class="p-2 text-center text-xs text-gray-500">${idx+1}</td>
+                <td class="p-2 text-left font-extrabold">${escapeHtml(_prettyMapelLabel(String(r.mapel||'').toUpperCase()))}</td>
+                <td class="p-2 text-left">${escapeHtml(r.guru||'-')}</td>
+                <td class="p-2 text-center font-mono text-sm">${Number(r.filled||0)}/${Number(r.expected||0)}</td>
+                <td class="p-2 text-center"><span class="bg-pink-100 text-pink-800 px-2 py-1 rounded-full text-xs font-extrabold">${Number(r.missing||0)}</span></td>
+                <td class="p-2 text-center">
+                    <button class="btn btn-message whitespace-nowrap" onclick="openChatCompose(${Number(r.guru_id)||0}, '${toNameEnc}', '${mapelEnc}', '${kelasEnc}')">Chat Guru</button>
+                </td>
+            </tr>`;
+    }).join('');
+    return `
+        <div class="bg-white p-6 rounded-xl shadow border">
+            <div class="flex items-center justify-between gap-2 mb-3">
+                <div>
+                    <h3 class="text-lg font-extrabold text-gray-800">📌 Nilai Mapel Belum Masuk (Kelas ${escapeHtml(String(kelas||''))})</h3>
+                    <div class="text-xs text-gray-600">Menampilkan mapel yang masih belum lengkap untuk kelas wali Anda.</div>
+                </div>
+            </div>
+            <div class="overflow-auto">
+                <table class="min-w-[900px] w-full text-sm border std-table">
+                    <thead class="bg-blue-600 text-white">
+                        <tr>
+                            <th class="p-2 w-12">No</th>
+                            <th class="p-2 text-left">Mapel</th>
+                            <th class="p-2 text-left">Nama Guru</th>
+                            <th class="p-2 w-28">Yang Sudah</th>
+                            <th class="p-2 w-28">Yang Belum</th>
+                            <th class="p-2 w-44">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rowsHtml}</tbody>
+                </table>
+            </div>
+        </div>`;
+}
+
+async function loadWaliMissingSummaryInto(holderId, kelasWali, { tahun_ajar, semester } = {}){
+    const holder = document.getElementById(holderId);
+    if (!holder) return;
+    holder.innerHTML = `<div class="bg-white p-6 rounded-xl shadow border text-sm text-gray-600">Memuat ringkasan nilai belum masuk...</div>`;
+    const rows = await _fetchTodoMapelSummaryDB({ tahun_ajar, semester, kelas: kelasWali, limit: 100 });
+    if (rows === null) {
+        // fallback lama
+        holder.innerHTML = buildWaliMissingNilaiCardHTML(kelasWali, { tahun_ajar, semester });
+        return;
+    }
+    const html = _renderWaliMissingFromSummary(kelasWali, rows);
+    holder.innerHTML = html || '';
+}
+
+async function loadAdminTodoSummaryInto(holderId, { tahun_ajar, semester } = {}){
+    const holder = document.getElementById(holderId);
+    if (!holder) return;
+    holder.innerHTML = `<div class="bg-white p-6 rounded-xl shadow border text-sm text-gray-600">Memuat ringkasan to-do nilai...</div>`;
+    const rows = await _fetchTodoMapelSummaryDB({ tahun_ajar, semester, kelas: null, limit: 200 });
+    if (rows === null) {
+        // fallback lama (lebih berat)
+        const todos = computeNilaiTodoEntries({ tahun_ajar, semester });
+        holder.innerHTML = renderAdminTodoDashboardHTML(todos);
+        return;
+    }
+    holder.innerHTML = renderAdminTodoDashboardHTML(rows);
 }
 
 
@@ -1616,7 +1787,98 @@ async function openAdminLeggerForKelas(kelas){
         }
     }
 
-    async function renderKonversiNilai() {
+// =====================
+// Admin: Pengaturan Tahun Ajaran & Titimangsa Rapor
+// =====================
+function renderAdminPeriodeRapor(){
+    const u = getCurrentUser();
+    if (!u || !(typeof isAdmin==='function' && isAdmin(u))) { showToast('Akses ditolak', 'error'); return; }
+
+    const mc = document.getElementById('main-content');
+    const cfg = (typeof fetchAppConfig === 'function') ? appConfig : (window.appConfig || {});
+    const tahun = (cfg && cfg.tahun_ajar_aktif) ? cfg.tahun_ajar_aktif : (getActivePeriode().tahun_ajar || '');
+    const sem = (cfg && cfg.semester_aktif) ? Number(cfg.semester_aktif)||1 : (Number(getActivePeriode().semester)||1);
+    const ttm = (typeof getTitimangsaRapor === 'function') ? getTitimangsaRapor() : (cfg && cfg.titimangsa_rapor) ? cfg.titimangsa_rapor : '';
+
+    mc.innerHTML = `
+      <div class="max-w-4xl mx-auto">
+        <div class="bg-white rounded-xl shadow p-6">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <div class="text-xl font-extrabold text-gray-800">🗓️ Pengaturan Tahun Ajaran & Titimangsa Rapor</div>
+              <div class="text-sm text-gray-600 mt-1">Mengatur periode aktif (filter data) dan teks titimangsa yang tampil di rapor.</div>
+            </div>
+            <div class="text-right">
+              <div class="text-xs text-gray-500">Periode saat ini</div>
+              <div class="text-sm font-bold text-gray-800">${escapeHtml(String(tahun||''))} • S${escapeHtml(String(sem||''))}</div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
+            <div>
+              <label class="block text-sm font-bold text-gray-700 mb-1">Tahun Ajaran Aktif</label>
+              <input id="cfg-tahun" type="text" class="w-full border rounded-lg p-3" value="${escapeHtml(String(tahun||''))}" placeholder="2025/2026" />
+              <div class="text-xs text-gray-500 mt-1">Contoh: 2025/2026</div>
+            </div>
+            <div>
+              <label class="block text-sm font-bold text-gray-700 mb-1">Semester Aktif</label>
+              <select id="cfg-semester" class="w-full border rounded-lg p-3">
+                <option value="1" ${sem===1?'selected':''}>Semester 1</option>
+                <option value="2" ${sem===2?'selected':''}>Semester 2</option>
+              </select>
+              <div class="text-xs text-gray-500 mt-1">Mengubah semester akan memfilter ulang data nilai.</div>
+            </div>
+            <div>
+              <label class="block text-sm font-bold text-gray-700 mb-1">Titimangsa Rapor</label>
+              <input id="cfg-titimangsa" type="text" class="w-full border rounded-lg p-3" value="${escapeHtml(String(ttm||''))}" oninput="updateTitimangsaPreview()" placeholder="Kuningan, 16 Januari 2026" />
+              <div class="text-xs text-gray-500 mt-1">Input Indonesia → otomatis jadi Arab untuk rapor. Preview: <span id="cfg-titimangsa-preview" class="font-semibold">${escapeHtml(toArabicTitimangsa(String(ttm||'')))}</span></div>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-2 mt-6">
+            <button class="btn btn-save" onclick="saveAdminPeriodeRapor()">💾 Simpan</button>
+            <button class="btn btn-neutral" onclick="renderDashboardContent()">← Kembali ke Dashboard</button>
+          </div>
+
+          <div class="mt-5 p-4 rounded-xl bg-blue-50 border border-blue-100 text-sm text-blue-900">
+            <div class="font-extrabold mb-1">Catatan</div>
+            <ul class="list-disc pl-5 space-y-1">
+              <li>Perubahan <b>Tahun Ajaran</b> / <b>Semester</b> akan memuat ulang data nilai (mapel/wali/musyrif) sesuai periode baru.</li>
+	              <li><b>Titimangsa</b> disimpan di <b>app_config.titimangsa_rapor</b>. Input Indonesia akan otomatis ditampilkan versi Arab pada rapor.</li>
+            </ul>
+          </div>
+
+        </div>
+      </div>
+    `;
+}
+
+async function saveAdminPeriodeRapor(){
+    try{
+        const tahun = (document.getElementById('cfg-tahun')?.value || '').trim();
+        const sem = Number(document.getElementById('cfg-semester')?.value || 1) || 1;
+        const ttm = (document.getElementById('cfg-titimangsa')?.value || '').trim();
+        if(!tahun){ showToast('Tahun ajaran tidak boleh kosong', 'error'); return; }
+
+        setLoading(true, 'Menyimpan pengaturan...');
+        try { await saveAppConfig({ tahun_ajar_aktif: tahun, semester_aktif: sem, titimangsa_rapor: ttm }); }
+        finally { setLoading(false); }
+
+        // reload data sesuai periode baru
+        setLoading(true, 'Memuat ulang data...');
+        setLoadingProgress(0, 'Memuat ulang data...');
+        await loadInitialData({ onProgress: (pct, label) => setLoadingProgress(pct, label) });
+        setLoading(false);
+
+        showToast('Pengaturan tersimpan', 'success');
+        renderDashboardContent();
+    }catch(e){
+        console.error(e);
+	    // Jika gagal menyimpan, biasanya karena policy/RLS atau koneksi.
+        showToast('Gagal menyimpan: ' + (e.message||e), 'error');
+    }
+}
+async function renderKonversiNilai() {
         const cols = [
             { jenjang: 'X', semester: 1, label: 'X • Sem 1' },
             { jenjang: 'X', semester: 2, label: 'X • Sem 2' },
@@ -3184,6 +3446,7 @@ main.innerHTML = `
             const y1 = years[0] || '';
             const y2 = years[1] || '';
             const tahunAr = (y1 && y2) ? `${_toArabicIndic(y1)} / ${_toArabicIndic(y2)}` : _toArabicIndic(tahun_ajar);
+            const titimangsaRapor = (typeof getTitimangsaRapor==='function') ? getTitimangsaRapor() : (window.appConfig && typeof window.appConfig.titimangsa_rapor==='string' ? window.appConfig.titimangsa_rapor : '');
 
             const jenjang = _inferJenjangFromKelas(kelas);
             const _pKelas = (typeof _parseKelasParts==='function') ? _parseKelasParts(kelas) : { paralel:'', kelas:kelas };
@@ -3466,6 +3729,7 @@ main.innerHTML = `
                 /* titimangsa rapor: beri jarak/padding agar tidak mepet */
                 .sig-spacer-2{ height:2em; }
                 .sig-date-line{ display:block; }
+                .sig-date-val{ display:inline-block; min-width: 78mm; padding:1.5mm 3mm; border-bottom: 1.6px solid #111; text-align:center; font-weight:900; }
                 .sig-date{ text-align:right; font-size: 16px; font-weight:900; margin-top:14mm; margin-bottom:12mm; padding:5px 2mm; }
                 .sig-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; column-gap:12mm; align-items:flex-start; margin-top:6mm; padding-bottom:2mm; justify-items:stretch; }
                 .sig-col{ text-align:center; display:flex; flex-direction:column; align-items:center; }
@@ -3853,7 +4117,7 @@ main.innerHTML = `
                             </div>
 
                             <div class="sig-spacer-2"></div>
-                            <div class="sig-date arab"><div>حريرا بكونينجان في</div><div class="sig-date-line">_______________________________</div></div>
+						<div class="sig-date arab"><div>حريرا بكونينجان في</div><div class="sig-date-line"><span class="sig-date-val">${escapeHtml(toArabicTitimangsa(titimangsaRapor||""))}</span></div></div>
                             <div class="sig-spacer-2"></div>
 
                             <div class="sig-grid arab" dir="rtl">
@@ -4879,6 +5143,7 @@ function saveExcel(json, filename, colWidths = []) {
                 <div class="font-extrabold mb-2">✅ Setup awal (sekali di awal periode)</div>
                 <ul class="list-disc pl-5 space-y-1">
                     <li>Pastikan <b>Tahun Ajar</b> & <b>Semester</b> aktif sudah benar.</li>
+	                    <li>Set <b>Titimangsa Rapor</b> (Admin → Tahun Ajaran & Titimangsa). Input Indonesia akan otomatis tampil versi Arab di rapor.</li>
                     <li>Lengkapi master data: <b>Guru</b>, <b>Santri</b>, pembagian <b>Kelas</b>.</li>
                     <li>Set <b>Bobot Nilai</b> (hadir:tugas:UH:SAS/PAS/PAT) sesuai kebijakan.</li>
                     <li>Set <b>Konversi Ideal</b> (Admin → Konversi Nilai) bila ingin fitur konversi aktif.</li>
@@ -4890,6 +5155,7 @@ function saveExcel(json, filename, colWidths = []) {
                 <ul class="list-disc pl-5 space-y-1">
                     <li>Pantau <b>Nilai Mapel Belum Masuk</b> (kolom <b>Kelas</b>, <b>Yang Sudah</b>, <b>Yang Belum</b>) dan kirim <b>Chat Guru</b> bila perlu.</li>
                     <li>Gunakan <b>Chat Guru</b> untuk membaca pesan masuk dari guru. (Tombol <b>Chat Admin</b> ada di samping <b>Refresh</b> pada kartu ini.)</li>
+	                    <li><b>Catatan performa:</b> dashboard to-do bisa memakai <b>summary DB</b> (RPC <b>todo_mapel_summary</b>) agar lebih ringan. Saat ini mode summary dimatikan sementara dan sistem memakai hitung lokal. Jika nanti diaktifkan lagi, pastikan SQL RPC sudah dijalankan dan tabel <b>santri_periode</b> terisi.</li>
                     <li>Jika ada angka aneh: cek periode aktif, kelas/mapel, dan pastikan input sudah disimpan.</li>
                 </ul>
             </div>
