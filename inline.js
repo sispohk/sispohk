@@ -329,6 +329,11 @@ function escapeHtml(str){
         .replace(/'/g, '&#39;');
 }
 
+// Convert Western digits 0-9 into Arabic-Indic digits (٠-٩)
+function _digitsEnToAr(str){
+    return String(str ?? '').replace(/[0-9]/g, (d)=> String.fromCharCode(0x0660 + (d.charCodeAt(0) - 48)));
+}
+
 
 // ===============================
 // TITIMANGSA: Input Indonesia -> otomatis jadi Arab (untuk cetak rapor)
@@ -337,8 +342,8 @@ function toArabicTitimangsa(input){
     const s = String(input || '').trim();
     if (!s) return '';
 
-    // Jika sudah mengandung huruf Arab, biarkan apa adanya.
-    if (/[\u0600-\u06FF]/.test(s)) return s;
+    // Jika sudah mengandung huruf Arab, tetap konversi angka Barat -> Arab-Indic.
+    if (/[\u0600-\u06FF]/.test(s)) return _digitsEnToAr(s);
 
     const monthMap = {
         'januari': 'يناير',
@@ -376,8 +381,12 @@ function toArabicTitimangsa(input){
 
     const cityKey = city.toLowerCase().trim();
     const cityAr = city ? (cityMap[cityKey] || city) : '';
-    const base = `${day} ${monthAr} ${year}م`;
-    return cityAr ? `${cityAr}، ${base}` : base;
+    const dayAr = _digitsEnToAr(day);
+    const yearAr = _digitsEnToAr(year);
+    const base = `${dayAr} ${monthAr} ${yearAr}م`;
+    const out = cityAr ? `${cityAr}، ${base}` : base;
+    // Ensure any remaining Western digits are converted (e.g., if city contains numbers)
+    return _digitsEnToAr(out);
 }
 
 function updateTitimangsaPreview(){
@@ -3728,9 +3737,9 @@ main.innerHTML = `
                 /* signatures */
                 /* titimangsa rapor: beri jarak/padding agar tidak mepet */
                 .sig-spacer-2{ height:2em; }
-                .sig-date-line{ display:block; }
+                .sig-date-prefix{ display:inline; }
                 .sig-date-val{ display:inline-block; min-width: 78mm; padding:1.5mm 3mm; border-bottom: 1.6px solid #111; text-align:center; font-weight:900; }
-                .sig-date{ text-align:right; font-size: 16px; font-weight:900; margin-top:14mm; margin-bottom:12mm; padding:5px 2mm; }
+                .sig-date{ text-align:right; white-space:nowrap; font-size: 16px; font-weight:900; margin-top:14mm; margin-bottom:12mm; padding:5px 2mm; }
                 .sig-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; column-gap:12mm; align-items:flex-start; margin-top:6mm; padding-bottom:2mm; justify-items:stretch; }
                 .sig-col{ text-align:center; display:flex; flex-direction:column; align-items:center; }
                 .sig-title{ font-weight:900; font-size: 16px; line-height:1.15; height:18mm; min-height:18mm; display:flex; flex-direction:column; justify-content:center;  width:100%; }
@@ -4117,7 +4126,7 @@ main.innerHTML = `
                             </div>
 
                             <div class="sig-spacer-2"></div>
-						<div class="sig-date arab"><div>حريرا بكونينجان في</div><div class="sig-date-line"><span class="sig-date-val">${escapeHtml(toArabicTitimangsa(titimangsaRapor||""))}</span></div></div>
+						<div class="sig-date arab" dir="rtl"><span class="sig-date-prefix">حريرا بكونينجان في</span> <span class="sig-date-val">${escapeHtml(toArabicTitimangsa(titimangsaRapor||""))}</span></div>
                             <div class="sig-spacer-2"></div>
 
                             <div class="sig-grid arab" dir="rtl">
