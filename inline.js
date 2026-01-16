@@ -56,6 +56,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const u = getCurrentUser();
         const menu = document.getElementById('sidebar-menu');
         menu.innerHTML = `<li><a href="#" onclick="renderDashboardContent()" class="flex items-center gap-3 p-3 rounded hover:bg-blue-700 font-bold text-sm">🏠 Dashboard</a></li>`;
+        // Chat Admin dipindah ke Dashboard (kartu Pesan cinta)
 
         if (isAdmin(u)) {
             menu.innerHTML += `
@@ -159,23 +160,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                    <div class="bg-white p-5 rounded-xl shadow border">
+                    <div class="stat-card stat-blue p-5">
                         <div class="text-sm text-gray-500 font-bold mb-1">Total Guru</div>
                         <div class="text-3xl font-extrabold text-gray-800">${totalGuru}</div>
                     </div>
-                    <div class="bg-white p-5 rounded-xl shadow border">
+                    <div class="stat-card stat-emerald p-5">
                         <div class="text-sm text-gray-500 font-bold mb-1">Total Santri</div>
                         <div class="text-3xl font-extrabold text-gray-800">${totalSantri}</div>
                     </div>
-                    <div class="bg-white p-5 rounded-xl shadow border">
+                    <div class="stat-card stat-amber p-5">
                         <div class="text-sm text-gray-500 font-bold mb-1">Wali Kelas Aktif</div>
                         <div class="text-3xl font-extrabold text-gray-800">${totalWali}</div>
                     </div>
-                    <div class="bg-white p-5 rounded-xl shadow border">
+                    <div class="stat-card stat-violet p-5">
                         <div class="text-sm text-gray-500 font-bold mb-1">Musyrif Aktif</div>
                         <div class="text-3xl font-extrabold text-gray-800">${totalMusyrif}</div>
                     </div>
-                    <div class="bg-white p-5 rounded-xl shadow border">
+                    <div class="stat-card stat-slate p-5">
                         <div class="text-sm text-gray-500 font-bold mb-1">Mapel Unik</div>
                         <div class="text-3xl font-extrabold text-gray-800">${mapelSet.size}</div>
                     </div>
@@ -249,19 +250,19 @@ document.getElementById('main-content').innerHTML = `
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                <div class="bg-white p-5 rounded-xl shadow border">
+                <div class="stat-card stat-blue p-5">
                     <div class="text-sm text-gray-500 font-bold mb-1">Mapel Diampu</div>
                     <div class="text-3xl font-extrabold text-gray-800">${mapelList.length}</div>
                 </div>
-                <div class="bg-white p-5 rounded-xl shadow border">
+                <div class="stat-card stat-emerald p-5">
                     <div class="text-sm text-gray-500 font-bold mb-1">Kelas Diampu</div>
                     <div class="text-3xl font-extrabold text-gray-800">${kelasSet.size}</div>
                 </div>
-                <div class="bg-white p-5 rounded-xl shadow border">
+                <div class="stat-card stat-amber p-5">
                     <div class="text-sm text-gray-500 font-bold mb-1">Santri Terjangkau</div>
                     <div class="text-3xl font-extrabold text-gray-800">${santriSet.size}</div>
                 </div>
-                <div class="bg-white p-5 rounded-xl shadow border">
+                <div class="stat-card stat-violet p-5">
                     <div class="text-sm text-gray-500 font-bold mb-1">Input Nilai (Terisi)</div>
                     <div class="text-3xl font-extrabold text-gray-800">${pct}%</div>
                     <div class="mt-2 h-2 bg-gray-200 rounded w-full">
@@ -269,7 +270,7 @@ document.getElementById('main-content').innerHTML = `
                     </div>
                     <div class="text-xs text-gray-500 mt-1">${filled} / ${expected} baris</div>
                 </div>
-                <div class="bg-white p-5 rounded-xl shadow border">
+                <div class="stat-card stat-slate p-5">
                     <div class="text-sm text-gray-500 font-bold mb-1">Peran Tambahan</div>
                     <div class="text-base font-extrabold text-gray-800">
                         ${isWaliRole ? '✅ Wali Kelas' : '❎ Wali Kelas'}<br>
@@ -441,10 +442,10 @@ function buildWaliMissingNilaiCardHTML(kelasWali, { tahun_ajar, semester }){
                 <td class="p-2 text-left">${escapeHtml(r.guru||'-')}</td>
                 <td class="p-2 text-center font-mono">${r.filled}/${r.expected}</td>
                 <td class="p-2 text-center font-mono font-extrabold">${r.missing}</td>
-                <td class="p-2 text-center">
-                    <button class="bg-blue-700 hover:bg-blue-800 text-white px-3 py-1 rounded font-bold text-xs shadow"
-                        onclick="openChatCompose(${Number(r.guru_id)||0}, '${toNameEnc}', '${mapelEnc}', '${kelasEnc}')">Kirim Pesan</button>
-                </td>
+				<td class="p-2 text-center">
+					<button class="btn btn-message whitespace-nowrap"
+						onclick="openChatCompose(${Number(r.guru_id)||0}, '${toNameEnc}', '${mapelEnc}', '${kelasEnc}')">Chat Guru</button>
+				</td>
             </tr>`;
         }).join('');
 
@@ -605,12 +606,12 @@ function renderAdminTodoDashboardHTML(todos){
             <td class="p-2 text-left font-bold">${escapeHtml(t.mapel||'-')}</td>
             <td class="p-2 text-center font-mono">${escapeHtml(t.kelas||'-')}</td>
             <td class="p-2 text-left">${escapeHtml(t.guru||'-')}</td>
-            <td class="p-2 text-center">
-                <div class="flex flex-wrap gap-2 justify-center">
-                    <button class="bg-gray-800 hover:bg-gray-900 text-white px-3 py-1 rounded shadow text-xs font-bold ${t.guru_id ? '' : 'opacity-50 cursor-not-allowed'}"
-                        ${t.guru_id ? `onclick="event.stopPropagation(); openChatCompose(${t.guru_id}, '${_encArg(t.guru||'')}', '${_encArg(t.mapel||'')}', '${_encArg(t.kelas||'')}')"` : 'disabled'}>Kirim Pesan</button>
-                </div>
-            </td>
+	            <td class="p-2 text-center">
+	                <div class="flex gap-2 justify-center">
+	                    <button class="btn btn-message whitespace-nowrap ${t.guru_id ? '' : 'opacity-50 cursor-not-allowed'}"
+	                        ${t.guru_id ? `onclick="event.stopPropagation(); openChatCompose(${t.guru_id}, '${_encArg(t.guru||'')}', '${_encArg(t.mapel||'')}', '${_encArg(t.kelas||'')}')"` : 'disabled'}>Chat Guru</button>
+	                </div>
+	            </td>
         </tr>
     `).join('');
 
@@ -630,7 +631,7 @@ function renderAdminTodoDashboardHTML(todos){
                         <th class="p-2 text-left">Mapel</th>
                         <th class="p-2 w-28">Kelas</th>
                         <th class="p-2 text-left">Guru</th>
-                        <th class="p-2 w-28">Aksi</th>
+	                        <th class="p-2 w-40">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>${body}</tbody>
@@ -1404,10 +1405,10 @@ async function openAdminLeggerForKelas(kelas){
 
         const headerBtn = `
         <div class="flex flex-wrap gap-2 justify-end">
-            <button onclick="downloadExcelGuru()" class="bg-blue-700 text-white px-4 py-2 rounded font-bold shadow text-sm">Export</button>
-            <button onclick="triggerImport('guru')" class="bg-green-700 text-white px-4 py-2 rounded font-bold shadow text-sm">Import</button>
-            <button onclick="openModal('guru')" class="bg-gray-800 text-white px-4 py-2 rounded font-bold shadow text-sm">Tambah</button>
-            <button onclick="saveAdminImport('guru')" class="bg-blue-900 text-white px-4 py-2 rounded font-bold shadow text-sm">Simpan</button>
+            <button onclick="downloadExcelGuru()" class="btn btn-export">Export</button>
+            <button onclick="triggerImport('guru')" class="btn btn-import">Import</button>
+            <button onclick="openModal('guru')" class="btn btn-add">Tambah</button>
+            <button onclick="saveAdminImport('guru')" class="btn btn-save">Simpan</button>
         </div>
 `;
 
@@ -1468,10 +1469,10 @@ async function openAdminLeggerForKelas(kelas){
 
         const headerBtn = `
         <div class="flex flex-wrap gap-2 justify-end">
-            <button onclick="downloadExcelSantri()" class="bg-blue-700 text-white px-4 py-2 rounded font-bold shadow text-sm">Export</button>
-            <button onclick="triggerImport('santri')" class="bg-green-700 text-white px-4 py-2 rounded font-bold shadow text-sm">Import</button>
-            <button onclick="openModal('santri')" class="bg-gray-800 text-white px-4 py-2 rounded font-bold shadow text-sm">Tambah</button>
-            <button onclick="saveAdminImport('santri')" class="bg-blue-900 text-white px-4 py-2 rounded font-bold shadow text-sm">Simpan</button>
+            <button onclick="downloadExcelSantri()" class="btn btn-export">Export</button>
+            <button onclick="triggerImport('santri')" class="btn btn-import">Import</button>
+            <button onclick="openModal('santri')" class="btn btn-add">Tambah</button>
+            <button onclick="saveAdminImport('santri')" class="btn btn-save">Simpan</button>
         </div>
 `;
 
@@ -1569,7 +1570,7 @@ async function openAdminLeggerForKelas(kelas){
 
                 <div class="mt-8 flex flex-wrap gap-2 justify-end">
                     
-                    <button onclick="saveBobotNilaiUI()" class="bg-yellow-600 text-white px-8 py-3 rounded font-bold hover:bg-yellow-700">Simpan</button>
+                    <button onclick="saveBobotNilaiUI()" class="btn btn-save">Simpan</button>
                 </div>
             </div>`;
         } catch (e) {
@@ -1649,7 +1650,7 @@ async function openAdminLeggerForKelas(kelas){
                     </div>
                     <div class="flex gap-2 justify-end">
                         
-                        <button onclick="saveKonversiNilaiUI()" class="bg-blue-800 text-white px-6 py-2 rounded font-bold">Simpan</button>
+                        <button onclick="saveKonversiNilaiUI()" class="btn btn-save">Simpan</button>
                     </div>
                 </div>
 
@@ -1751,9 +1752,9 @@ async function openAdminLeggerForKelas(kelas){
             <div class="flex justify-between items-center mb-4">
                 <div><h2 class="text-2xl font-bold">${mapel} - ${kelas}</h2></div>
                 <div class="flex gap-2">
-                    <button onclick="exportExcelNilai('${mapel}', '${kelas}')" class="bg-blue-600 text-white px-4 py-2 rounded text-sm font-bold shadow">Export</button>
-                    <button onclick="triggerImport('mapel', '${mapel}', '${kelas}')" class="bg-green-600 text-white px-4 py-2 rounded text-sm font-bold shadow">Import</button>
-                    <button onclick="saveNilaiMapel('${mapel}', '${kelas}')" class="bg-blue-800 text-white px-6 py-2 rounded font-bold shadow">Simpan</button>
+                    <button onclick="exportExcelNilai('${mapel}', '${kelas}')" class="btn btn-export">Export</button>
+                    <button onclick="triggerImport('mapel', '${mapel}', '${kelas}')" class="btn btn-import">Import</button>
+                    <button onclick="saveNilaiMapel('${mapel}', '${kelas}')" class="btn btn-save">Simpan</button>
                 </div>
             </div>
             <div class="overflow-x-auto">
@@ -1841,49 +1842,102 @@ async function openAdminLeggerForKelas(kelas){
             const maxIdeal = Number(ideal?.max_ideal ?? 100) || 100;
             const meanIdeal = Number(ideal?.mean_ideal ?? 0) || 0;
 
-            // hitung nilai rapor per santri
-            const data = siswa.map(s => {
+	            // hitung rerata UH, nilai PAS/PAT, dan nilai tugas per santri
+	            const data = siswa.map(s => {
                 const sc = scores.find(x =>
                     String(x.nis) === String(s.nis) &&
                     String(x.mapel) === String(mapel) &&
                     String(x.tahun_ajar) === String(tahun_ajar) &&
                     Number(x.semester) === Number(semester)
                 ) || {};
-                const nilaiRapor = _calcNilaiRapor(sc, bobot);
+
+	                const uhVals = [sc.uh1, sc.uh2, sc.uh3, sc.uh4, sc.uh5]
+	                    .map(v => Number(v) || 0)
+	                    .filter(v => Number.isFinite(v) && v > 0);
+	                const nilaiUH = uhVals.length ? (uhVals.reduce((a,b)=>a+b,0) / uhVals.length) : 0;
+	                const nilaiPAS = Number(sc.pas_pat) || 0;
+	                const nilaiTugas = Number(sc.tugas) || 0;
+
                 return {
                     nis: s.nis,
                     nama: s.name,
                     jk: s.jk || s.lp || '-',
-                    nilai_rapor: nilaiRapor,
+	                    nilai_uh: Math.round(nilaiUH * 100) / 100,
+	                    nilai_paspat: Math.round(nilaiPAS * 100) / 100,
+                    nilai_tugas: nilaiTugas,
                 };
             });
 
-            // statistik asli (min/max/mean) — hanya dari santri yang sudah terisi nilai (bukan 0 semua)
-            const valid = data
-                .map(d => d.nilai_rapor)
-                .filter(v => typeof v === 'number' && Number.isFinite(v) && v > 0);
+	            // statistik asli (UH)
+	            const validUH = data
+	                .map(d => Number(d.nilai_uh) || 0)
+	                .filter(v => Number.isFinite(v) && v > 0);
+	            const minUH = validUH.length ? Math.min(...validUH) : 0;
+	            const maxUH = validUH.length ? Math.max(...validUH) : 0;
+	            const meanUH = validUH.length ? (validUH.reduce((a,b)=>a+b,0) / validUH.length) : 0;
 
-            const minAsli = valid.length ? Math.min(...valid) : 0;
-            const maxAsli = valid.length ? Math.max(...valid) : 0;
-            const meanAsli = valid.length ? (valid.reduce((a,b)=>a+b,0) / valid.length) : 0;
+	            // statistik asli (PAS/PAT)
+	            const validPAS = data
+	                .map(d => Number(d.nilai_paspat) || 0)
+	                .filter(v => Number.isFinite(v) && v > 0);
+	            const minPAS = validPAS.length ? Math.min(...validPAS) : 0;
+	            const maxPAS = validPAS.length ? Math.max(...validPAS) : 0;
+	            const meanPAS = validPAS.length ? (validPAS.reduce((a,b)=>a+b,0) / validPAS.length) : 0;
 
-            // hitung konversi per santri
-            const denom = (maxAsli - minAsli);
-            const applyKonversi = (valid.length > 0) && (meanAsli < meanIdeal) && (denom > 0);
+	            // statistik asli (tugas)
+            const validTugas = data
+                .map(d => Number(d.nilai_tugas) || 0)
+                .filter(v => Number.isFinite(v) && v > 0);
 
-            data.forEach(d => {
-                // jika rerata asli >= rerata ideal, konversi tidak berlaku (nilai konversi = nilai asli)
-                if (!applyKonversi) {
-                    const v = Number(d.nilai_rapor) || 0;
-                    d.nilai_konversi = Math.round(v * 100) / 100;
-                    return;
+            const minTugas = validTugas.length ? Math.min(...validTugas) : 0;
+            const maxTugas = validTugas.length ? Math.max(...validTugas) : 0;
+            const meanTugas = validTugas.length ? ((validTugas.reduce((a,b)=>a+b,0)) / validTugas.length) : 0;
+
+	            // hitung konversi PH (dari rerata UH)
+	            const denomUH = (maxUH - minUH);
+	            const applyKonversiPH = (validUH.length > 0) && (meanUH < meanIdeal) && (denomUH > 0);
+
+	            // hitung konversi PAS/PAT
+	            const denomPAS = (maxPAS - minPAS);
+	            const applyKonversiPAS = (validPAS.length > 0) && (meanPAS < meanIdeal) && (denomPAS > 0);
+
+            // hitung konversi keterampilan (dari nilai tugas)
+            const denomK = (maxTugas - minTugas);
+            const applyKonversiK = (validTugas.length > 0) && (meanTugas < meanIdeal) && (denomK > 0);
+
+	            data.forEach(d => {
+	                // PH (dari UH)
+	                if (!applyKonversiPH) {
+	                    const v = Number(d.nilai_uh) || 0;
+	                    d.nilai_ph = Math.round(v * 100) / 100;
+	                } else {
+	                    let conv = meanIdeal + (d.nilai_uh - meanUH) * (maxIdeal - minIdeal) / denomUH;
+	                    conv = _clamp(conv, minIdeal, maxIdeal);
+	                    d.nilai_ph = Math.round(conv * 100) / 100;
+	                }
+
+	                // PAS/PAT (konversi dari nilai PAS/PAT)
+	                if (!applyKonversiPAS) {
+	                    const v = Number(d.nilai_paspat) || 0;
+	                    d.nilai_paspat_konv = Math.round(v * 100) / 100;
+	                } else {
+	                    let conv = meanIdeal + (d.nilai_paspat - meanPAS) * (maxIdeal - minIdeal) / denomPAS;
+	                    conv = _clamp(conv, minIdeal, maxIdeal);
+	                    d.nilai_paspat_konv = Math.round(conv * 100) / 100;
+	                }
+
+	                // PK (dari Tugas)
+                if (!applyKonversiK) {
+                    const v = Number(d.nilai_tugas) || 0;
+	                    d.nilai_pk = Math.round(v * 100) / 100;
+                } else {
+                    let conv = meanIdeal + (d.nilai_tugas - meanTugas) * (maxIdeal - minIdeal) / denomK;
+                    conv = _clamp(conv, minIdeal, maxIdeal);
+	                    d.nilai_pk = Math.round(conv * 100) / 100;
                 }
-
-                let conv = meanIdeal + (d.nilai_rapor - meanAsli) * (maxIdeal - minIdeal) / denom;
-                conv = _clamp(conv, minIdeal, maxIdeal);
-                d.nilai_konversi = Math.round(conv * 100) / 100;
             });
-window._lastKonversiRows = data;
+
+            window._lastKonversiRows = data;
 
             const rowsHtml = data.map((d, i) => `
               <tr class="hover:bg-gray-50 border-b">
@@ -1891,8 +1945,12 @@ window._lastKonversiRows = data;
                 <td class="p-2 text-center font-mono">${d.nis||'-'}</td>
                 <td class="p-2 text-left font-medium filter-target"><div class="single-line" title="${d.nama||''}">${d.nama||'-'}</div></td>
                 <td class="p-2 text-center">${d.jk||'-'}</td>
-                <td class="p-2 text-center font-bold">${d.nilai_rapor ?? '-'}</td>
-                <td class="p-2 text-center font-bold">${d.nilai_konversi ?? '-'}</td>
+	                <td class="p-2 text-center font-bold">${d.nilai_uh ?? '-'}</td>
+	                <td class="p-2 text-center font-bold">${d.nilai_ph ?? '-'}</td>
+	                <td class="p-2 text-center font-bold">${d.nilai_paspat ?? '-'}</td>
+	                <td class="p-2 text-center font-bold">${d.nilai_paspat_konv ?? '-'}</td>
+	                <td class="p-2 text-center font-bold">${d.nilai_tugas ?? '-'}</td>
+	                <td class="p-2 text-center font-bold">${d.nilai_pk ?? '-'}</td>
               </tr>
             `).join('');
 
@@ -1905,13 +1963,15 @@ window._lastKonversiRows = data;
                             Periode: <b>${tahun_ajar}</b> • Semester: <b>${semester}</b> • Jenjang: <b>${jenjang}</b>
                         </div>
                         <div class="mt-2 flex flex-wrap gap-2 text-xs">
-                            <span class="px-3 py-1 rounded-full bg-gray-100">Asli: min <b>${minAsli.toFixed(2)}</b> • max <b>${maxAsli.toFixed(2)}</b> • mean <b>${meanAsli.toFixed(2)}</b></span>
+	                            <span class="px-3 py-1 rounded-full bg-gray-100">UH (Asli): min <b>${minUH.toFixed(2)}</b> • max <b>${maxUH.toFixed(2)}</b> • mean <b>${meanUH.toFixed(2)}</b></span>
+	                            <span class="px-3 py-1 rounded-full bg-amber-50">PAS/PAT (Asli): min <b>${minPAS.toFixed(2)}</b> • max <b>${maxPAS.toFixed(2)}</b> • mean <b>${meanPAS.toFixed(2)}</b></span>
+	                            <span class="px-3 py-1 rounded-full bg-emerald-50">Tugas (Asli): min <b>${minTugas.toFixed(2)}</b> • max <b>${maxTugas.toFixed(2)}</b> • mean <b>${meanTugas.toFixed(2)}</b></span>
                             <span class="px-3 py-1 rounded-full bg-blue-50">Ideal: min <b>${minIdeal}</b> • max <b>${maxIdeal}</b> • mean <b>${meanIdeal}</b></span>
                         </div>
                     </div>
                     <div class="flex gap-2 justify-end">
                         
-                        <button onclick="exportExcelKonversi('${mapel}','${kelas}')" class="bg-blue-600 text-white px-4 py-2 rounded text-sm font-bold shadow">Export</button>
+                        <button onclick="exportExcelKonversi('${mapel}','${kelas}')" class="btn btn-xlsx">XLSX</button>
                     </div>
                 </div>
 
@@ -1923,8 +1983,12 @@ window._lastKonversiRows = data;
                                 <th class="p-2">NIS</th>
                                 <th class="p-2 text-left w-64">Nama</th>
                                 <th class="p-2">L/P</th>
-                                <th class="p-2">Nilai Rapot</th>
-                                <th class="p-2">Nilai Konversi</th>
+	                                <th class="p-2">Nilai UH</th>
+	                                <th class="p-2">PH</th>
+	                                <th class="p-2">Nilai PAS/PAT</th>
+	                                <th class="p-2">PAS/PAT</th>
+	                                <th class="p-2">Nilai Tugas</th>
+	                                <th class="p-2">PK</th>
                             </tr>
                         </thead>
                         <tbody>${rowsHtml}</tbody>
@@ -1946,14 +2010,18 @@ window._lastKonversiRows = data;
 
     function exportExcelKonversi(mapel, kelas) {
         try {
-            const rows = (window._lastKonversiRows || []).map((r, idx) => ({
-                No: idx + 1,
-                NIS: r.nis,
-                Nama: r.nama,
-                "L/P": r.jk,
-                "Nilai Rapot": r.nilai_rapor,
-                "Nilai Konversi": r.nilai_konversi,
-            }));
+	            const rows = (window._lastKonversiRows || []).map((r, idx) => ({
+	                No: idx + 1,
+	                NIS: r.nis,
+	                Nama: r.nama,
+	                "L/P": r.jk,
+	                "Nilai UH": r.nilai_uh,
+	                "PH": r.nilai_ph,
+	                "Nilai PAS/PAT": r.nilai_paspat,
+	                "PAS/PAT": r.nilai_paspat_konv,
+	                "Nilai Tugas": r.nilai_tugas,
+	                "PK": r.nilai_pk,
+	            }));
             const ws = XLSX.utils.json_to_sheet(rows);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Konversi Nilai');
@@ -2008,6 +2076,20 @@ window._lastKonversiRows = data;
             await loadInitialData({ onProgress: (pct, label) => setLoadingProgress(pct, label) });
             renderNilaiPage(mapel, kelas);
             markTableSaved('table-nilai');
+
+            // Setelah guru menyelesaikan nilai mapel+kelas, hapus otomatis chat dengan wali kelas terkait
+            try{
+                const guru = getCurrentUser();
+                const wali = (users || []).find(x => String(getWaliKelas(x)||'').trim() === String(kelas||'').trim());
+                const { tahun_ajar, semester } = getActivePeriode();
+                const expected = (students || []).filter(s => String(s.kelas) === String(kelas)).length;
+                const filledNow = _countDistinctScoresFor(mapel, kelas, tahun_ajar, semester);
+                // hanya hapus chat kalau nilai mapel untuk kelas tsb sudah lengkap
+                if (expected > 0 && filledNow >= expected && guru && guru.id && wali && wali.id){
+                    await _deleteChatThread({ userA: guru.id, userB: wali.id, mapel, kelas });
+                }
+            }catch(e){ console.warn(e); }
+
             showToast('Nilai Tersimpan!', 'success');
         } catch (e) {
             console.error(e);
@@ -2040,12 +2122,15 @@ window._lastKonversiRows = data;
         const main = document.getElementById('main-content');
         
         const headerBtn = `<div class="flex gap-2 flex-wrap justify-end">
-            ${(mode!=='print' && mode!=='rekap') ? `<button onclick="exportExcelWali('${mode}', '${kelas}')" class="bg-blue-700 text-white px-4 py-2 rounded shadow text-sm font-bold">Export</button>` : ''}
-            ${mode!=='print' && mode!=='data' && mode!=='rekap' ? `<button onclick="triggerImport('${mode}', '${kelas}')" class="bg-green-600 text-white px-4 py-2 rounded shadow text-sm font-bold">Import</button>` : ''}
-            ${(mode==='absen' || mode==='catatan') ? `<button onclick="saveWaliDataLocal('${mode}')" class="bg-blue-600 text-white px-4 py-2 rounded shadow text-sm font-bold">Simpan</button>` : ''}
-            ${mode==='data' ? `
-                <button onclick="saveWaliDataLocal('${mode}')" class="bg-blue-600 text-white px-4 py-2 rounded shadow text-sm font-bold">Simpan</button>` : ''}
-            ${mode==='print' ? `` : ''}
+            ${(mode!=='print' && mode!=='rekap') ? `<button onclick="exportExcelWali('${mode}', '${kelas}')" class="btn btn-export">Export</button>` : ''}
+            ${mode!=='print' && mode!=='data' && mode!=='rekap' ? `<button onclick="triggerImport('${mode}', '${kelas}')" class="btn btn-import">Import</button>` : ''}
+            ${(mode==='absen' || mode==='catatan') ? `<button onclick="saveWaliDataLocal('${mode}')" class="btn btn-save">Simpan</button>` : ''}
+            ${mode==='data' ? `<button onclick="saveWaliDataLocal('${mode}')" class="btn btn-save">Simpan</button>` : ''}
+            ${mode==='print' ? `
+                <button onclick="exportLeggerXLSX('${kelas}')" class="btn btn-xlsx">XLSX</button>
+                <button onclick="printLeggerKelas('${kelas}', true)" class="btn btn-pdf">PDF</button>
+                <button onclick="printRaporKelas('${kelas}')" class="btn btn-print">Print</button>
+            ` : ''}
         </div>`;
 
 let content = '';
@@ -2425,9 +2510,9 @@ main.innerHTML = `
             <div class=\"flex justify-between items-center mb-4\">
                 <h2 class=\"text-2xl font-bold\">Musyrif Kelas ${kelas}</h2>
                 <div class=\"flex gap-2\">
-                    <button onclick=\"exportExcelMusyrif('${kelas}')\" class=\"bg-blue-600 text-white px-4 py-2 rounded font-bold shadow text-sm\">Export</button>
-                    <button onclick=\"triggerImport('musyrif', '${kelas}')\" class=\"bg-green-600 text-white px-4 py-2 rounded font-bold shadow text-sm\">Import</button>
-                    <button onclick=\"saveMusyrifData()\" class=\"bg-purple-600 text-white px-4 py-2 rounded font-bold shadow text-sm\">Simpan</button>
+                    <button onclick=\"exportExcelMusyrif('${kelas}')\" class=\"btn btn-export\">Export</button>
+                    <button onclick=\"triggerImport('musyrif', '${kelas}')\" class=\"btn btn-import\">Import</button>
+                    <button onclick=\"saveMusyrifData()\" class=\"btn btn-save\">Simpan</button>
                 </div>
             </div>
             <table class=\"w-full text-sm border std-table\" id=\"table-musyrif\">
@@ -2901,7 +2986,7 @@ main.innerHTML = `
         return Math.round(n*100)/100;
     }
 
-    function printRaporSantri(nis, kelas){
+    function printRaporSantri(nis, kelas, opts){
         try{
             const s = students.find(x => String(x.nis) === String(nis));
             if(!s){ showToast('Santri tidak ditemukan', 'error'); return; }
@@ -3683,6 +3768,10 @@ main.innerHTML = `
                 </div>
             `;
 
+            // Jika dipanggil untuk kebutuhan "gabung rapor" (print semua santri), kembalikan parts saja.
+            if (opts && opts.returnParts) {
+                return { css, html };
+            }
             _printHTML('RAPOR_' + kelas + '_' + s.nis, `<style>${css}</style>${html}`);
         }catch(e){
             console.error(e);
@@ -3695,6 +3784,31 @@ main.innerHTML = `
 function printLeggerSantri(nis, kelas){
         return printRaporSantri(nis, kelas);
     }
+
+// Print rapor untuk semua santri dalam 1 kelas (1 dialog print)
+function printRaporKelas(kelas){
+    try{
+        const list = (students || []).filter(s => String(s.kelas||'') === String(kelas||''));
+        if (!list.length){ showToast('Tidak ada santri di kelas ' + kelas, 'error'); return; }
+
+        // ambil css dari santri pertama (format sama)
+        const first = printRaporSantri(list[0].nis, kelas, { returnParts:true });
+        if (!first || !first.html){ showToast('Gagal membangun rapor kelas', 'error'); return; }
+        const css = first.css || '';
+
+        const body = list.map((s, idx) => {
+            const parts = (idx === 0) ? first : printRaporSantri(s.nis, kelas, { returnParts:true });
+            const block = parts?.html || '';
+            // page-break agar tiap santri mulai halaman baru
+            return `<div class="rapor-batch-item" style="page-break-after:always">${block}</div>`;
+        }).join('');
+
+        _printHTML('RAPOR_KELAS_' + kelas, `<style>${css}</style>${body}`);
+    }catch(e){
+        console.error(e);
+        showToast('Gagal print rapor kelas: ' + (e.message||e), 'error');
+    }
+}
 
 
 function _parseKelasParts(k){
@@ -3778,8 +3892,8 @@ function renderAdminLegger(){
                     <select id="admin-legger-kelas" onchange="updateAdminLeggerKelasOptions()" class="border rounded px-3 py-2 text-sm">
                         ${kelasAll.map(k=>`<option value="${k}">${k}</option>`).join('')}
                     </select>
-                    <button onclick="exportLeggerXLSX(document.getElementById('admin-legger-kelas').value)" class="bg-green-700 text-white px-4 py-2 rounded font-bold shadow text-sm">XLSX</button>
-                    <button onclick="printLeggerKelas(document.getElementById('admin-legger-kelas').value)" class="bg-gray-800 text-white px-4 py-2 rounded font-bold shadow text-sm">PDF</button>
+                    <button onclick="exportLeggerXLSX(document.getElementById('admin-legger-kelas').value)" class="btn btn-xlsx">XLSX</button>
+                    <button onclick="printLeggerKelas(document.getElementById('admin-legger-kelas').value, true)" class="btn btn-pdf">PDF</button>
                 </div>
             </div>
             <div id="admin-legger-holder" class="bg-white rounded-xl border shadow-sm p-4">
@@ -3828,8 +3942,8 @@ main.innerHTML = `
                 </div>
 
                 <div class="flex items-end justify-end gap-2">
-                    <button id="btn-export-ranking" class="bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded font-bold shadow text-sm">XLSX</button>
-                    <button onclick="exportRankingPDF()" class="bg-gray-800 hover:bg-black text-white px-4 py-2 rounded font-bold shadow text-sm">PDF</button>
+                    <button id="btn-export-ranking" class="btn btn-xlsx">XLSX</button>
+                    <button onclick="exportRankingPDF()" class="btn btn-pdf">PDF</button>
                 </div>
             </div>
 
@@ -4943,17 +5057,23 @@ function exportRankingPDF(){
 // ===============================
 
 function renderChatInboxCardHTML(context){
+    const u = getCurrentUser();
     const title = (context === 'wali') ? '💬 Pesan untuk Wali Kelas' : '💬 Pesan cinta dari para Guru';
     const holderId = (context === 'wali') ? 'chat-inbox-wali' : 'chat-inbox-guru';
+    const showChatAdmin = !!u && !isAdmin(u);
     return `
     <div class="bg-white p-6 rounded-xl shadow border">
         <div class="flex items-center justify-between gap-2 mb-2">
             <h3 class="text-lg font-extrabold text-gray-800">${title}</h3>
-            <button onclick="loadChatInboxInto('${holderId}')" class="bg-gray-800 text-white px-3 py-1 rounded shadow text-xs font-bold">Refresh</button>
+            <div class="flex items-center gap-2">
+                ${showChatAdmin ? `<button onclick="openChatToAdmin()" class="btn btn-message">Chat Admin</button>` : ''}
+                <button onclick="loadChatInboxInto('${holderId}')" class="btn btn-neutral">Refresh</button>
+            </div>
         </div>
         <div id="${holderId}" class="text-sm text-gray-600">Memuat pesan...</div>
     </div>`;
 }
+
 
 async function loadChatInboxInto(holderId){
     const u = getCurrentUser();
@@ -5051,6 +5171,18 @@ function openChatCompose(toGuruId, toGuruNameEnc, mapelEnc, kelasEnc){
     openChatComposeModal({ toGuruId, hint, kelas, mapel });
 }
 
+// Mulai chat ke Admin (guru/wali/musyrif)
+function openChatToAdmin(){
+    try{
+        const admin = (users || []).find(x => (typeof isAdmin==='function') ? isAdmin(x) : String(x?.role||'').toLowerCase()==='admin');
+        if(!admin || !admin.id){ showToast('Admin tidak ditemukan di data pengguna.', 'error'); return; }
+        openChatComposeModal({ toGuruId: admin.id, hint: (admin.name||'Admin'), kelas: '', mapel: '' });
+    }catch(e){
+        console.error(e);
+        showToast('Gagal membuka chat admin', 'error');
+    }
+}
+
 // Modal compose chat (lebih rapi daripada prompt)
 function openChatComposeModal({ toGuruId, hint, kelas, mapel }){
     // pastikan db siap
@@ -5067,7 +5199,7 @@ function openChatComposeModal({ toGuruId, hint, kelas, mapel }){
       <div class="w-full max-w-lg bg-white rounded-2xl shadow-xl border">
         <div class="p-4 border-b flex items-start justify-between gap-3">
           <div>
-            <div class="text-sm text-gray-500">Kirim Pesan</div>
+			<div class="text-sm text-gray-500">Chat Guru</div>
             <div class="font-extrabold text-gray-900">${escapeHtml(hint || 'Guru')}</div>
           </div>
           <button id="chat-close" class="text-gray-500 hover:text-gray-800 font-bold px-2">✕</button>
@@ -5145,6 +5277,22 @@ async function sendChatMessage(toGuruId, kelas, mapel, message){
     }
 }
 
+// Hapus chat untuk 2 user pada mapel+kelas tertentu (dipakai setelah guru selesai input nilai)
+async function _deleteChatThread({ userA, userB, mapel, kelas }){
+    try{
+        if (typeof db === 'undefined' || !db) return;
+        const m = (mapel ? String(mapel) : null);
+        const k = (kelas ? String(kelas) : null);
+        // dua arah (guru<->wali)
+        const del1 = await db.from('chat_messages').delete().match({ from_guru_id:userA, to_guru_id:userB, mapel:m, kelas:k });
+        if (del1?.error) console.warn('delete chat 1 error', del1.error);
+        const del2 = await db.from('chat_messages').delete().match({ from_guru_id:userB, to_guru_id:userA, mapel:m, kelas:k });
+        if (del2?.error) console.warn('delete chat 2 error', del2.error);
+    }catch(e){
+        console.warn('Gagal hapus chat thread:', e);
+    }
+}
+
 
 // ===============================
 // WALI: Rekap Nilai Mapel dipindah ke Dashboard + kolom Aksi
@@ -5219,8 +5367,8 @@ function renderWaliRekapDashboardHTML(kelas){
                     <div class="flex flex-wrap gap-2 justify-center">
                         <button class="bg-blue-700 hover:bg-blue-800 text-white px-3 py-1 rounded shadow text-xs font-bold"
                             onclick="renderAdminNilaiMonitor(decodeURIComponent('${_encArg(c.mapelRaw)}'), decodeURIComponent('${_encArg(kelas)}'), decodeURIComponent('${_encArg(c.guru)}'))">Lihat Nilai</button>
-                        <button class="bg-gray-800 hover:bg-gray-900 text-white px-3 py-1 rounded shadow text-xs font-bold"
-                            onclick="openChatCompose(${c.guru_id}, '${_encArg(c.guru)}', '${_encArg(c.mapelRaw)}', '${_encArg(kelas)}')">Kirim Pesan</button>
+							<button class="btn btn-message whitespace-nowrap"
+								onclick="openChatCompose(${c.guru_id}, '${_encArg(c.guru)}', '${_encArg(c.mapelRaw)}', '${_encArg(kelas)}')">Chat Guru</button>
                     </div>
                 </td>
             </tr>

@@ -45,6 +45,43 @@
 
     /* Pastikan font konsisten (hindari monospace berbeda pada kolom seperti NIS) */
     .font-mono{ font-family: inherit !important; }
+
+    /* =====================
+       Standard Action Buttons (seragam di semua laman)
+       ===================== */
+    .btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:8px 14px; border-radius:10px; font-weight:800; font-size:0.85rem; box-shadow: 0 1px 2px rgba(0,0,0,0.10); transition: transform .05s ease, filter .15s ease; }
+    .btn:active{ transform: translateY(1px); }
+    .btn:disabled{ opacity:.55; cursor:not-allowed; filter: grayscale(0.2); }
+
+    .btn-export, .btn-xlsx{ background-color:#2563eb !important; color:#fff !important; }
+    .btn-export:hover, .btn-xlsx:hover{ filter: brightness(0.95); }
+
+    .btn-import, .btn-add{ background-color:#16a34a !important; color:#fff !important; }
+    .btn-import:hover, .btn-add:hover{ filter: brightness(0.95); }
+
+    .btn-save{ background-color:#1e40af !important; color:#fff !important; }
+    .btn-save:hover{ filter: brightness(0.95); }
+
+    .btn-pdf{ background-color:#b91c1c !important; color:#fff !important; }
+    .btn-pdf:hover{ filter: brightness(0.95); }
+
+    .btn-print{ background-color:#111827 !important; color:#fff !important; }
+    .btn-print:hover{ filter: brightness(1.05); }
+
+    .btn-message{ background-color:#0ea5e9 !important; color:#fff !important; }
+    .btn-message:hover{ filter: brightness(0.95); }
+    .btn-neutral{ background-color:#374151 !important; color:#fff !important; }
+    .btn-neutral:hover{ filter: brightness(0.98); }
+
+    /* =====================
+       Soft Stat Cards (dashboard)
+       ===================== */
+    .stat-card{ border:1px solid #e5e7eb; border-radius: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+    .stat-blue{ background:#eff6ff; border-color:#dbeafe; }
+    .stat-emerald{ background:#ecfdf5; border-color:#d1fae5; }
+    .stat-amber{ background:#fffbeb; border-color:#fde68a; }
+    .stat-violet{ background:#f5f3ff; border-color:#ddd6fe; }
+    .stat-slate{ background:#f8fafc; border-color:#e2e8f0; }
   </style>
 </head>
 <body class="bg-gray-100 flex h-screen overflow-hidden">

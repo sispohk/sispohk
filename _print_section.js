@@ -12,7 +12,7 @@
         return Math.round(n*100)/100;
     }
 
-    function printRaporSantri(nis, kelas){
+    function printRaporSantri(nis, kelas, opts){
         try{
             const s = students.find(x => String(x.nis) === String(nis));
             if(!s){ showToast('Santri tidak ditemukan', 'error'); return; }
@@ -779,6 +779,10 @@
                 </div>
             `;
 
+            // Jika dipanggil untuk kebutuhan "gabung rapor" (print semua santri), kembalikan parts saja.
+            if (opts && opts.returnParts) {
+                return { css, html };
+            }
             _printHTML('RAPOR_' + kelas + '_' + s.nis, `<style>${css}</style>${html}`);
         }catch(e){
             console.error(e);
@@ -791,6 +795,31 @@
 function printLeggerSantri(nis, kelas){
         return printRaporSantri(nis, kelas);
     }
+
+// Print rapor untuk semua santri dalam 1 kelas (1 dialog print)
+function printRaporKelas(kelas){
+    try{
+        const list = (students || []).filter(s => String(s.kelas||'') === String(kelas||''));
+        if (!list.length){ showToast('Tidak ada santri di kelas ' + kelas, 'error'); return; }
+
+        // ambil css dari santri pertama (format sama)
+        const first = printRaporSantri(list[0].nis, kelas, { returnParts:true });
+        if (!first || !first.html){ showToast('Gagal membangun rapor kelas', 'error'); return; }
+        const css = first.css || '';
+
+        const body = list.map((s, idx) => {
+            const parts = (idx === 0) ? first : printRaporSantri(s.nis, kelas, { returnParts:true });
+            const block = parts?.html || '';
+            // page-break agar tiap santri mulai halaman baru
+            return `<div class="rapor-batch-item" style="page-break-after:always">${block}</div>`;
+        }).join('');
+
+        _printHTML('RAPOR_KELAS_' + kelas, `<style>${css}</style>${body}`);
+    }catch(e){
+        console.error(e);
+        showToast('Gagal print rapor kelas: ' + (e.message||e), 'error');
+    }
+}
 
 
 function _parseKelasParts(k){
