@@ -152,10 +152,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('main-content').innerHTML = `
             <div class="max-w-6xl mx-auto space-y-6">
                 <div class="bg-white p-8 rounded-xl shadow border-l-8 border-blue-600">
-                    <h2 class="text-3xl font-extrabold text-gray-800 mb-2">Selamat Datang, Administrator</h2>
-                    <div class="flex flex-wrap gap-2 items-center">
-                        <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold uppercase">admin</span>
-                        <span class="text-xs text-gray-500">Terakhir refresh: ${new Date().toLocaleString('id-ID')}</span>
+                    <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                        <div>
+                            <h2 class="text-3xl font-extrabold text-gray-800 mb-2">Selamat Datang, Administrator</h2>
+                            <div class="flex flex-wrap gap-2 items-center">
+                                <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold uppercase">admin</span>
+                                <span class="text-xs text-gray-500">Terakhir refresh: ${new Date().toLocaleString('id-ID')}</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-2 justify-end">
+                            <button onclick="openPanduanModal()" class="btn btn-neutral" title="Buka Panduan">📖 Panduan</button>
+                        </div>
                     </div>
                 </div>
 
@@ -188,17 +195,7 @@ ${_adminTodoHtml}
 
 
                 
-                <div class="bg-white p-6 rounded-xl shadow border">
-                    <h3 class="text-lg font-bold text-gray-800 mb-2">Panduan Singkat Admin</h3>
-                    <ol class="list-decimal pl-6 text-sm text-gray-700 space-y-1">
-                        <li>Cek <b>Periode Aktif</b> (Tahun Ajar & Semester) di bagian atas.</li>
-                        <li>Isi/cek <b>Database</b>: Guru, Santri, Legger (import/export tersedia).</li>
-                        <li>Atur <b>Bobot</b> & <b>Konversi</b> sebelum input nilai berjalan jauh.</li>
-                        <li>Pantau <b>Status Nilai</b> dan gunakan menu <b>Ranking</b> untuk Top 3.</li>
-                        <li>Bangun/cetak <b>Rapor & Legger</b> setelah nilai mapel lengkap.</li>
-                    </ol>
-                    
-                </div>
+
 </div>`;
         // Load inbox pesan (guru)
         loadChatInboxInto('chat-inbox-guru');
@@ -235,9 +232,12 @@ const _guruAnalyticsHtml = renderGuruAnalyticsHTML(u, combos);
         const _guruTodoHtml = '';
 document.getElementById('main-content').innerHTML = `
         <div class="max-w-6xl mx-auto space-y-6">
+
             <div class="bg-white p-8 rounded-xl shadow border-l-8 border-blue-600">
-                <h2 class="text-3xl font-extrabold text-gray-800 mb-2">Selamat Datang, ${u.name}</h2>
-                <div class="flex flex-wrap gap-2 items-center">
+                <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                    <div>
+                        <h2 class="text-3xl font-extrabold text-gray-800 mb-2">Selamat Datang, ${u.name}</h2>
+                        <div class="flex flex-wrap gap-2 items-center">
                     ${(() => {
                     const badges = [];
                     badges.push('Guru');
@@ -246,6 +246,11 @@ document.getElementById('main-content').innerHTML = `
                     return badges.map(b=>`<span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold uppercase">${b}</span>`).join('');
                 })()}
                     <span class="text-xs text-gray-500">Periode aktif: <b>${tahun_ajar}</b> / Semester <b>${semester}</b></span>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 justify-end">
+                        <button onclick="openPanduanModal()" class="btn btn-neutral" title="Buka Panduan">📖 Panduan</button>
+                    </div>
                 </div>
             </div>
 
@@ -287,16 +292,7 @@ document.getElementById('main-content').innerHTML = `
             ${_guruChatHtml}
 
             ${_waliMissingHtml}
-<div class="bg-white p-6 rounded-xl shadow border">
-                <h3 class="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2"><span class="text-xl">📘</span><span>Panduan Singkat Guru</span></h3>
-                <ol class="list-decimal pl-6 text-sm text-gray-700 space-y-1">
-                    <li>Pilih <b>Mapel → Kelas</b> dari sidebar.</li>
-                    <li>Isi nilai, lalu klik <b>Simpan</b> (disimpan batch agar aman untuk data banyak).</li>
-                    <li>Cek <b>Status Nilai</b> (jika tersedia) untuk memastikan mapel sudah terkirim.</li>
-                    <li>Kalau Anda juga <b>Wali Kelas</b> atau <b>Musyrif</b>, menu tambahan akan muncul otomatis.</li>
-                </ol>
-                
-            </div>
+
 
             </div>
 
@@ -1970,8 +1966,8 @@ async function openAdminLeggerForKelas(kelas){
                         </div>
                     </div>
                     <div class="flex gap-2 justify-end">
-                        
                         <button onclick="exportExcelKonversi('${mapel}','${kelas}')" class="btn btn-xlsx">XLSX</button>
+                        <button onclick="openRDM()" class="btn btn-neutral" title="Buka RDM">RDM</button>
                     </div>
                 </div>
 
@@ -1984,11 +1980,11 @@ async function openAdminLeggerForKelas(kelas){
                                 <th class="p-2 text-left w-64">Nama</th>
                                 <th class="p-2">L/P</th>
 	                                <th class="p-2">Nilai UH</th>
-	                                <th class="p-2">PH</th>
+	                                <th class="p-2"><span class="badge-copy" title="Klik untuk menyalin seluruh kolom" onclick="copyKonversiKolom('ph')">Harian/Sumatif <span aria-hidden="true">📋</span></span></th>
 	                                <th class="p-2">Nilai PAS/PAT</th>
-	                                <th class="p-2">PAS/PAT</th>
+	                                <th class="p-2"><span class="badge-copy" title="Klik untuk menyalin seluruh kolom" onclick="copyKonversiKolom('sas')">SAS/PAS/PAT <span aria-hidden="true">📋</span></span></th>
 	                                <th class="p-2">Nilai Tugas</th>
-	                                <th class="p-2">PK</th>
+	                                <th class="p-2"><span class="badge-copy" title="Klik untuk menyalin seluruh kolom" onclick="copyKonversiKolom('pk')">PK <span aria-hidden="true">📋</span></span></th>
                             </tr>
                         </thead>
                         <tbody>${rowsHtml}</tbody>
@@ -2005,7 +2001,75 @@ async function openAdminLeggerForKelas(kelas){
         }
     }
 
-    // FIX: fungsi dipanggil dari atribut onclick (butuh scope global)
+    
+
+    // ===============================
+    // COPY: klik badge header untuk menyalin 1 kolom (Konversi Nilai)
+    // ===============================
+    async function _copyTextToClipboard(text){
+        // modern
+        try{
+            if (navigator.clipboard && window.isSecureContext){
+                await navigator.clipboard.writeText(text);
+                return true;
+            }
+        }catch(e){ /* fallback */ }
+        // fallback (lebih kompatibel)
+        try{
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.setAttribute('readonly','');
+            ta.style.position = 'fixed';
+            ta.style.left = '-9999px';
+            ta.style.top = '0';
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            const ok = document.execCommand('copy');
+            document.body.removeChild(ta);
+            return !!ok;
+        }catch(e){
+            return false;
+        }
+    }
+
+    async function copyKonversiKolom(key){
+        const rows = window._lastKonversiRows || [];
+        const labelMap = { ph:'Harian/Sumatif', sas:'SAS/PAS/PAT', pk:'PK' };
+        const getter = {
+            ph: (r)=> r?.nilai_ph,
+            sas: (r)=> r?.nilai_paspat_konv,
+            pk: (r)=> r?.nilai_pk,
+        }[key];
+        if (!getter){
+            showToast('Kolom tidak dikenali', 'error');
+            return;
+        }
+        const text = rows.map(r => {
+            const v = getter(r);
+            return (v===null || v===undefined) ? '' : String(v);
+        }).join('\n');
+
+        const ok = await _copyTextToClipboard(text);
+        if (ok) showToast(`✅ Kolom ${labelMap[key]||key} disalin (${rows.length} baris)`, 'success');
+        else showToast('Gagal menyalin. Coba pakai browser Chrome/Edge atau jalankan di HTTPS.', 'error');
+    }
+    window.copyKonversiKolom = copyKonversiKolom;
+
+    // ===============================
+    // RDM shortcut (Konversi Nilai)
+    // ===============================
+    function openRDM(){
+        try{
+            window.open('https://rdmahk.my.id/', '_blank', 'noopener');
+        }catch(e){
+            // fallback
+            window.location.href = 'https://rdmahk.my.id/';
+        }
+    }
+    window.openRDM = openRDM;
+
+// FIX: fungsi dipanggil dari atribut onclick (butuh scope global)
     window.renderKonversiMapelPage = renderKonversiMapelPage;
 
     function exportExcelKonversi(mapel, kelas) {
@@ -2016,9 +2080,9 @@ async function openAdminLeggerForKelas(kelas){
 	                Nama: r.nama,
 	                "L/P": r.jk,
 	                "Nilai UH": r.nilai_uh,
-	                "PH": r.nilai_ph,
+	                "Harian/Sumatif": r.nilai_ph,
 	                "Nilai PAS/PAT": r.nilai_paspat,
-	                "PAS/PAT": r.nilai_paspat_konv,
+	                "SAS/PAS/PAT": r.nilai_paspat_konv,
 	                "Nilai Tugas": r.nilai_tugas,
 	                "PK": r.nilai_pk,
 	            }));
@@ -4698,6 +4762,130 @@ function exportExcelMusyrif(kelas) {
     }
 
     function closeModal() { document.getElementById('admin-modal').classList.add('hidden'); }
+
+    // ===============================
+    // PANDUAN (Guru/Admin) -> tombol "Panduan" di header dashboard
+    // ===============================
+    function openPanduanModal(){
+        const u = getCurrentUser();
+        const modal = document.getElementById('panduan-modal');
+        const titleEl = document.getElementById('panduan-title');
+        const bodyEl = document.getElementById('panduan-body');
+        if (!modal || !titleEl || !bodyEl) return;
+
+        const isAdm = isAdmin(u);
+        titleEl.innerText = isAdm ? '📚 Panduan Admin' : '📘 Panduan Guru';
+        bodyEl.innerHTML = isAdm ? _getPanduanAdminHTML() : _getPanduanGuruHTML(u);
+        modal.classList.remove('hidden');
+
+        // klik backdrop untuk menutup
+        modal.onclick = (ev) => { if (ev.target === modal) closePanduanModal(); };
+    }
+
+    function closePanduanModal(){
+        const modal = document.getElementById('panduan-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    function _getPanduanAdminHTML(){
+        return `
+        <div class="space-y-4 text-sm text-gray-700">
+            <div class="bg-gray-50 border rounded-xl p-4">
+                <div class="font-extrabold mb-2">✅ Setup awal (sekali di awal periode)</div>
+                <ul class="list-disc pl-5 space-y-1">
+                    <li>Pastikan <b>Tahun Ajar</b> & <b>Semester</b> aktif sudah benar.</li>
+                    <li>Lengkapi master data: <b>Guru</b>, <b>Santri</b>, pembagian <b>Kelas</b>.</li>
+                    <li>Set <b>Bobot Nilai</b> (hadir:tugas:UH:SAS/PAS/PAT) sesuai kebijakan.</li>
+                    <li>Set <b>Konversi Ideal</b> (Admin → Konversi Nilai) bila ingin fitur konversi aktif.</li>
+                </ul>
+            </div>
+
+            <div class="bg-gray-50 border rounded-xl p-4">
+                <div class="font-extrabold mb-2">📊 Monitoring & follow-up</div>
+                <ul class="list-disc pl-5 space-y-1">
+                    <li>Pantau <b>Nilai Mapel Belum Masuk</b> dan kirim <b>Chat Guru</b> bila perlu.</li>
+                    <li>Inbox <b>Pesan cinta dari para Guru</b> untuk membaca pesan masuk. (Tombol <b>Chat Admin</b> ada di samping <b>Refresh</b> pada kartu ini.)</li>
+                    <li>Jika ada angka aneh: cek periode aktif, kelas/mapel, dan pastikan input sudah disimpan.</li>
+                </ul>
+            </div>
+
+            <div class="bg-gray-50 border rounded-xl p-4">
+                <div class="font-extrabold mb-2">🖨️ Arsip</div>
+                <ul class="list-disc pl-5 space-y-1">
+                    <li>Ranking dan leger bisa diekspor <b>XLSX/PDF</b> untuk arsip.</li>
+                    <li>Print rapor dilakukan setelah semua mapel kelas lengkap.</li>
+                </ul>
+            </div>
+        </div>`;
+    }
+
+    function _getPanduanGuruHTML(u){
+        const extraRole = [];
+        if (u?.kelas_wali) extraRole.push('Wali Kelas');
+        if (u?.musyrif) extraRole.push('Musyrif');
+        const roleText = extraRole.length ? ` (${extraRole.join(', ')})` : '';
+
+        const waliBlock = (u?.kelas_wali ? `
+            <div class="bg-gray-50 border rounded-xl p-4">
+                <div class="font-extrabold mb-2">👥 Panduan Wali Kelas</div>
+                <ul class="list-disc pl-5 space-y-1">
+                    <li>Buka menu <b>Wali Kelas → ${u.kelas_wali}</b> untuk melihat data kelas.</li>
+                    <li>Cek progres mapel yang sudah masuk. Jika ada yang belum, gunakan tombol <b>Chat Guru</b> untuk follow-up.</li>
+                    <li>Menu <b>Rapor & Legger</b>: tersedia tombol <b>XLSX</b> (leger kelas), <b>PDF</b> (leger kelas), dan <b>Print</b> (rapor semua santri).</li>
+                    <li>Catatan: <b>nilai rapor</b> yang tercetak tetap nilai murni dari bobot (Hadir:Tugas:UH:SAS/PAS/PAT), bukan angka konversi analisis.</li>
+                </ul>
+            </div>
+        ` : '');
+
+        const musyrifBlock = (u?.musyrif ? `
+            <div class="bg-gray-50 border rounded-xl p-4">
+                <div class="font-extrabold mb-2">🕌 Panduan Musyrif</div>
+                <ul class="list-disc pl-5 space-y-1">
+                    <li>Buka menu <b>Musyrif → ${u.musyrif}</b> untuk input penilaian/rekap musyrif per santri.</li>
+                    <li>Gunakan tombol <b>Import</b> bila input massal dari file, lalu rapikan di tabel.</li>
+                    <li>Klik <b>Simpan</b> setelah selesai agar data masuk database.</li>
+                    <li>Kalau ada kendala teknis (data kosong, tidak bisa simpan, dsb), gunakan <b>Chat Admin</b> di dashboard.</li>
+                </ul>
+            </div>
+        ` : '');
+        return `
+        <div class="space-y-4 text-sm text-gray-700">
+            <div class="bg-gray-50 border rounded-xl p-4">
+                <div class="font-extrabold mb-2">🧭 Alur kerja inti${roleText}</div>
+                <ol class="list-decimal pl-5 space-y-1">
+                    <li>Pilih <b>Mapel → Kelas</b> dari sidebar.</li>
+                    <li>Isi nilai (Hadir, Tugas, UH1–UH5, SAS/PAS/PAT).</li>
+                    <li>Klik <b>Simpan</b> setelah selesai 1 kelas.</li>
+                    <li>Ulangi sampai progres 100%.</li>
+                </ol>
+            </div>
+
+            <div class="bg-gray-50 border rounded-xl p-4">
+                <div class="font-extrabold mb-2">🔄 Konversi (analisis)</div>
+                <ul class="list-disc pl-5 space-y-1">
+                    <li>Halaman Konversi menampilkan <b>Nilai UH</b>, <b>Harian/Sumatif</b>, <b>SAS/PAS/PAT</b>, dan <b>PK</b>.</li>
+                    <li>Badge header 📋 bisa diklik untuk <b>salin 1 kolom</b> (siap tempel ke Excel/rekap lain).</li>
+                    <li>Tombol <b>RDM</b> (di sebelah XLSX) membuka portal RDM di tab baru.</li>
+                    <li><b>PK</b> adalah <b>konversi dari Nilai Tugas</b>. Jika angka PK terlihat sama persis dengan Nilai Tugas, itu berarti konversi tidak diterapkan (misal: variasi nilai tugas 1 kelas nol/seragam, atau rata-rata tugas sudah ≥ target ideal).</li>
+                    <li>Konversi hanya membantu analisis; <b>nilai rapor</b> tetap dihitung dari bobot resmi.</li>
+                </ul>
+            </div>
+
+            ${waliBlock}
+            ${musyrifBlock}
+
+            <div class="bg-gray-50 border rounded-xl p-4">
+                <div class="font-extrabold mb-2">💬 Koordinasi</div>
+                <ul class="list-disc pl-5 space-y-1">
+                    <li>Gunakan <b>Chat Guru</b> ke wali kelas bila ada data yang perlu sinkron.</li>
+                    <li>Untuk urusan teknis/administratif, gunakan <b>Chat Admin</b> di dashboard (kartu “Pesan cinta dari para Guru”, di samping tombol Refresh).</li>
+                </ul>
+            </div>
+        </div>`;
+    }
+
+    window.openPanduanModal = openPanduanModal;
+    window.closePanduanModal = closePanduanModal;
     
         function editGuru(id) {
         const u = users.find(x => x.id == id);

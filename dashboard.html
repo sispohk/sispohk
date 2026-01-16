@@ -82,6 +82,15 @@
     .stat-amber{ background:#fffbeb; border-color:#fde68a; }
     .stat-violet{ background:#f5f3ff; border-color:#ddd6fe; }
     .stat-slate{ background:#f8fafc; border-color:#e2e8f0; }
+
+
+    /* =====================
+       Badge Copy (Konversi Nilai)
+       ===================== */
+    .badge-copy{ display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:9999px; background: rgba(255,255,255,0.92); color:#1e40af; font-weight:900; font-size:0.72rem; border:1px solid rgba(255,255,255,0.65); cursor:pointer; user-select:none; }
+    .badge-copy:hover{ background: rgba(255,255,255,1); }
+    .badge-copy:active{ transform: translateY(1px); }
+
   </style>
 </head>
 <body class="bg-gray-100 flex h-screen overflow-hidden">
@@ -294,6 +303,22 @@
       <div class="p-4 border-t bg-gray-50 rounded-b-lg flex justify-end gap-2">
         <button onclick="closeModal()" class="px-4 py-2 bg-gray-500 text-white rounded">Batal</button>
         <button onclick="saveData()" class="px-6 py-2 bg-blue-600 text-white rounded font-bold shadow">Simpan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Panduan (Guru/Admin) -->
+  <div id="panduan-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex justify-center items-center z-50 p-4">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+      <div class="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-xl">
+        <h3 class="text-xl font-extrabold text-gray-800" id="panduan-title">Panduan</h3>
+        <button onclick="closePanduanModal()" class="text-gray-500 hover:text-red-500 font-bold text-2xl">&times;</button>
+      </div>
+      <div class="p-6 overflow-y-auto custom-scroll flex-1" id="panduan-body">
+        <div class="text-gray-500 animate-pulse">Memuat panduan...</div>
+      </div>
+      <div class="p-4 border-t bg-gray-50 rounded-b-xl flex justify-end">
+        <button onclick="closePanduanModal()" class="btn btn-neutral">Tutup</button>
       </div>
     </div>
   </div>
