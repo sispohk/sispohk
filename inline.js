@@ -458,7 +458,7 @@ function buildWaliMissingNilaiCardHTML(kelasWali, { tahun_ajar, semester }){
                     <thead class="bg-gray-800 text-white">
                         <tr>
                             <th class="p-2 w-12">No</th>
-                            <th class="p-2 text-left">Mata Pelajaran</th>
+	                        <th class="p-2 text-left">Mapel</th>
                             <th class="p-2 text-left">Nama Guru</th>
                             <th class="p-2 w-28">Yang Sudah</th>
                             <th class="p-2 w-28">Yang Belum</th>
@@ -541,7 +541,7 @@ function renderGuruTodoDashboardHTML(todos){
                                 <td class="p-2 text-left font-extrabold">${t.mapel}</td>
                                 <td class="p-2 text-center">${t.kelas}</td>
                                 <td class="p-2 text-center font-mono text-sm">${t.filled}/${t.expected}</td>
-                                <td class="p-2 text-center"><span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-extrabold">${t.missing}</span></td>
+	                            	<td class="p-2 text-center"><span class="bg-pink-100 text-pink-800 px-2 py-1 rounded-full text-xs font-extrabold">${t.missing}</span></td>
                                 <td class="p-2 text-center">
                                     <button class="bg-blue-700 hover:bg-blue-800 text-white px-3 py-1 rounded shadow text-xs font-bold"
                                         onclick="renderNilaiPage('${t.mapel.replace(/'/g,"\\'")}', '${t.kelas.replace(/'/g,"\\'")}')">Input Nilai</button>
@@ -604,7 +604,7 @@ function renderAdminTodoDashboardHTML(todos){
             <td class="p-2 text-left font-extrabold">${escapeHtml(t.mapel||'-')}</td>
             <td class="p-2 text-left">${escapeHtml(t.guru||'-')}</td>
             <td class="p-2 text-center font-mono text-sm">${escapeHtml(String((t.filled??0)))}/${escapeHtml(String((t.expected??0)))}</td>
-            <td class="p-2 text-center"><span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-extrabold">${escapeHtml(String((t.missing??0)))}</span></td>
+	            <td class="p-2 text-center"><span class="bg-pink-100 text-pink-800 px-2 py-1 rounded-full text-xs font-extrabold">${escapeHtml(String((t.missing??0)))}</span></td>
             <td class="p-2 text-center">
                 <button class="bg-blue-700 hover:bg-blue-800 text-white px-3 py-1 rounded shadow text-xs font-bold whitespace-nowrap ${t.guru_id ? '' : 'opacity-50 cursor-not-allowed'}"
                     ${t.guru_id ? `onclick="event.stopPropagation(); openChatCompose(${t.guru_id}, '${_encArg(t.guru||'')}', '${_encArg(t.mapel||'')}', '${_encArg(t.kelas||'')}')"` : 'disabled'}>Chat Guru</button>
@@ -697,14 +697,14 @@ function renderAdminTodoPage(){
     const todos = computeNilaiTodoEntries({ tahun_ajar, semester });
 
     const rows = (todos || []).map((t,i)=>`
-        <tr class="hover:bg-gray-50 border-b cursor-pointer"
+        <tr class="border-b hover:bg-gray-50 cursor-pointer"
             onclick="renderAdminNilaiMonitor(decodeURIComponent('${_encArg(t.mapel)}'), decodeURIComponent('${_encArg(t.kelas)}'), decodeURIComponent('${_encArg(t.guru)}'))">
             <td class="p-2 text-center text-xs text-gray-500">${i+1}</td>
-            <td class="p-2 font-bold">${t.kelas}</td>
-            <td class="p-2">${t.mapel}</td>
-            <td class="p-2">${t.guru}</td>
+            <td class="p-2 text-center">${t.kelas}</td>
+            <td class="p-2 text-left font-extrabold">${t.mapel}</td>
+            <td class="p-2 text-left">${t.guru}</td>
             <td class="p-2 text-center font-mono text-sm">${t.filled}/${t.expected}</td>
-            <td class="p-2 text-center"><span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-extrabold">${t.missing}</span></td>
+            <td class="p-2 text-center"><span class="bg-pink-100 text-pink-800 px-2 py-1 rounded-full text-xs font-extrabold">${t.missing}</span></td>
             <td class="p-2 text-center">
                 <button class="px-3 py-1 rounded bg-blue-700 text-white text-xs font-bold shadow"
                     onclick="event.stopPropagation(); renderNilaiPage(decodeURIComponent('${_encArg(t.mapel)}'), decodeURIComponent('${_encArg(t.kelas)}'))">Input Nilai</button>
