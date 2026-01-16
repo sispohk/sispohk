@@ -2405,7 +2405,7 @@ async function renderKonversiNilai() {
 	                "PK": r.nilai_pk,
 	            }));
             const ws = XLSX.utils.json_to_sheet(rows);
-            const autoCols = _autoFitHeaderCols(ws);
+            const autoCols = _autoFitCols(ws);
             if(autoCols) ws['!cols']=autoCols;
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Konversi Nilai');
@@ -4812,36 +4812,44 @@ function exportExcelMusyrif(kelas) {
         saveExcel(data, `Hafalan_${kelas}.xlsx`, [{wch:15}, {wch:30}]);
     }
     
-    // Auto-fit kolom Excel berdasarkan label header (baris pertama)
-    function _autoFitHeaderCols(ws, opts = {}) {
+    // Auto-fit kolom Excel berdasarkan isi (header + semua baris data).
+    // Mengatur lebar kolom via `ws['!cols']` (property SheetJS untuk metadata kolom).
+    function _autoFitCols(ws, opts = {}) {
         try {
-            const minWch = Number(opts.minWch ?? 10);
-            const maxWch = Number(opts.maxWch ?? 45);
+            const minWch = Number(opts.minWch ?? 8);
+            const maxWch = Number(opts.maxWch ?? 55);
             const pad = Number(opts.pad ?? 2);
             if (!ws || !ws['!ref']) return null;
             const range = XLSX.utils.decode_range(ws['!ref']);
-            const headerRow = range.s.r; // baris pertama
-            const cols = [];
-            for (let c = range.s.c; c <= range.e.c; c++) {
-                const addr = XLSX.utils.encode_cell({ r: headerRow, c });
-                const cell = ws[addr];
-                const label = cell && cell.v != null ? String(cell.v) : '';
-                let wch = label.length + pad;
-                if (!Number.isFinite(wch) || wch < minWch) wch = minWch;
-                if (wch > maxWch) wch = maxWch;
-                cols.push({ wch });
+            const colMax = new Array(range.e.c - range.s.c + 1).fill(minWch);
+
+            for (let r = range.s.r; r <= range.e.r; r++) {
+                for (let c = range.s.c; c <= range.e.c; c++) {
+                    const addr = XLSX.utils.encode_cell({ r, c });
+                    const cell = ws[addr];
+                    if (!cell || cell.v == null) continue;
+                    const raw = String(cell.v);
+                    // jika ada newline, ambil panjang baris terpanjang
+                    const maxLineLen = raw.includes('\n')
+                        ? raw.split(/\r?\n/).reduce((m, x) => Math.max(m, String(x).length), 0)
+                        : raw.length;
+                    const len = Math.max(minWch, maxLineLen + pad);
+                    const idx = c - range.s.c;
+                    if (len > colMax[idx]) colMax[idx] = len;
+                }
             }
-            return cols;
+
+            return colMax.map(w => ({ wch: Math.min(maxWch, Math.max(minWch, w)) }));
         } catch (e) {
-            console.warn('autoFitHeaderCols failed', e);
+            console.warn('autoFitCols failed', e);
             return null;
         }
     }
 
 function saveExcel(json, filename, colWidths = []) {
         const ws = XLSX.utils.json_to_sheet(json);
-        // Auto-fit berdasarkan label header agar judul kolom tidak tertutup
-        const autoCols = _autoFitHeaderCols(ws);
+        // Auto-fit berdasarkan header + semua isi agar judul & data tidak tertutup
+        const autoCols = _autoFitCols(ws);
         if (autoCols) ws['!cols'] = autoCols;
         // Jika ada colWidths custom, override kolom awal yang dispesifikkan (tanpa merusak auto-fit kolom lain)
         if (colWidths.length > 0) {
