@@ -5677,16 +5677,16 @@ async function loadChatInboxInto(holderId){
 
             const chipKelas = kelas ? `<span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 text-xs font-bold" title="${escapeHtml(kelas)}">${escapeHtml(kelas)}</span>` : '';
             const chipMapel = mapel ? `<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold" title="${escapeHtml(mapel)}">${escapeHtml(mapel)}</span>` : '';
-            const chipMsg = msg ? `<span class="px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 text-xs font-bold max-w-[420px] truncate" title="${escapeHtml(msg)}">${escapeHtml(msg)}</span>` : '';
+            // Badge dipindah ke pengirim, isi chat ditampilkan penuh (tanpa truncate)
+            const chipFrom = `<span class="px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 text-xs font-extrabold" title="Pengirim">${escapeHtml(fromName)}</span>`;
 
             return `
             <div class="bg-white rounded-xl border shadow-sm p-3">
-                <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="flex flex-wrap items-start justify-between gap-2">
                     <div class="flex flex-wrap items-center gap-2 min-w-0">
-                        <span class="font-extrabold text-gray-900">${escapeHtml(fromName)}</span>
+                        ${chipFrom}
                         ${chipKelas}
                         ${chipMapel}
-                        ${chipMsg}
                     </div>
                     <div class="flex items-center gap-2 shrink-0">
                         <span class="text-xs text-gray-500">${escapeHtml(time)}</span>
@@ -5694,6 +5694,7 @@ async function loadChatInboxInto(holderId){
                             onclick="openChatCompose(${m.from_guru_id}, '${_encArg(fromName)}', '${_encArg(m.mapel||'')}', '${_encArg(m.kelas||'')}')">Balas</button>
                     </div>
                 </div>
+                ${msg ? `<div class="mt-2 text-sm text-gray-800" style="white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word;">${escapeHtml(msg)}</div>` : ''}
             </div>`;
         }).join('');
 
