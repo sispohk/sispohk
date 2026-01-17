@@ -144,10 +144,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const { tahun_ajar, semester } = getActivePeriode();
             // NOTE: To-do Nilai sekarang memakai ringkasan (summary) dari DB via RPC agar dashboard lebih ringan.
             // Slot akan diisi setelah DOM ter-render.
-	            const _adminTodoHtml = `<div id="admin-todo-slot"></div>`;
-	            const _adminAnalyticsHtml = renderAdminAnalyticsHTML({ tahun_ajar, semester });
-	            // Kartu Chat Guru (inbox pesan dari guru/wali/musyrif ke admin)
-	            const _adminChatHtml = renderChatInboxCardHTML('admin');
+            const _adminTodoHtml = `<div id="admin-todo-slot"></div>`;
+            const _adminAnalyticsHtml = renderAdminAnalyticsHTML({ tahun_ajar, semester });
             users.forEach(g => {
                 const m = parseMapelData(g.mapel);
                 m.forEach(x => { if (x?.nama) mapelSet.add(String(x.nama).toUpperCase().trim()); });
@@ -192,11 +190,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <div class="text-3xl font-extrabold text-gray-800">${mapelSet.size}</div>
                     </div>
                 </div>
-	${_adminAnalyticsHtml}
+${_adminAnalyticsHtml}
 
-	${_adminChatHtml}
-
-	${_adminTodoHtml}
+${_adminTodoHtml}
 
 
 
@@ -2202,14 +2198,6 @@ async function renderKonversiNilai() {
             // tail-boost: rerata tugas sudah aman, tapi masih ada nilai tugas < ideal
             const applyTailK = (validTugas.length > 0) && (denomK > 0) && (meanTugas >= meanIdeal) && (minTugas > 0) && (minTugas < meanIdeal);
 
-            const tailCols = [];
-            if (applyTailPH) tailCols.push("Harian/Sumatif");
-            if (applyTailPAS) tailCols.push("SAS/PAS/PAT");
-            if (applyTailK) tailCols.push("PK");
-            const tailBadgeHtml = tailCols.length
-              ? ("<span class=\"px-3 py-1 rounded-full bg-pink-50 text-pink-700 border border-pink-100\" title=\"Ada nilai di bawah ideal; hanya ekor bawah yang dikatrol.\">🐾 Tail-boost aktif: <b>" + tailCols.join(", ") + "</b></span>")
-              : "";
-
 	            data.forEach(d => {
 	                // Harian/Sumatif (dari rerata UH)
 	                {
@@ -2289,7 +2277,6 @@ async function renderKonversiNilai() {
                             Periode: <b>${tahun_ajar}</b> • Semester: <b>${semester}</b> • Jenjang: <b>${jenjang}</b>
                         </div>
                         <div class="mt-2 flex flex-wrap gap-2 text-xs">
-                            ${tailBadgeHtml}
 	                            <span class="px-3 py-1 rounded-full bg-gray-100">UH (Asli): min <b>${minUH.toFixed(2)}</b> • max <b>${maxUH.toFixed(2)}</b> • mean <b>${meanUH.toFixed(2)}</b></span>
 	                            <span class="px-3 py-1 rounded-full bg-amber-50">PAS/PAT (Asli): min <b>${minPAS.toFixed(2)}</b> • max <b>${maxPAS.toFixed(2)}</b> • mean <b>${meanPAS.toFixed(2)}</b></span>
 	                            <span class="px-3 py-1 rounded-full bg-emerald-50">Tugas (Asli): min <b>${minTugas.toFixed(2)}</b> • max <b>${maxTugas.toFixed(2)}</b> • mean <b>${meanTugas.toFixed(2)}</b></span>
@@ -5246,7 +5233,6 @@ function saveExcel(json, filename, colWidths = []) {
                 <ul class="list-disc pl-5 space-y-1">
                     <li>Halaman Konversi menampilkan <b>Nilai UH</b>, <b>Harian/Sumatif</b>, <b>SAS/PAS/PAT</b>, dan <b>PK</b>.</li>
                     <li>Badge header 📋 bisa diklik untuk <b>salin 1 kolom</b> (siap tempel ke Excel/rekap lain).</li>
-                    <li>Jika muncul badge <b>🐾 Tail-boost aktif</b>, artinya ada nilai di bawah ideal; sistem hanya mengatrol <i>ekor bawah</i> (nilai yang &lt; ideal) agar lebih adil, tanpa mengubah nilai yang sudah bagus.</li>
                     <li>Tombol <b>RDM</b> (di sebelah XLSX) membuka portal RDM di tab baru.</li>
                     <li><b>PK</b> adalah <b>konversi dari Nilai Tugas</b>. Jika angka PK terlihat sama persis dengan Nilai Tugas, itu berarti konversi tidak diterapkan (misal: variasi nilai tugas 1 kelas nol/seragam, atau rata-rata tugas sudah ≥ target ideal).</li>
                     <li>Konversi hanya membantu analisis; <b>nilai rapor</b> tetap dihitung dari bobot resmi.</li>
